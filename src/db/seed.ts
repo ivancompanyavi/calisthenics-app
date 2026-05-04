@@ -239,45 +239,48 @@ const SEED_WORKOUTS: SeedWorkout[] = [
   },
 ]
 
-export async function seedDatabase() {
-  const movementCount = await db.movements.count()
-  if (movementCount > 0) return
-
+async function ensureMovementsExist(): Promise<Map<string, string>> {
   const movementMap = new Map<string, string>()
-  const movements: Movement[] = SEED_MOVEMENTS.map((m) => {
-    const id = generateId()
-    movementMap.set(m.name, id)
-    return {
-      id,
-      name: m.name,
-      description: m.description,
-      createdAt: Date.now(),
-    }
-  })
+  const existing = await db.movements.toArray()
+  for (const m of existing) {
+    movementMap.set(m.name, m.id)
+  }
 
+  const toAdd: Movement[] = []
+  for (const m of SEED_MOVEMENTS) {
+    if (!movementMap.has(m.name)) {
+      const id = generateId()
+      movementMap.set(m.name, id)
+      toAdd.push({ id, name: m.name, description: m.description, createdAt: Date.now() })
+    }
+  }
+
+  if (toAdd.length > 0) {
+    await db.movements.bulkAdd(toAdd)
+  }
+  return movementMap
+}
+
+async function ensureProgressionsExist(movementMap: Map<string, string>): Promise<Map<string, string>> {
   const progressionMap = new Map<string, string>()
-  const progressions: Progression[] = []
-  const levels: ProgressionLevel[] = []
+  const existing = await db.progressions.toArray()
+  for (const p of existing) {
+    progressionMap.set(p.name, p.id)
+  }
+
+  const newProgressions: Progression[] = []
+  const newLevels: ProgressionLevel[] = []
 
   for (const sp of SEED_PROGRESSIONS) {
+    if (progressionMap.has(sp.name)) continue
     const progId = generateId()
     progressionMap.set(sp.name, progId)
-    progressions.push({
-      id: progId,
-      name: sp.name,
-      currentLevel: 0,
-      createdAt: Date.now(),
-    })
+    newProgressions.push({ id: progId, name: sp.name, currentLevel: 0, createdAt: Date.now() })
 
     for (let i = 0; i < sp.movements.length; i++) {
       const movementId = movementMap.get(sp.movements[i])
       if (!movementId) continue
-      levels.push({
-        id: generateId(),
-        progressionId: progId,
-        movementId,
-        order: i,
-      })
+      newLevels.push({ id: generateId(), progressionId: progId, movementId, order: i })
     }
   }
 
@@ -285,35 +288,37 @@ export async function seedDatabase() {
   for (const sw of SEED_WORKOUTS) {
     for (const block of sw.blocks) {
       for (const entry of block.entries) {
-        if (!progressionMap.has(entry.progression)) {
-          const movementId = movementMap.get(entry.progression)
-          if (!movementId) continue
-          const progId = generateId()
-          progressionMap.set(entry.progression, progId)
-          progressions.push({
-            id: progId,
-            name: entry.progression,
-            currentLevel: 0,
-            createdAt: Date.now(),
-          })
-          levels.push({
-            id: generateId(),
-            progressionId: progId,
-            movementId,
-            order: 0,
-          })
-        }
+        if (progressionMap.has(entry.progression)) continue
+        const movementId = movementMap.get(entry.progression)
+        if (!movementId) continue
+        const progId = generateId()
+        progressionMap.set(entry.progression, progId)
+        newProgressions.push({ id: progId, name: entry.progression, currentLevel: 0, createdAt: Date.now() })
+        newLevels.push({ id: generateId(), progressionId: progId, movementId, order: 0 })
       }
     }
   }
 
-  const workouts: Workout[] = []
-  const workoutBlocks: WorkoutBlock[] = []
-  const blockEntries: BlockEntry[] = []
+  if (newProgressions.length > 0) {
+    await db.progressions.bulkAdd(newProgressions)
+    await db.progressionLevels.bulkAdd(newLevels)
+  }
+  return progressionMap
+}
+
+async function ensureWorkoutsExist(progressionMap: Map<string, string>) {
+  const existingWorkouts = await db.workouts.toArray()
+  const existingNames = new Set(existingWorkouts.map((w) => w.name))
+
+  const newWorkouts: Workout[] = []
+  const newBlocks: WorkoutBlock[] = []
+  const newEntries: BlockEntry[] = []
 
   for (const sw of SEED_WORKOUTS) {
+    if (existingNames.has(sw.name)) continue
+
     const workoutId = generateId()
-    workouts.push({
+    newWorkouts.push({
       id: workoutId,
       name: sw.name,
       restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds,
@@ -323,7 +328,7 @@ export async function seedDatabase() {
     for (let i = 0; i < sw.blocks.length; i++) {
       const blockDef = sw.blocks[i]
       const blockId = generateId()
-      workoutBlocks.push({
+      newBlocks.push({
         id: blockId,
         workoutId,
         type: blockDef.type,
@@ -336,7 +341,7 @@ export async function seedDatabase() {
         const entryDef = blockDef.entries[j]
         const progressionId = progressionMap.get(entryDef.progression)
         if (!progressionId) continue
-        blockEntries.push({
+        newEntries.push({
           id: generateId(),
           blockId,
           progressionId,
@@ -350,12 +355,17 @@ export async function seedDatabase() {
     }
   }
 
-  await db.transaction('rw', [db.movements, db.progressions, db.progressionLevels, db.workouts, db.workoutBlocks, db.blockEntries], async () => {
-    await db.movements.bulkAdd(movements)
-    await db.progressions.bulkAdd(progressions)
-    await db.progressionLevels.bulkAdd(levels)
-    await db.workouts.bulkAdd(workouts)
-    await db.workoutBlocks.bulkAdd(workoutBlocks)
-    await db.blockEntries.bulkAdd(blockEntries)
-  })
+  if (newWorkouts.length > 0) {
+    await db.transaction('rw', [db.workouts, db.workoutBlocks, db.blockEntries], async () => {
+      await db.workouts.bulkAdd(newWorkouts)
+      await db.workoutBlocks.bulkAdd(newBlocks)
+      await db.blockEntries.bulkAdd(newEntries)
+    })
+  }
+}
+
+export async function seedDatabase() {
+  const movementMap = await ensureMovementsExist()
+  const progressionMap = await ensureProgressionsExist(movementMap)
+  await ensureWorkoutsExist(progressionMap)
 }
