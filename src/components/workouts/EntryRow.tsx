@@ -1,0 +1,81 @@
+import type { DraftEntry } from '@/pages/WorkoutBuilder'
+import { useProgression, useProgressionLevels } from '@/hooks/useProgressions'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { X } from 'lucide-react'
+
+interface EntryRowProps {
+  entry: DraftEntry
+  onUpdate: (updates: Partial<DraftEntry>) => void
+  onRemove: () => void
+}
+
+export function EntryRow({ entry, onUpdate, onRemove }: EntryRowProps) {
+  const { data: progression } = useProgression(entry.progressionId)
+  const { data: levels } = useProgressionLevels(entry.progressionId)
+
+  const currentMovement = levels?.[progression?.currentLevel ?? 0]?.movement
+
+  return (
+    <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">
+          {currentMovement?.name ?? progression?.name ?? 'Loading...'}
+        </p>
+        {progression && levels && levels.length > 1 && (
+          <p className="text-xs text-muted-foreground">
+            Lvl {(progression.currentLevel ?? 0) + 1}/{levels.length}
+          </p>
+        )}
+      </div>
+
+      <select
+        value={entry.mode}
+        onChange={(e) => {
+          const mode = e.target.value as 'reps' | 'time'
+          onUpdate({
+            mode,
+            targetReps: mode === 'reps' ? 10 : undefined,
+            targetSeconds: mode === 'time' ? 30 : undefined,
+          })
+        }}
+        className="h-9 rounded-md border border-input bg-transparent px-2 text-xs"
+      >
+        <option value="reps">Reps</option>
+        <option value="time">Time</option>
+      </select>
+
+      {entry.mode === 'reps' ? (
+        <Input
+          type="number"
+          min={1}
+          value={entry.targetReps ?? 10}
+          onChange={(e) => onUpdate({ targetReps: Math.max(1, parseInt(e.target.value) || 1) })}
+          className="h-9 w-16 text-center"
+        />
+      ) : (
+        <Input
+          type="number"
+          min={5}
+          step={5}
+          value={entry.targetSeconds ?? 30}
+          onChange={(e) => onUpdate({ targetSeconds: Math.max(5, parseInt(e.target.value) || 5) })}
+          className="h-9 w-16 text-center"
+        />
+      )}
+
+      <span className="text-xs text-muted-foreground w-6">
+        {entry.mode === 'reps' ? 'rep' : 'sec'}
+      </span>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7 flex-shrink-0"
+        onClick={onRemove}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+}
