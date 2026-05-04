@@ -23,6 +23,11 @@
     "tailwindcss": "^4.2.4",
     "uuid": "^14.0.0"
   },
+  "overrides": {
+    "vite-plugin-pwa": {
+      "vite": "$vite"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.2",
