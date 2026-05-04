@@ -11,9 +11,10 @@ import { generateId } from '@/lib/utils'
 export interface DraftEntry {
   id: string
   progressionId: string
-  mode: 'reps' | 'time'
+  mode: 'reps' | 'time' | 'max'
   targetReps?: number
   targetSeconds?: number
+  perSide?: boolean
 }
 
 export interface DraftBlock {
@@ -37,12 +38,14 @@ export function WorkoutBuilder() {
   const saveWorkout = useSaveWorkout()
 
   const [name, setName] = useState('')
+  const [restBetweenBlocks, setRestBetweenBlocks] = useState(0)
   const [blocks, setBlocks] = useState<DraftBlock[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     if (isEditing && existingWorkout && existingBlocks && existingEntries && !loaded) {
       setName(existingWorkout.name)
+      setRestBetweenBlocks(existingWorkout.restBetweenBlocksSeconds ?? 0)
       setBlocks(
         existingBlocks.map((block) => ({
           id: block.id,
@@ -57,6 +60,7 @@ export function WorkoutBuilder() {
               mode: e.mode,
               targetReps: e.targetReps,
               targetSeconds: e.targetSeconds,
+              perSide: e.perSide,
             })),
         }))
       )
@@ -103,6 +107,7 @@ export function WorkoutBuilder() {
     const data: SaveWorkoutData & { id?: string } = {
       id: isEditing ? id : undefined,
       name: name.trim(),
+      restBetweenBlocksSeconds: restBetweenBlocks > 0 ? restBetweenBlocks : undefined,
       blocks: blocks.map((b) => ({
         type: b.type,
         rounds: b.rounds,
@@ -112,6 +117,7 @@ export function WorkoutBuilder() {
           mode: e.mode,
           targetReps: e.targetReps,
           targetSeconds: e.targetSeconds,
+          perSide: e.perSide || undefined,
         })),
       })),
     }
@@ -129,13 +135,26 @@ export function WorkoutBuilder() {
       </PageHeader>
 
       <div className="px-4 space-y-4 pb-8">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Workout Name</label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Full Body A"
-          />
+        <div className="flex gap-3">
+          <div className="flex-1 space-y-2">
+            <label className="text-sm font-medium">Workout Name</label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Full Body A"
+            />
+          </div>
+          <div className="w-28 space-y-2">
+            <label className="text-sm font-medium">Block Rest</label>
+            <Input
+              type="number"
+              min={0}
+              step={15}
+              value={restBetweenBlocks}
+              onChange={(e) => setRestBetweenBlocks(Math.max(0, parseInt(e.target.value) || 0))}
+              placeholder="sec"
+            />
+          </div>
         </div>
 
         <div className="space-y-3">

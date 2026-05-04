@@ -100,14 +100,14 @@ export function HistoryDetail() {
                     {isReps ? (
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">
-                          {set.actualReps}/{set.targetReps} reps
+                          {set.actualReps}/{set.targetReps} reps{set.perSide ? ' /side' : ''}
                         </span>
                         {hitTarget && <Check className="h-4 w-4 text-primary" />}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">
-                          {set.actualSeconds}/{set.targetSeconds}s
+                          {set.actualSeconds}s{set.targetSeconds != null ? `/${set.targetSeconds}s` : ''}
                         </span>
                         {hitTarget && <Check className="h-4 w-4 text-primary" />}
                       </div>

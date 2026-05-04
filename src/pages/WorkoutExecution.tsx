@@ -64,6 +64,7 @@ export function WorkoutExecution() {
               mode: entry.mode,
               targetReps: entry.targetReps,
               targetSeconds: entry.targetSeconds,
+              perSide: entry.perSide,
             }
           })
         )
@@ -85,6 +86,7 @@ export function WorkoutExecution() {
         workoutId: workout.id,
         workoutName: workout.name,
         blocks: resolvedBlocks,
+        restBetweenBlocksSeconds: workout.restBetweenBlocksSeconds ?? 0,
         startedAt: resumeData?.startedAt ?? Date.now(),
         currentBlockIndex: resumeData?.currentBlockIndex ?? 0,
         currentRound: resumeData?.currentRound ?? 0,
@@ -150,6 +152,7 @@ export function WorkoutExecution() {
           <ExerciseDisplay
             entry={currentEntry}
             timeRemaining={state.exerciseTimeRemaining}
+            timeElapsed={state.exerciseTimeElapsed}
             round={state.currentRound + 1}
             totalRounds={currentBlock?.rounds ?? 1}
             onDone={() => dispatch({ type: 'DONE_EXERCISE' })}

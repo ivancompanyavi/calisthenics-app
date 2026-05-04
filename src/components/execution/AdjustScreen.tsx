@@ -12,11 +12,13 @@ interface AdjustScreenProps {
 }
 
 export function AdjustScreen({ entry, adjustReps, adjustSeconds, onSetReps, onSetSeconds, onConfirm }: AdjustScreenProps) {
+  const sideLabel = entry.perSide ? ' /side' : ''
+
   if (entry.mode === 'reps') {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
         <h2 className="text-xl font-semibold text-muted-foreground">{entry.movementName}</h2>
-        <p className="text-sm text-muted-foreground">How many did you do?</p>
+        <p className="text-sm text-muted-foreground">How many did you do?{sideLabel && ' (per side)'}</p>
 
         <div className="flex items-center gap-6">
           <Button
@@ -43,7 +45,7 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, onSetReps, onSe
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Target: {entry.targetReps} reps
+          Target: {entry.targetReps} reps{sideLabel}
         </p>
 
         <Button size="lg" className="text-lg px-12 mt-4" onClick={onConfirm}>
@@ -83,9 +85,11 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, onSetReps, onSe
         </Button>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Target: {entry.targetSeconds}s
-      </p>
+      {entry.mode === 'time' && (
+        <p className="text-xs text-muted-foreground">
+          Target: {entry.targetSeconds}s
+        </p>
+      )}
 
       <Button size="lg" className="text-lg px-12 mt-4" onClick={onConfirm}>
         <Check className="h-5 w-5 mr-2" />

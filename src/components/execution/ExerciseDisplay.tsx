@@ -7,12 +7,15 @@ import { Check } from 'lucide-react'
 interface ExerciseDisplayProps {
   entry: ResolvedEntry
   timeRemaining: number
+  timeElapsed: number
   round: number
   totalRounds: number
   onDone: () => void
 }
 
-export function ExerciseDisplay({ entry, timeRemaining, round, totalRounds, onDone }: ExerciseDisplayProps) {
+export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone }: ExerciseDisplayProps) {
+  const sideLabel = entry.perSide ? ' /side' : ''
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
       <MovementPhoto
@@ -31,7 +34,14 @@ export function ExerciseDisplay({ entry, timeRemaining, round, totalRounds, onDo
         )}
       </div>
 
-      {entry.mode === 'time' ? (
+      {entry.mode === 'max' ? (
+        <div className="text-center">
+          <p className="text-6xl font-bold font-mono tabular-nums text-primary">
+            {formatTime(timeElapsed)}
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">Max hold</p>
+        </div>
+      ) : entry.mode === 'time' ? (
         <div className="text-center">
           <p className="text-6xl font-bold font-mono tabular-nums text-primary">
             {formatTime(timeRemaining)}
@@ -45,11 +55,11 @@ export function ExerciseDisplay({ entry, timeRemaining, round, totalRounds, onDo
           <p className="text-6xl font-bold font-mono tabular-nums">
             {entry.targetReps}
           </p>
-          <p className="text-sm text-muted-foreground mt-2">reps</p>
+          <p className="text-sm text-muted-foreground mt-2">reps{sideLabel}</p>
         </div>
       )}
 
-      {entry.mode === 'reps' && (
+      {(entry.mode === 'reps' || entry.mode === 'max') && (
         <Button size="lg" className="text-lg px-12 mt-4" onClick={onDone}>
           <Check className="h-5 w-5 mr-2" />
           Done

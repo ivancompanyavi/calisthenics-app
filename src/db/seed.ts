@@ -1,6 +1,6 @@
 import { db } from './index'
 import { generateId } from '@/lib/utils'
-import type { Movement, Progression, ProgressionLevel } from '@/models/types'
+import type { Movement, Progression, ProgressionLevel, Workout, WorkoutBlock, BlockEntry, SetMode } from '@/models/types'
 
 interface SeedMovement {
   name: string
@@ -10,6 +10,27 @@ interface SeedMovement {
 interface SeedProgression {
   name: string
   movements: string[]
+}
+
+interface SeedEntryDef {
+  progression: string
+  mode: SetMode
+  targetReps?: number
+  targetSeconds?: number
+  perSide?: boolean
+}
+
+interface SeedBlockDef {
+  type: 'set' | 'superset'
+  rounds: number
+  restSeconds: number
+  entries: SeedEntryDef[]
+}
+
+interface SeedWorkout {
+  name: string
+  restBetweenBlocksSeconds?: number
+  blocks: SeedBlockDef[]
 }
 
 const SEED_MOVEMENTS: SeedMovement[] = [
@@ -73,6 +94,11 @@ const SEED_MOVEMENTS: SeedMovement[] = [
   { name: 'Advanced Tuck Planche', description: 'Planche with hips higher and knees slightly extended.' },
   { name: 'Straddle Planche', description: 'Planche with legs spread apart.' },
   { name: 'Full Planche', description: 'Horizontal hold with body fully extended.' },
+  { name: 'Planche Leans', description: 'Lean forward in a planche position on the floor, shifting weight onto hands.' },
+  { name: 'Planche Lean Hold', description: 'Hold the forward-leaning planche position isometrically.' },
+  { name: 'Pseudo Push-Up Hold', description: 'Hold the bottom or top position of a pseudo planche push-up.' },
+  { name: 'Knee Archer Push-Ups', description: 'Archer push-ups performed from the knees, shifting weight to one arm per rep.' },
+  { name: 'Slow Motion Push-Ups', description: 'Push-ups performed at an extremely slow tempo for time under tension.' },
   { name: 'Skin the Cat', description: 'Hang and rotate body through arms on rings or bar.' },
   { name: 'Back Lever', description: 'Hang inverted with body horizontal behind the bar.' },
   { name: 'Front Lever Tuck Hold', description: 'Inverted horizontal hold with knees tucked.' },
@@ -119,6 +145,100 @@ const SEED_PROGRESSIONS: SeedProgression[] = [
   },
 ]
 
+const SEED_WORKOUTS: SeedWorkout[] = [
+  {
+    name: 'Chest (Planche)',
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      {
+        type: 'superset',
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: 'Planche Progression', mode: 'max' },
+          { progression: 'Planche Leans', mode: 'reps', targetReps: 10 },
+          { progression: 'Planche Lean Hold', mode: 'max' },
+        ],
+      },
+      {
+        type: 'superset',
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: 'Pseudo Push-Up Hold', mode: 'time', targetSeconds: 15 },
+          { progression: 'Push-Up Progression', mode: 'reps', targetReps: 8 },
+          { progression: 'Knee Archer Push-Ups', mode: 'reps', targetReps: 10, perSide: true },
+          { progression: 'Slow Motion Push-Ups', mode: 'reps', targetReps: 1 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Full Body A',
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      {
+        type: 'superset',
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: 'Push-Up Progression', mode: 'reps', targetReps: 10 },
+          { progression: 'Pull-Up Progression', mode: 'reps', targetReps: 5 },
+        ],
+      },
+      {
+        type: 'superset',
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: 'Dip Progression', mode: 'reps', targetReps: 8 },
+          { progression: 'Squat Progression', mode: 'reps', targetReps: 10 },
+        ],
+      },
+      {
+        type: 'superset',
+        rounds: 3,
+        restSeconds: 45,
+        entries: [
+          { progression: 'L-Sit Progression', mode: 'time', targetSeconds: 20 },
+          { progression: 'Leg Raise Progression', mode: 'reps', targetReps: 10 },
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Pull Day',
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      {
+        type: 'set',
+        rounds: 4,
+        restSeconds: 90,
+        entries: [
+          { progression: 'Pull-Up Progression', mode: 'reps', targetReps: 6 },
+        ],
+      },
+      {
+        type: 'superset',
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: 'Front Lever Progression', mode: 'max' },
+          { progression: 'Leg Raise Progression', mode: 'reps', targetReps: 12 },
+        ],
+      },
+      {
+        type: 'set',
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: 'L-Sit Progression', mode: 'max' },
+        ],
+      },
+    ],
+  },
+]
+
 export async function seedDatabase() {
   const movementCount = await db.movements.count()
   if (movementCount > 0) return
@@ -135,11 +255,13 @@ export async function seedDatabase() {
     }
   })
 
+  const progressionMap = new Map<string, string>()
   const progressions: Progression[] = []
   const levels: ProgressionLevel[] = []
 
   for (const sp of SEED_PROGRESSIONS) {
     const progId = generateId()
+    progressionMap.set(sp.name, progId)
     progressions.push({
       id: progId,
       name: sp.name,
@@ -159,9 +281,81 @@ export async function seedDatabase() {
     }
   }
 
-  await db.transaction('rw', [db.movements, db.progressions, db.progressionLevels], async () => {
+  // Auto-wrap standalone movements referenced by workouts as single-level progressions
+  for (const sw of SEED_WORKOUTS) {
+    for (const block of sw.blocks) {
+      for (const entry of block.entries) {
+        if (!progressionMap.has(entry.progression)) {
+          const movementId = movementMap.get(entry.progression)
+          if (!movementId) continue
+          const progId = generateId()
+          progressionMap.set(entry.progression, progId)
+          progressions.push({
+            id: progId,
+            name: entry.progression,
+            currentLevel: 0,
+            createdAt: Date.now(),
+          })
+          levels.push({
+            id: generateId(),
+            progressionId: progId,
+            movementId,
+            order: 0,
+          })
+        }
+      }
+    }
+  }
+
+  const workouts: Workout[] = []
+  const workoutBlocks: WorkoutBlock[] = []
+  const blockEntries: BlockEntry[] = []
+
+  for (const sw of SEED_WORKOUTS) {
+    const workoutId = generateId()
+    workouts.push({
+      id: workoutId,
+      name: sw.name,
+      restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds,
+      createdAt: Date.now(),
+    })
+
+    for (let i = 0; i < sw.blocks.length; i++) {
+      const blockDef = sw.blocks[i]
+      const blockId = generateId()
+      workoutBlocks.push({
+        id: blockId,
+        workoutId,
+        type: blockDef.type,
+        order: i,
+        rounds: blockDef.rounds,
+        restSeconds: blockDef.restSeconds,
+      })
+
+      for (let j = 0; j < blockDef.entries.length; j++) {
+        const entryDef = blockDef.entries[j]
+        const progressionId = progressionMap.get(entryDef.progression)
+        if (!progressionId) continue
+        blockEntries.push({
+          id: generateId(),
+          blockId,
+          progressionId,
+          mode: entryDef.mode,
+          targetReps: entryDef.targetReps,
+          targetSeconds: entryDef.targetSeconds,
+          perSide: entryDef.perSide,
+          order: j,
+        })
+      }
+    }
+  }
+
+  await db.transaction('rw', [db.movements, db.progressions, db.progressionLevels, db.workouts, db.workoutBlocks, db.blockEntries], async () => {
     await db.movements.bulkAdd(movements)
     await db.progressions.bulkAdd(progressions)
     await db.progressionLevels.bulkAdd(levels)
+    await db.workouts.bulkAdd(workouts)
+    await db.workoutBlocks.bulkAdd(workoutBlocks)
+    await db.blockEntries.bulkAdd(blockEntries)
   })
 }

@@ -21,11 +21,12 @@ export interface ProgressionLevel {
 }
 
 export type BlockType = 'set' | 'superset'
-export type SetMode = 'reps' | 'time'
+export type SetMode = 'reps' | 'time' | 'max'
 
 export interface Workout {
   id: string
   name: string
+  restBetweenBlocksSeconds?: number
   createdAt: number
 }
 
@@ -45,6 +46,7 @@ export interface BlockEntry {
   mode: SetMode
   targetReps?: number
   targetSeconds?: number
+  perSide?: boolean
   order: number
 }
 
@@ -65,6 +67,7 @@ export interface SetLog {
   actualReps?: number
   targetSeconds?: number
   actualSeconds?: number
+  perSide?: boolean
   round: number
   order: number
 }

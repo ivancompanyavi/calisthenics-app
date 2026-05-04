@@ -53,15 +53,17 @@ export function useAllBlockEntries(blockIds: string[]) {
 
 export interface SaveWorkoutData {
   name: string
+  restBetweenBlocksSeconds?: number
   blocks: Array<{
     type: 'set' | 'superset'
     rounds: number
     restSeconds: number
     entries: Array<{
       progressionId: string
-      mode: 'reps' | 'time'
+      mode: 'reps' | 'time' | 'max'
       targetReps?: number
       targetSeconds?: number
+      perSide?: boolean
     }>
   }>
 }
@@ -74,7 +76,10 @@ export function useSaveWorkout() {
 
       await db.transaction('rw', [db.workouts, db.workoutBlocks, db.blockEntries], async () => {
         if (data.id) {
-          await db.workouts.update(workoutId, { name: data.name })
+          await db.workouts.update(workoutId, {
+            name: data.name,
+            restBetweenBlocksSeconds: data.restBetweenBlocksSeconds,
+          })
           const existingBlocks = await db.workoutBlocks.where('workoutId').equals(workoutId).toArray()
           const blockIds = existingBlocks.map((b) => b.id)
           if (blockIds.length > 0) {
@@ -85,6 +90,7 @@ export function useSaveWorkout() {
           const workout: Workout = {
             id: workoutId,
             name: data.name,
+            restBetweenBlocksSeconds: data.restBetweenBlocksSeconds,
             createdAt: Date.now(),
           }
           await db.workouts.add(workout)
@@ -111,6 +117,7 @@ export function useSaveWorkout() {
               mode: entryData.mode,
               targetReps: entryData.targetReps,
               targetSeconds: entryData.targetSeconds,
+              perSide: entryData.perSide,
               order: j,
             }
             await db.blockEntries.add(entry)

@@ -32,7 +32,7 @@ export function EntryRow({ entry, onUpdate, onRemove }: EntryRowProps) {
       <select
         value={entry.mode}
         onChange={(e) => {
-          const mode = e.target.value as 'reps' | 'time'
+          const mode = e.target.value as 'reps' | 'time' | 'max'
           onUpdate({
             mode,
             targetReps: mode === 'reps' ? 10 : undefined,
@@ -43,9 +43,10 @@ export function EntryRow({ entry, onUpdate, onRemove }: EntryRowProps) {
       >
         <option value="reps">Reps</option>
         <option value="time">Time</option>
+        <option value="max">Max Hold</option>
       </select>
 
-      {entry.mode === 'reps' ? (
+      {entry.mode === 'reps' && (
         <Input
           type="number"
           min={1}
@@ -53,7 +54,8 @@ export function EntryRow({ entry, onUpdate, onRemove }: EntryRowProps) {
           onChange={(e) => onUpdate({ targetReps: Math.max(1, parseInt(e.target.value) || 1) })}
           className="h-9 w-16 text-center"
         />
-      ) : (
+      )}
+      {entry.mode === 'time' && (
         <Input
           type="number"
           min={5}
@@ -65,8 +67,22 @@ export function EntryRow({ entry, onUpdate, onRemove }: EntryRowProps) {
       )}
 
       <span className="text-xs text-muted-foreground w-6">
-        {entry.mode === 'reps' ? 'rep' : 'sec'}
+        {entry.mode === 'reps' ? 'rep' : entry.mode === 'time' ? 'sec' : ''}
       </span>
+
+      {entry.mode === 'reps' && (
+        <button
+          type="button"
+          onClick={() => onUpdate({ perSide: !entry.perSide })}
+          className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+            entry.perSide
+              ? 'bg-primary/20 border-primary text-primary'
+              : 'border-input text-muted-foreground'
+          }`}
+        >
+          /side
+        </button>
+      )}
 
       <Button
         variant="ghost"

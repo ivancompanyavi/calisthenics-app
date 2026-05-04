@@ -10,9 +10,10 @@ export interface ResolvedEntry {
   movementId: string
   movementName: string
   movementPhoto?: Blob
-  mode: 'reps' | 'time'
+  mode: 'reps' | 'time' | 'max'
   targetReps?: number
   targetSeconds?: number
+  perSide?: boolean
 }
 
 export interface ResolvedBlock {
@@ -27,6 +28,7 @@ export interface ExecutionState {
   workoutId: string
   workoutName: string
   blocks: ResolvedBlock[]
+  restBetweenBlocksSeconds: number
   startedAt: number
   currentBlockIndex: number
   currentRound: number
@@ -36,10 +38,21 @@ export interface ExecutionState {
   adjustSeconds: number
   restRemaining: number
   exerciseTimeRemaining: number
+  exerciseTimeElapsed: number
 }
 
 type Action =
-  | { type: 'INIT'; payload: Omit<ExecutionState, 'phase' | 'adjustReps' | 'adjustSeconds' | 'restRemaining' | 'exerciseTimeRemaining'> }
+  | { type: 'INIT'; payload: {
+      workoutId: string
+      workoutName: string
+      blocks: ResolvedBlock[]
+      restBetweenBlocksSeconds?: number
+      startedAt: number
+      currentBlockIndex: number
+      currentRound: number
+      currentEntryIndex: number
+      completedSets: SetLog[]
+    } }
   | { type: 'START' }
   | { type: 'TICK_EXERCISE' }
   | { type: 'DONE_EXERCISE' }
@@ -91,11 +104,13 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
     case 'INIT':
       return {
         ...action.payload,
+        restBetweenBlocksSeconds: action.payload.restBetweenBlocksSeconds ?? 0,
         phase: 'ready',
         adjustReps: 0,
         adjustSeconds: 0,
         restRemaining: 0,
         exerciseTimeRemaining: 0,
+        exerciseTimeElapsed: 0,
       }
 
     case 'START': {
@@ -104,12 +119,16 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         ...state,
         phase: 'exercise',
         exerciseTimeRemaining: entry?.mode === 'time' ? (entry.targetSeconds ?? 30) : 0,
+        exerciseTimeElapsed: 0,
       }
     }
 
     case 'TICK_EXERCISE': {
+      const entry = getCurrentEntry(state)
+      if (entry?.mode === 'max') {
+        return { ...state, exerciseTimeElapsed: state.exerciseTimeElapsed + 1 }
+      }
       if (state.exerciseTimeRemaining <= 1) {
-        const entry = getCurrentEntry(state)
         return {
           ...state,
           phase: 'adjust',
@@ -127,7 +146,7 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         ...state,
         phase: 'adjust',
         adjustReps: entry?.targetReps ?? 0,
-        adjustSeconds: entry?.targetSeconds ?? 0,
+        adjustSeconds: entry?.mode === 'max' ? state.exerciseTimeElapsed : (entry?.targetSeconds ?? 0),
       }
     }
 
@@ -149,7 +168,8 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         targetReps: entry.targetReps,
         actualReps: entry.mode === 'reps' ? state.adjustReps : undefined,
         targetSeconds: entry.targetSeconds,
-        actualSeconds: entry.mode === 'time' ? state.adjustSeconds : undefined,
+        actualSeconds: (entry.mode === 'time' || entry.mode === 'max') ? state.adjustSeconds : undefined,
+        perSide: entry.perSide,
         round: state.currentRound,
         order: state.completedSets.length,
       }
@@ -163,12 +183,17 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
           return { ...state, phase: 'complete', completedSets: newCompletedSets }
         }
 
-        if (block.restSeconds > 0) {
+        const isBlockTransition = next.blockIndex !== state.currentBlockIndex
+        const restDuration = isBlockTransition && state.restBetweenBlocksSeconds > 0
+          ? state.restBetweenBlocksSeconds
+          : block.restSeconds
+
+        if (restDuration > 0) {
           return {
             ...state,
             phase: 'resting',
             completedSets: newCompletedSets,
-            restRemaining: block.restSeconds,
+            restRemaining: restDuration,
             currentBlockIndex: next.blockIndex,
             currentRound: next.round,
             currentEntryIndex: next.entryIndex,
@@ -184,6 +209,7 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
           currentRound: next.round,
           currentEntryIndex: next.entryIndex,
           exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
         }
       }
 
@@ -195,6 +221,7 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         completedSets: newCompletedSets,
         currentEntryIndex: nextEntryIndex,
         exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
+        exerciseTimeElapsed: 0,
       }
     }
 
@@ -206,6 +233,7 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
           phase: 'exercise',
           restRemaining: 0,
           exerciseTimeRemaining: entry?.mode === 'time' ? (entry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
         }
       }
       return { ...state, restRemaining: state.restRemaining - 1 }
@@ -218,6 +246,7 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         phase: 'exercise',
         restRemaining: 0,
         exerciseTimeRemaining: entry?.mode === 'time' ? (entry.targetSeconds ?? 30) : 0,
+        exerciseTimeElapsed: 0,
       }
     }
 
@@ -231,6 +260,7 @@ const initialState: ExecutionState = {
   workoutId: '',
   workoutName: '',
   blocks: [],
+  restBetweenBlocksSeconds: 0,
   startedAt: 0,
   currentBlockIndex: 0,
   currentRound: 0,
@@ -240,6 +270,7 @@ const initialState: ExecutionState = {
   adjustSeconds: 0,
   restRemaining: 0,
   exerciseTimeRemaining: 0,
+  exerciseTimeElapsed: 0,
 }
 
 export function useWorkoutExecution() {
@@ -252,7 +283,9 @@ export function useWorkoutExecution() {
       timerRef.current = null
     }
 
-    if (state.phase === 'exercise' && state.exerciseTimeRemaining > 0) {
+    const entry = getCurrentEntry(state)
+    const needsTick = state.phase === 'exercise' && (state.exerciseTimeRemaining > 0 || entry?.mode === 'max')
+    if (needsTick) {
       timerRef.current = setInterval(() => {
         dispatch({ type: 'TICK_EXERCISE' })
       }, 1000)
@@ -265,7 +298,7 @@ export function useWorkoutExecution() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [state.phase, state.exerciseTimeRemaining > 0, state.restRemaining > 0])
+  }, [state.phase, state.exerciseTimeRemaining > 0, state.restRemaining > 0, state.currentEntryIndex, state.currentBlockIndex])
 
   useEffect(() => {
     if (state.phase === 'ready' || state.phase === 'complete' || !state.workoutId) return
@@ -294,7 +327,8 @@ export function useWorkoutExecution() {
 
   const currentEntry = getCurrentEntry(state)
 
-  const init = useCallback((payload: Omit<ExecutionState, 'phase' | 'adjustReps' | 'adjustSeconds' | 'restRemaining' | 'exerciseTimeRemaining'>) => {
+  type InitPayload = Extract<Action, { type: 'INIT' }>['payload']
+  const init = useCallback((payload: InitPayload) => {
     dispatch({ type: 'INIT', payload })
   }, [])
 
