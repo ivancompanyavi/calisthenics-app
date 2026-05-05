@@ -55,7 +55,7 @@ export function ProgressionsList() {
             >
               <p className="font-medium truncate">{progression.name}</p>
               <p className="text-xs text-muted-foreground">
-                Level {progression.currentLevel + 1}
+                Level {progression.currentLevel + 1} / {progression.levelCount}
               </p>
             </button>
             <div className="flex gap-1 items-center">

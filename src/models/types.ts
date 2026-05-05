@@ -46,7 +46,9 @@ export interface WorkoutBlock {
 export interface BlockEntry {
   id: string
   blockId: string
-  progressionId: string
+  progressionId?: string
+  movementId?: string
+  mode?: SetMode
   targetReps?: number
   targetSeconds?: number
   perSide?: boolean
@@ -73,6 +75,7 @@ export interface SetLog {
   targetSeconds?: number
   actualSeconds?: number
   perSide?: boolean
+  skipped?: boolean
   notes?: string
   round: number
   order: number
@@ -93,6 +96,31 @@ export interface LevelUpCandidate {
   progressionId: string
   progressionName: string
   nextMovementName: string
+}
+
+export interface Program {
+  id: string
+  name: string
+  cycleLengthDays: number
+  totalCycles: number
+  createdAt: number
+}
+
+export interface ProgramDay {
+  id: string
+  programId: string
+  dayNumber: number
+  workoutId?: string
+}
+
+export type ActiveProgramStatus = 'active' | 'completed' | 'abandoned'
+
+export interface ActiveProgram {
+  id: string
+  programId: string
+  startedAt: number
+  currentCycle: number
+  status: ActiveProgramStatus
 }
 
 export type DraftEntry = Omit<BlockEntry, 'blockId' | 'order'> & { id: string }

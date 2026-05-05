@@ -64,7 +64,8 @@ export function useWorkoutExecution() {
   }, [state.currentBlockIndex, state.currentRound, state.currentEntryIndex, state.completedSets.length, state.phase])
 
   const totalSets = computeTotalSets(state.blocks)
-  const progress = computeProgress(state.completedSets.length, totalSets)
+  const nonSkippedSets = state.completedSets.filter((s) => !s.skipped).length
+  const progress = computeProgress(nonSkippedSets, totalSets, state.cancelledEntries.length)
   const currentEntry = getCurrentEntry(state)
 
   type InitPayload = Extract<Action, { type: 'INIT' }>['payload']

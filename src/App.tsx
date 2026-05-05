@@ -10,6 +10,9 @@ import { HistoryDetail } from '@/pages/HistoryDetail'
 import { Workouts } from '@/pages/Workouts'
 import { WorkoutBuilder } from '@/pages/WorkoutBuilder'
 import { LibraryPage } from '@/pages/Library'
+import { Programs } from '@/pages/Programs'
+import { ProgramBuilder } from '@/pages/ProgramBuilder'
+import { ProgramDetail } from '@/pages/ProgramDetail'
 import { WorkoutExecution } from '@/pages/WorkoutExecution'
 
 const queryClient = new QueryClient({
@@ -41,6 +44,10 @@ export default function App() {
               <Route path="/workouts" element={<Workouts />} />
               <Route path="/workouts/new" element={<WorkoutBuilder />} />
               <Route path="/workouts/:id/edit" element={<WorkoutBuilder />} />
+              <Route path="/programs" element={<Programs />} />
+              <Route path="/programs/new" element={<ProgramBuilder />} />
+              <Route path="/programs/:id" element={<ProgramDetail />} />
+              <Route path="/programs/:id/edit" element={<ProgramBuilder />} />
               <Route path="/library" element={<LibraryPage />} />
             </Route>
             <Route path="/execute/:id" element={<WorkoutExecution />} />

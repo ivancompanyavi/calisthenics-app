@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
-import { ProgressionPicker } from './ProgressionPicker'
+import { ExercisePicker, type ExerciseSelection } from './ExercisePicker'
 import { EntryRow } from './EntryRow'
 import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
 import { generateId } from '@/lib/utils'
@@ -21,11 +21,10 @@ interface BlockEditorProps {
 export function BlockEditor({ block, index, totalBlocks, onUpdate, onRemove, onMove }: BlockEditorProps) {
   const [showPicker, setShowPicker] = useState(false)
 
-  const addEntry = (progressionId: string) => {
-    const entry: DraftEntry = {
-      id: generateId(),
-      progressionId,
-    }
+  const addEntry = (selection: ExerciseSelection) => {
+    const entry: DraftEntry = selection.type === 'progression'
+      ? { id: generateId(), progressionId: selection.progressionId }
+      : { id: generateId(), movementId: selection.movementId, mode: 'reps', targetReps: 10 }
     onUpdate({ entries: [...block.entries, entry] })
     setShowPicker(false)
   }
@@ -143,7 +142,7 @@ export function BlockEditor({ block, index, totalBlocks, onUpdate, onRemove, onM
       </div>
 
       <Dialog open={showPicker} onClose={() => setShowPicker(false)}>
-        <ProgressionPicker onSelect={addEntry} />
+        <ExercisePicker onSelect={addEntry} />
       </Dialog>
     </Card>
   )

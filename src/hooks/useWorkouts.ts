@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
 import { workoutsRepository, type SaveWorkoutData } from '@/repositories/workouts.repository'
+import { programsRepository } from '@/repositories/programs.repository'
 
 export type { SaveWorkoutData }
 
@@ -61,6 +62,11 @@ export function useDeleteWorkout() {
     mutationFn: (id: string) => workoutsRepository.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.workouts.all })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.todaySchedule })
     },
   })
+}
+
+export async function checkWorkoutProgramUsage(workoutId: string): Promise<string[]> {
+  return programsRepository.checkWorkoutUsage(workoutId)
 }

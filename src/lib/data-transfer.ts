@@ -1,7 +1,7 @@
 import { db } from '@/db'
 
 export async function exportAllData(): Promise<string> {
-  const [movements, progressions, progressionLevels, workouts, workoutBlocks, blockEntries, workoutLogs, setLogs] =
+  const [movements, progressions, progressionLevels, workouts, workoutBlocks, blockEntries, workoutLogs, setLogs, programs, programDays, activePrograms] =
     await Promise.all([
       db.movements.toArray(),
       db.progressions.toArray(),
@@ -11,6 +11,9 @@ export async function exportAllData(): Promise<string> {
       db.blockEntries.toArray(),
       db.workoutLogs.toArray(),
       db.setLogs.toArray(),
+      db.programs.toArray(),
+      db.programDays.toArray(),
+      db.activePrograms.toArray(),
     ])
 
   const movementsWithoutBlobs = movements.map(({ photo, ...rest }) => ({
@@ -19,7 +22,7 @@ export async function exportAllData(): Promise<string> {
   }))
 
   const data = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     movements: movementsWithoutBlobs,
     progressions,
@@ -29,6 +32,9 @@ export async function exportAllData(): Promise<string> {
     blockEntries,
     workoutLogs,
     setLogs,
+    programs,
+    programDays,
+    activePrograms,
   }
 
   return JSON.stringify(data, null, 2)
@@ -43,7 +49,7 @@ export async function importAllData(json: string): Promise<void> {
 
   await db.transaction(
     'rw',
-    [db.movements, db.progressions, db.progressionLevels, db.workouts, db.workoutBlocks, db.blockEntries, db.workoutLogs, db.setLogs],
+    [db.movements, db.progressions, db.progressionLevels, db.workouts, db.workoutBlocks, db.blockEntries, db.workoutLogs, db.setLogs, db.programs, db.programDays, db.activePrograms],
     async () => {
       await db.movements.clear()
       await db.progressions.clear()
@@ -53,6 +59,9 @@ export async function importAllData(json: string): Promise<void> {
       await db.blockEntries.clear()
       await db.workoutLogs.clear()
       await db.setLogs.clear()
+      await db.programs.clear()
+      await db.programDays.clear()
+      await db.activePrograms.clear()
 
       if (data.movements.length > 0) {
         const movements = data.movements.map(({ hasPhoto: _, ...rest }: Record<string, unknown>) => rest)
@@ -65,6 +74,9 @@ export async function importAllData(json: string): Promise<void> {
       if (data.blockEntries.length > 0) await db.blockEntries.bulkAdd(data.blockEntries)
       if (data.workoutLogs.length > 0) await db.workoutLogs.bulkAdd(data.workoutLogs)
       if (data.setLogs.length > 0) await db.setLogs.bulkAdd(data.setLogs)
+      if (data.programs?.length > 0) await db.programs.bulkAdd(data.programs)
+      if (data.programDays?.length > 0) await db.programDays.bulkAdd(data.programDays)
+      if (data.activePrograms?.length > 0) await db.activePrograms.bulkAdd(data.activePrograms)
     }
   )
 }

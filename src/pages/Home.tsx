@@ -2,13 +2,15 @@ import { useNavigate } from 'react-router-dom'
 import { useWorkouts } from '@/hooks/useWorkouts'
 import { useWorkoutLogs } from '@/hooks/useHistory'
 import { useInProgressWorkout, useDiscardInProgress } from '@/hooks/useInProgressWorkout'
+import { useTodaySchedule } from '@/hooks/usePrograms'
+import { ProgramCompleteCard } from '@/components/programs/ProgramCompleteCard'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Play, Plus, Dumbbell, Clock, Download, Upload } from 'lucide-react'
+import { Play, Plus, Dumbbell, Clock, Download, Upload, CalendarDays, Moon, AlertTriangle } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { exportAllData, importAllData, downloadJson } from '@/lib/data-transfer'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 
 export function Home() {
   const navigate = useNavigate()
@@ -18,6 +20,8 @@ export function Home() {
   const { data: recentLogs } = useWorkoutLogs()
   const { data: inProgress } = useInProgressWorkout()
   const discardInProgress = useDiscardInProgress()
+  const { data: todaySchedule } = useTodaySchedule()
+  const [dismissedCompletion, setDismissedCompletion] = useState(false)
 
   const lastThreeLogs = recentLogs?.slice(0, 3)
 
@@ -51,6 +55,76 @@ export function Home() {
                   Discard
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {todaySchedule?.justCompleted && !dismissedCompletion && todaySchedule.activeProgramId && (
+          <ProgramCompleteCard
+            activeProgramId={todaySchedule.activeProgramId}
+            onDismiss={() => setDismissedCompletion(true)}
+          />
+        )}
+
+        {todaySchedule && !todaySchedule.justCompleted && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarDays className="h-5 w-5 text-primary" />
+                {todaySchedule.programName}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Day {todaySchedule.dayNumber}/{todaySchedule.cycleLengthDays}
+                {todaySchedule.totalCycles > 0 && (
+                  <> &middot; Cycle {todaySchedule.currentCycle + 1}/{todaySchedule.totalCycles}</>
+                )}
+              </p>
+            </CardHeader>
+            <CardContent>
+              {todaySchedule.isRestDay ? (
+                <div className="flex items-center gap-2">
+                  <Moon className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Rest Day</p>
+                    {todaySchedule.nextWorkoutName && (
+                      <p className="text-xs text-muted-foreground">
+                        Next up: {todaySchedule.nextWorkoutName} ({todaySchedule.nextWorkoutDayLabel})
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : todaySchedule.workoutId && !todaySchedule.workoutName ? (
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <div>
+                    <p className="text-sm font-medium text-destructive">Workout removed</p>
+                    <p className="text-xs text-muted-foreground">
+                      Update your program to assign a new workout.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/programs/${todaySchedule.programId}/edit`)}
+                  >
+                    Edit
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Dumbbell className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-medium">{todaySchedule.workoutName}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => navigate(`/execute/${todaySchedule.workoutId}`)}
+                  >
+                    <Play className="h-4 w-4 mr-1" />
+                    Start
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

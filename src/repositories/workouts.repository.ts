@@ -11,7 +11,9 @@ export interface SaveWorkoutData {
     rounds: number
     restSeconds: number
     entries: Array<{
-      progressionId: string
+      progressionId?: string
+      movementId?: string
+      mode?: 'reps' | 'time' | 'max'
       targetReps?: number
       targetSeconds?: number
       perSide?: boolean
@@ -77,6 +79,8 @@ export const workoutsRepository = {
             id: generateId(),
             blockId: block.id,
             progressionId: entryData.progressionId,
+            movementId: entryData.movementId,
+            mode: entryData.mode,
             targetReps: entryData.targetReps,
             targetSeconds: entryData.targetSeconds,
             perSide: entryData.perSide,
@@ -112,10 +116,25 @@ export const workoutsRepository = {
 
       const resolvedEntries = await Promise.all(
         blockEntries.map(async (entry) => {
-          const progression = await db.progressions.get(entry.progressionId)
+          if (entry.movementId) {
+            const movement = await db.movements.get(entry.movementId)
+            return {
+              progressionId: undefined,
+              movementId: movement?.id ?? entry.movementId,
+              movementName: movement?.name ?? 'Unknown',
+              movementPhoto: movement?.photo,
+              mode: entry.mode ?? 'reps',
+              targetReps: entry.targetReps,
+              targetSeconds: entry.targetSeconds,
+              perSide: entry.perSide,
+              restSeconds: entry.restSeconds,
+            }
+          }
+
+          const progression = await db.progressions.get(entry.progressionId!)
           const levels = await db.progressionLevels
             .where('progressionId')
-            .equals(entry.progressionId)
+            .equals(entry.progressionId!)
             .sortBy('order')
           const currentLevel = progression?.currentLevel ?? 0
           const level = levels[currentLevel] ?? levels[0]

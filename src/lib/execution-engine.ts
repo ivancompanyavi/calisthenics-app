@@ -4,7 +4,7 @@ import { generateId } from '@/lib/utils'
 export type ExecutionPhase = 'ready' | 'exercise' | 'adjust' | 'resting' | 'complete'
 
 export interface ResolvedEntry {
-  progressionId: string
+  progressionId?: string
   movementId: string
   movementName: string
   movementPhoto?: Blob
@@ -40,6 +40,7 @@ export interface ExecutionState {
   currentEntryIndex: number
   completedSets: SetLog[]
   skippedEntries: SkippedEntry[]
+  cancelledEntries: SkippedEntry[]
   adjustReps: number
   adjustSeconds: number
   adjustNotes: string
@@ -67,7 +68,9 @@ export type Action =
   | { type: 'SET_ADJUST_SECONDS'; value: number }
   | { type: 'SET_ADJUST_NOTES'; value: string }
   | { type: 'CONFIRM_ADJUST' }
+  | { type: 'DELAY_EXERCISE' }
   | { type: 'SKIP_EXERCISE' }
+  | { type: 'FINISH_WORKOUT' }
   | { type: 'TICK_REST' }
   | { type: 'SKIP_REST' }
 
@@ -127,6 +130,7 @@ export const initialState: ExecutionState = {
   currentEntryIndex: 0,
   completedSets: [],
   skippedEntries: [],
+  cancelledEntries: [],
   adjustReps: 0,
   adjustSeconds: 0,
   adjustNotes: '',
@@ -143,6 +147,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         restBetweenBlocksSeconds: action.payload.restBetweenBlocksSeconds ?? 0,
         phase: 'ready',
         skippedEntries: [],
+        cancelledEntries: [],
         adjustReps: 0,
         adjustSeconds: 0,
         adjustNotes: '',
@@ -197,7 +202,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
     case 'SET_ADJUST_NOTES':
       return { ...state, adjustNotes: action.value }
 
-    case 'SKIP_EXERCISE': {
+    case 'DELAY_EXERCISE': {
       const block = state.blocks[state.currentBlockIndex]
       if (!block) return state
 
@@ -265,6 +270,99 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
       }
 
       return state
+    }
+
+    case 'SKIP_EXERCISE': {
+      const block = state.blocks[state.currentBlockIndex]
+      if (!block) return state
+
+      const entry = getCurrentEntry(state)
+      const cancelled: SkippedEntry = {
+        blockIndex: state.currentBlockIndex,
+        round: state.currentRound,
+        entryIndex: state.currentEntryIndex,
+      }
+      const newCancelled = [...state.cancelledEntries, cancelled]
+
+      const skippedLog: SetLog = {
+        id: generateId(),
+        workoutLogId: '',
+        movementId: entry?.movementId ?? '',
+        movementName: entry?.movementName ?? 'Unknown',
+        targetReps: entry?.targetReps,
+        targetSeconds: entry?.targetSeconds,
+        perSide: entry?.perSide,
+        skipped: true,
+        round: state.currentRound,
+        order: state.completedSets.length,
+      }
+      const newCompletedSets = [...state.completedSets, skippedLog]
+
+      const nextEntryIndex = state.currentEntryIndex + 1
+      if (nextEntryIndex < block.entries.length) {
+        const nextEntry = block.entries[nextEntryIndex]
+        return {
+          ...state,
+          cancelledEntries: newCancelled,
+          completedSets: newCompletedSets,
+          currentEntryIndex: nextEntryIndex,
+          exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
+        }
+      }
+
+      const nextRound = state.currentRound + 1
+      if (nextRound < block.rounds) {
+        const firstEntry = block.entries[0]
+        return {
+          ...state,
+          cancelledEntries: newCancelled,
+          completedSets: newCompletedSets,
+          currentRound: nextRound,
+          currentEntryIndex: 0,
+          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
+        }
+      }
+
+      const nextBlockIndex = state.currentBlockIndex + 1
+      if (nextBlockIndex < state.blocks.length) {
+        const nextBlock = state.blocks[nextBlockIndex]
+        const firstEntry = nextBlock.entries[0]
+        const restDuration = state.restBetweenBlocksSeconds > 0
+          ? state.restBetweenBlocksSeconds
+          : block.restSeconds
+
+        if (restDuration > 0) {
+          return {
+            ...state,
+            phase: 'resting',
+            cancelledEntries: newCancelled,
+            completedSets: newCompletedSets,
+            restRemaining: restDuration,
+            currentBlockIndex: nextBlockIndex,
+            currentRound: 0,
+            currentEntryIndex: 0,
+          }
+        }
+
+        return {
+          ...state,
+          cancelledEntries: newCancelled,
+          completedSets: newCompletedSets,
+          currentBlockIndex: nextBlockIndex,
+          currentRound: 0,
+          currentEntryIndex: 0,
+          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
+        }
+      }
+
+      return { ...state, phase: 'complete', cancelledEntries: newCancelled, completedSets: newCompletedSets }
+    }
+
+    case 'FINISH_WORKOUT': {
+      return { ...state, phase: 'complete' }
     }
 
     case 'CONFIRM_ADJUST': {
@@ -381,6 +479,7 @@ export function computeTotalSets(blocks: ResolvedBlock[]): number {
   return blocks.reduce((sum, block) => sum + block.entries.length * block.rounds, 0)
 }
 
-export function computeProgress(completedSets: number, totalSets: number): number {
-  return totalSets > 0 ? completedSets / totalSets : 0
+export function computeProgress(completedSets: number, totalSets: number, cancelledSets: number): number {
+  const effectiveTotal = totalSets - cancelledSets
+  return effectiveTotal > 0 ? completedSets / effectiveTotal : 0
 }

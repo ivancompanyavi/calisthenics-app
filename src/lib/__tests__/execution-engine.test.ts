@@ -189,7 +189,7 @@ describe('executionReducer', () => {
     })
   })
 
-  describe('SKIP_EXERCISE', () => {
+  describe('DELAY_EXERCISE', () => {
     it('adds entry to skipped list and advances', () => {
       const entries = [
         makeEntry({ movementId: 'mov-1' }),
@@ -199,8 +199,27 @@ describe('executionReducer', () => {
         blocks: [makeBlock({ type: 'superset', entries, rounds: 1 })],
         currentEntryIndex: 0,
       })
-      const result = executionReducer(state, { type: 'SKIP_EXERCISE' })
+      const result = executionReducer(state, { type: 'DELAY_EXERCISE' })
       expect(result.skippedEntries).toHaveLength(1)
+      expect(result.currentEntryIndex).toBe(1)
+    })
+  })
+
+  describe('SKIP_EXERCISE', () => {
+    it('adds entry to cancelled list and logs skipped set', () => {
+      const entries = [
+        makeEntry({ movementId: 'mov-1', movementName: 'Push-Ups' }),
+        makeEntry({ movementId: 'mov-2' }),
+      ]
+      const state = makeInitializedState({
+        blocks: [makeBlock({ type: 'superset', entries, rounds: 1 })],
+        currentEntryIndex: 0,
+      })
+      const result = executionReducer(state, { type: 'SKIP_EXERCISE' })
+      expect(result.cancelledEntries).toHaveLength(1)
+      expect(result.completedSets).toHaveLength(1)
+      expect(result.completedSets[0].skipped).toBe(true)
+      expect(result.completedSets[0].movementId).toBe('mov-1')
       expect(result.currentEntryIndex).toBe(1)
     })
   })
@@ -322,10 +341,14 @@ describe('computeTotalSets', () => {
 
 describe('computeProgress', () => {
   it('returns 0 when no total sets', () => {
-    expect(computeProgress(5, 0)).toBe(0)
+    expect(computeProgress(5, 0, 0)).toBe(0)
   })
 
   it('returns correct fraction', () => {
-    expect(computeProgress(3, 12)).toBeCloseTo(0.25)
+    expect(computeProgress(3, 12, 0)).toBeCloseTo(0.25)
+  })
+
+  it('excludes cancelled sets from denominator', () => {
+    expect(computeProgress(3, 12, 2)).toBeCloseTo(0.3)
   })
 })

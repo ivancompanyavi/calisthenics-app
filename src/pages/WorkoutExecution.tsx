@@ -13,7 +13,7 @@ import { RestScreen } from '@/components/execution/RestScreen'
 import { AdjustScreen } from '@/components/execution/AdjustScreen'
 import { CompleteScreen } from '@/components/execution/CompleteScreen'
 import { Button } from '@/components/ui/button'
-import { Play, X } from 'lucide-react'
+import { Play, X, Flag } from 'lucide-react'
 
 export function WorkoutExecution() {
   const { id } = useParams<{ id: string }>()
@@ -115,9 +115,23 @@ export function WorkoutExecution() {
     <div className="min-h-dvh flex flex-col bg-background safe-top">
       <div className="flex items-center justify-between px-4 py-3">
         <p className="text-sm font-medium text-muted-foreground">{state.workoutName}</p>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleQuit}>
-          <X className="h-5 w-5" />
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs text-muted-foreground"
+            onClick={() => {
+              if (!confirm('Finish workout early? Remaining exercises will not be logged.')) return
+              dispatch({ type: 'FINISH_WORKOUT' })
+            }}
+          >
+            <Flag className="h-4 w-4 mr-1" />
+            Finish
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleQuit}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       <div className="h-1 bg-secondary mx-4 rounded-full overflow-hidden">
@@ -136,6 +150,7 @@ export function WorkoutExecution() {
             round={state.currentRound + 1}
             totalRounds={currentBlock?.rounds ?? 1}
             onDone={() => dispatch({ type: 'DONE_EXERCISE' })}
+            onDelay={() => dispatch({ type: 'DELAY_EXERCISE' })}
             onSkip={() => dispatch({ type: 'SKIP_EXERCISE' })}
           />
         )}

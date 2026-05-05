@@ -9,6 +9,9 @@ import type {
   WorkoutLog,
   SetLog,
   InProgressWorkout,
+  Program,
+  ProgramDay,
+  ActiveProgram,
 } from '@/models/types'
 
 const db = new Dexie('CalisthenicsTracker') as Dexie & {
@@ -21,6 +24,9 @@ const db = new Dexie('CalisthenicsTracker') as Dexie & {
   workoutLogs: EntityTable<WorkoutLog, 'id'>
   setLogs: EntityTable<SetLog, 'id'>
   inProgressWorkout: EntityTable<InProgressWorkout, 'id'>
+  programs: EntityTable<Program, 'id'>
+  programDays: EntityTable<ProgramDay, 'id'>
+  activePrograms: EntityTable<ActiveProgram, 'id'>
 }
 
 db.version(1).stores({
@@ -57,6 +63,45 @@ db.version(2).stores({
     tx.table('setLogs').clear(),
     tx.table('inProgressWorkout').clear(),
   ])
+})
+
+db.version(3).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, order',
+  inProgressWorkout: 'id, workoutId',
+}).upgrade(async (tx) => {
+  await Promise.all([
+    tx.table('movements').clear(),
+    tx.table('progressions').clear(),
+    tx.table('progressionLevels').clear(),
+    tx.table('workouts').clear(),
+    tx.table('workoutBlocks').clear(),
+    tx.table('blockEntries').clear(),
+    tx.table('workoutLogs').clear(),
+    tx.table('setLogs').clear(),
+    tx.table('inProgressWorkout').clear(),
+  ])
+})
+
+db.version(4).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
 })
 
 export { db }

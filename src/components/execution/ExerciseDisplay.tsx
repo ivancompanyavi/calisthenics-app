@@ -2,7 +2,7 @@ import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { Button } from '@/components/ui/button'
 import { formatTime } from '@/lib/utils'
-import { Check, SkipForward } from 'lucide-react'
+import { Check, Clock, X } from 'lucide-react'
 
 interface ExerciseDisplayProps {
   entry: ResolvedEntry
@@ -11,10 +11,11 @@ interface ExerciseDisplayProps {
   round: number
   totalRounds: number
   onDone: () => void
+  onDelay: () => void
   onSkip: () => void
 }
 
-export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone, onSkip }: ExerciseDisplayProps) {
+export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone, onDelay, onSkip }: ExerciseDisplayProps) {
   const sideLabel = entry.perSide ? ' /side' : ''
 
   return (
@@ -67,10 +68,16 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
         </Button>
       )}
 
-      <Button variant="ghost" size="sm" className="mt-2 text-muted-foreground" onClick={onSkip}>
-        <SkipForward className="h-4 w-4 mr-1" />
-        Skip
-      </Button>
+      <div className="flex gap-4 mt-2">
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onDelay}>
+          <Clock className="h-4 w-4 mr-1" />
+          Delay
+        </Button>
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onSkip}>
+          <X className="h-4 w-4 mr-1" />
+          Skip
+        </Button>
+      </div>
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useWorkouts, useDeleteWorkout } from '@/hooks/useWorkouts'
+import { useWorkouts, useDeleteWorkout, checkWorkoutProgramUsage } from '@/hooks/useWorkouts'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -59,8 +59,12 @@ export function Workouts() {
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-destructive"
-                  onClick={() => {
-                    if (confirm(`Delete "${workout.name}"?`)) {
+                  onClick={async () => {
+                    const usedIn = await checkWorkoutProgramUsage(workout.id)
+                    const warning = usedIn.length > 0
+                      ? `\n\nWarning: This workout is used in: ${usedIn.join(', ')}`
+                      : ''
+                    if (confirm(`Delete "${workout.name}"?${warning}`)) {
                       deleteWorkout.mutate(workout.id)
                     }
                   }}

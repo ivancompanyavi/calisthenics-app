@@ -11,7 +11,15 @@ export interface LevelInput {
 }
 
 export const progressionsRepository = {
-  getAll: () => db.progressions.orderBy('name').toArray(),
+  getAll: async () => {
+    const progressions = await db.progressions.orderBy('name').toArray()
+    const allLevels = await db.progressionLevels.toArray()
+    const levelCounts = new Map<string, number>()
+    for (const level of allLevels) {
+      levelCounts.set(level.progressionId, (levelCounts.get(level.progressionId) ?? 0) + 1)
+    }
+    return progressions.map((p) => ({ ...p, levelCount: levelCounts.get(p.id) ?? 0 }))
+  },
 
   getById: (id: string) => db.progressions.get(id),
 

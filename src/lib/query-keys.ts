@@ -22,6 +22,15 @@ export const queryKeys = {
     detail: (id: string) => ['workoutLogs', id] as const,
     sets: (workoutLogId: string) => ['setLogs', workoutLogId] as const,
   },
+  programs: {
+    all: ['programs'] as const,
+    detail: (id: string) => ['programs', id] as const,
+    days: (programId: string) => ['programs', programId, 'days'] as const,
+    active: ['programs', 'active'] as const,
+    todaySchedule: ['programs', 'today'] as const,
+    history: (programId: string) => ['programs', programId, 'history'] as const,
+    completionStats: (activeProgramId: string) => ['programs', 'completion', activeProgramId] as const,
+  },
   insights: ['insights'] as const,
   inProgress: ['inProgressWorkout'] as const,
 } as const

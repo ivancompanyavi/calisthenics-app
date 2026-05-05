@@ -1,6 +1,6 @@
 import { db } from './index'
 import { generateId } from '@/lib/utils'
-import type { Movement, Progression, ProgressionLevel, Workout, WorkoutBlock, BlockEntry, SetMode } from '@/models/types'
+import type { Movement, Progression, ProgressionLevel, Workout, WorkoutBlock, BlockEntry, SetMode, Program, ProgramDay } from '@/models/types'
 
 interface SeedMovement {
   name: string
@@ -21,7 +21,9 @@ interface SeedProgression {
 }
 
 interface SeedEntryDef {
-  progression: string
+  progression?: string
+  movement?: string
+  mode?: SetMode
   targetReps?: number
   targetSeconds?: number
   perSide?: boolean
@@ -39,6 +41,28 @@ interface SeedWorkout {
   restBetweenBlocksSeconds?: number
   blocks: SeedBlockDef[]
 }
+
+interface SeedProgram {
+  name: string
+  totalCycles: number
+  days: Array<{ workout: string } | null>
+}
+
+const SEED_PROGRAMS: SeedProgram[] = [
+  {
+    name: 'Calisthenics Fundamentals',
+    totalCycles: 4,
+    days: [
+      { workout: 'Chest (Planche)' },
+      null,
+      { workout: 'Full Body A' },
+      null,
+      { workout: 'Pull Day' },
+      { workout: 'Chest (Planche)' },
+      null,
+    ],
+  },
+]
 
 const SEED_MOVEMENTS: SeedMovement[] = [
   { name: 'Wall Push-Ups', description: 'Push-ups performed against a wall, great for beginners.' },
@@ -220,8 +244,8 @@ const SEED_WORKOUTS: SeedWorkout[] = [
         restSeconds: 60,
         entries: [
           { progression: 'Planche Progression' },
-          { progression: 'Planche Leans', targetReps: 10 },
-          { progression: 'Planche Lean Hold' },
+          { movement: 'Planche Leans', mode: 'reps', targetReps: 10 },
+          { movement: 'Planche Lean Hold', mode: 'max' },
         ],
       },
       {
@@ -229,10 +253,10 @@ const SEED_WORKOUTS: SeedWorkout[] = [
         rounds: 3,
         restSeconds: 60,
         entries: [
-          { progression: 'Pseudo Push-Up Hold', targetSeconds: 15 },
+          { movement: 'Pseudo Push-Up Hold', mode: 'time', targetSeconds: 15 },
           { progression: 'Push-Up Progression', targetReps: 8 },
-          { progression: 'Knee Archer Push-Ups', targetReps: 10, perSide: true },
-          { progression: 'Slow Motion Push-Ups', targetReps: 1 },
+          { movement: 'Knee Archer Push-Ups', mode: 'reps', targetReps: 10, perSide: true },
+          { movement: 'Slow Motion Push-Ups', mode: 'reps', targetReps: 1 },
         ],
       },
     ],
@@ -358,30 +382,6 @@ async function ensureProgressionsExist(movementMap: Map<string, string>): Promis
     }
   }
 
-  // Auto-wrap standalone movements referenced by workouts as single-level progressions
-  for (const sw of SEED_WORKOUTS) {
-    for (const block of sw.blocks) {
-      for (const entry of block.entries) {
-        if (progressionMap.has(entry.progression)) continue
-        const movementId = movementMap.get(entry.progression)
-        if (!movementId) continue
-        const progId = generateId()
-        progressionMap.set(entry.progression, progId)
-        newProgressions.push({ id: progId, name: entry.progression, currentLevel: 0, createdAt: Date.now() })
-        newLevels.push({
-          id: generateId(),
-          progressionId: progId,
-          movementId,
-          order: 0,
-          mode: entry.targetSeconds ? 'time' : entry.targetReps ? 'reps' : 'max',
-          defaultTargetReps: entry.targetReps,
-          defaultTargetSeconds: entry.targetSeconds,
-          perSide: entry.perSide,
-        })
-      }
-    }
-  }
-
   if (newProgressions.length > 0) {
     await db.progressions.bulkAdd(newProgressions)
     await db.progressionLevels.bulkAdd(newLevels)
@@ -389,7 +389,7 @@ async function ensureProgressionsExist(movementMap: Map<string, string>): Promis
   return progressionMap
 }
 
-async function ensureWorkoutsExist(progressionMap: Map<string, string>) {
+async function ensureWorkoutsExist(progressionMap: Map<string, string>, movementMap: Map<string, string>) {
   const existingWorkouts = await db.workouts.toArray()
   const existingNames = new Set(existingWorkouts.map((w) => w.name))
 
@@ -422,17 +422,33 @@ async function ensureWorkoutsExist(progressionMap: Map<string, string>) {
 
       for (let j = 0; j < blockDef.entries.length; j++) {
         const entryDef = blockDef.entries[j]
-        const progressionId = progressionMap.get(entryDef.progression)
-        if (!progressionId) continue
-        newEntries.push({
-          id: generateId(),
-          blockId,
-          progressionId,
-          targetReps: entryDef.targetReps,
-          targetSeconds: entryDef.targetSeconds,
-          perSide: entryDef.perSide,
-          order: j,
-        })
+
+        if (entryDef.movement) {
+          const movementId = movementMap.get(entryDef.movement)
+          if (!movementId) continue
+          newEntries.push({
+            id: generateId(),
+            blockId,
+            movementId,
+            mode: entryDef.mode,
+            targetReps: entryDef.targetReps,
+            targetSeconds: entryDef.targetSeconds,
+            perSide: entryDef.perSide,
+            order: j,
+          })
+        } else if (entryDef.progression) {
+          const progressionId = progressionMap.get(entryDef.progression)
+          if (!progressionId) continue
+          newEntries.push({
+            id: generateId(),
+            blockId,
+            progressionId,
+            targetReps: entryDef.targetReps,
+            targetSeconds: entryDef.targetSeconds,
+            perSide: entryDef.perSide,
+            order: j,
+          })
+        }
       }
     }
   }
@@ -446,8 +462,50 @@ async function ensureWorkoutsExist(progressionMap: Map<string, string>) {
   }
 }
 
+async function ensureProgramsExist() {
+  const existingPrograms = await db.programs.toArray()
+  const existingNames = new Set(existingPrograms.map((p) => p.name))
+
+  const allWorkouts = await db.workouts.toArray()
+  const workoutByName = new Map(allWorkouts.map((w) => [w.name, w.id]))
+
+  const newPrograms: Program[] = []
+  const newDays: ProgramDay[] = []
+
+  for (const sp of SEED_PROGRAMS) {
+    if (existingNames.has(sp.name)) continue
+
+    const programId = generateId()
+    newPrograms.push({
+      id: programId,
+      name: sp.name,
+      cycleLengthDays: sp.days.length,
+      totalCycles: sp.totalCycles,
+      createdAt: Date.now(),
+    })
+
+    for (let i = 0; i < sp.days.length; i++) {
+      const day = sp.days[i]
+      newDays.push({
+        id: generateId(),
+        programId,
+        dayNumber: i + 1,
+        workoutId: day ? workoutByName.get(day.workout) : undefined,
+      })
+    }
+  }
+
+  if (newPrograms.length > 0) {
+    await db.transaction('rw', [db.programs, db.programDays], async () => {
+      await db.programs.bulkAdd(newPrograms)
+      await db.programDays.bulkAdd(newDays)
+    })
+  }
+}
+
 export async function seedDatabase() {
   const movementMap = await ensureMovementsExist()
   const progressionMap = await ensureProgressionsExist(movementMap)
-  await ensureWorkoutsExist(progressionMap)
+  await ensureWorkoutsExist(progressionMap, movementMap)
+  await ensureProgramsExist()
 }

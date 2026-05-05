@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import type { DraftEntry } from '@/models/types'
+import type { DraftEntry, SetMode } from '@/models/types'
 import { useProgression, useProgressionLevels } from '@/hooks/useProgressions'
+import { useMovement } from '@/hooks/useMovements'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, Timer, ChevronUp, ChevronDown } from 'lucide-react'
@@ -15,14 +16,22 @@ interface EntryRowProps {
 }
 
 export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMove }: EntryRowProps) {
+  const isStandalone = !!entry.movementId
   const { data: progression } = useProgression(entry.progressionId)
   const { data: levels } = useProgressionLevels(entry.progressionId)
+  const { data: standaloneMovement } = useMovement(entry.movementId)
   const [showRest, setShowRest] = useState(!!entry.restSeconds)
 
   const currentLevelIndex = progression?.currentLevel ?? 0
   const currentLevel = levels?.[currentLevelIndex]
-  const currentMovement = currentLevel?.movement
-  const mode = currentLevel?.mode ?? 'reps'
+
+  const displayName = isStandalone
+    ? standaloneMovement?.name ?? 'Loading...'
+    : currentLevel?.movement?.name ?? progression?.name ?? 'Loading...'
+
+  const mode: SetMode = isStandalone
+    ? entry.mode ?? 'reps'
+    : currentLevel?.mode ?? 'reps'
 
   const modeBadgeLabel = mode === 'reps' ? 'Reps' : mode === 'time' ? 'Time' : 'Max'
 
@@ -30,18 +39,35 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
     <div className="space-y-1">
       <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">
-            {currentMovement?.name ?? progression?.name ?? 'Loading...'}
-          </p>
+          <p className="text-sm font-medium truncate">{displayName}</p>
           <div className="flex items-center gap-1.5">
-            {progression && levels && levels.length > 1 && (
+            {!isStandalone && progression && levels && levels.length > 1 && (
               <p className="text-xs text-muted-foreground">
                 Lvl {currentLevelIndex + 1}/{levels.length}
               </p>
             )}
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-              {modeBadgeLabel}
-            </span>
+            {isStandalone ? (
+              <select
+                value={mode}
+                onChange={(e) => {
+                  const newMode = e.target.value as SetMode
+                  onUpdate({
+                    mode: newMode,
+                    targetReps: newMode === 'reps' ? (entry.targetReps ?? 10) : undefined,
+                    targetSeconds: newMode === 'time' ? (entry.targetSeconds ?? 30) : undefined,
+                  })
+                }}
+                className="h-5 rounded border border-input bg-transparent px-1 text-[10px] font-medium"
+              >
+                <option value="reps">Reps</option>
+                <option value="time">Time</option>
+                <option value="max">Max</option>
+              </select>
+            ) : (
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                {modeBadgeLabel}
+              </span>
+            )}
           </div>
         </div>
 
@@ -51,7 +77,7 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
             min={1}
             value={entry.targetReps ?? ''}
             onChange={(e) => onUpdate({ targetReps: parseInt(e.target.value) || undefined })}
-            placeholder={String(currentLevel?.defaultTargetReps ?? 10)}
+            placeholder={isStandalone ? '10' : String(currentLevel?.defaultTargetReps ?? 10)}
             className="h-9 w-16 text-center"
           />
         )}
@@ -62,7 +88,7 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
             step={5}
             value={entry.targetSeconds ?? ''}
             onChange={(e) => onUpdate({ targetSeconds: parseInt(e.target.value) || undefined })}
-            placeholder={String(currentLevel?.defaultTargetSeconds ?? 30)}
+            placeholder={isStandalone ? '30' : String(currentLevel?.defaultTargetSeconds ?? 30)}
             className="h-9 w-16 text-center"
           />
         )}
@@ -78,7 +104,7 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
             type="button"
             onClick={() => onUpdate({ perSide: !entry.perSide })}
             className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
-              entry.perSide ?? currentLevel?.perSide
+              entry.perSide ?? (!isStandalone && currentLevel?.perSide)
                 ? 'bg-primary/20 border-primary text-primary'
                 : 'border-input text-muted-foreground'
             }`}

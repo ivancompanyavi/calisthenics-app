@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { Movement } from '@/models/types'
 import { queryKeys } from '@/lib/query-keys'
-import { movementsRepository, progressionsRepository } from '@/repositories'
+import { movementsRepository } from '@/repositories'
 
 export function useMovements() {
   return useQuery({
@@ -22,16 +22,10 @@ export function useCreateMovement() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (data: Omit<Movement, 'id' | 'createdAt'>) => {
-      const movement = await movementsRepository.create(data)
-      await progressionsRepository.create({
-        name: movement.name,
-        levels: [{ movementId: movement.id, mode: 'reps', defaultTargetReps: 10 }],
-      })
-      return movement
+      return movementsRepository.create(data)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.movements.all })
-      qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
     },
   })
 }
