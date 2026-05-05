@@ -1,4 +1,4 @@
-import { useProgressionLevels, useUpdateCurrentLevel } from '@/hooks/useProgressions'
+import { useProgression, useProgressionLevels, useUpdateCurrentLevel } from '@/hooks/useProgressions'
 import { DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
@@ -11,7 +11,9 @@ interface ProgressionDetailProps {
   onEdit: () => void
 }
 
-export function ProgressionDetail({ progression, onEdit }: ProgressionDetailProps) {
+export function ProgressionDetail({ progression: initialProgression, onEdit }: ProgressionDetailProps) {
+  const { data: freshProgression } = useProgression(initialProgression.id)
+  const progression = freshProgression ?? initialProgression
   const { data: levels } = useProgressionLevels(progression.id)
   const updateLevel = useUpdateCurrentLevel()
 

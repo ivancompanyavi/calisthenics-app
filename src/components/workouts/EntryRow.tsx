@@ -3,15 +3,18 @@ import type { DraftEntry } from '@/pages/WorkoutBuilder'
 import { useProgression, useProgressionLevels } from '@/hooks/useProgressions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { X, Timer } from 'lucide-react'
+import { X, Timer, ChevronUp, ChevronDown } from 'lucide-react'
 
 interface EntryRowProps {
   entry: DraftEntry
+  index: number
+  totalEntries: number
   onUpdate: (updates: Partial<DraftEntry>) => void
   onRemove: () => void
+  onMove: (direction: 'up' | 'down') => void
 }
 
-export function EntryRow({ entry, onUpdate, onRemove }: EntryRowProps) {
+export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMove }: EntryRowProps) {
   const { data: progression } = useProgression(entry.progressionId)
   const { data: levels } = useProgressionLevels(entry.progressionId)
   const [showRest, setShowRest] = useState(!!entry.restSeconds)
@@ -106,6 +109,29 @@ export function EntryRow({ entry, onUpdate, onRemove }: EntryRowProps) {
         >
           <Timer className="h-3 w-3" />
         </button>
+
+        {totalEntries > 1 && (
+          <div className="flex flex-col">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-5"
+              disabled={index === 0}
+              onClick={() => onMove('up')}
+            >
+              <ChevronUp className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-5"
+              disabled={index === totalEntries - 1}
+              onClick={() => onMove('down')}
+            >
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
 
         <Button
           variant="ghost"

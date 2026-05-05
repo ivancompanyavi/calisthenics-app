@@ -215,7 +215,7 @@ const SEED_WORKOUTS: SeedWorkout[] = [
         rounds: 4,
         restSeconds: 90,
         entries: [
-          { progression: 'Pull-Up Progression', mode: 'reps', targetReps: 6 },
+          { progression: 'Pull-Up Progression', mode: 'time', targetSeconds: 30 },
         ],
       },
       {

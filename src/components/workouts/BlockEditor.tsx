@@ -44,6 +44,14 @@ export function BlockEditor({ block, index, totalBlocks, onUpdate, onRemove, onM
     onUpdate({ entries: block.entries.filter((e) => e.id !== entryId) })
   }
 
+  const moveEntry = (entryIndex: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? entryIndex - 1 : entryIndex + 1
+    if (newIndex < 0 || newIndex >= block.entries.length) return
+    const newEntries = [...block.entries]
+    ;[newEntries[entryIndex], newEntries[newIndex]] = [newEntries[newIndex], newEntries[entryIndex]]
+    onUpdate({ entries: newEntries })
+  }
+
   return (
     <Card className="p-3 space-y-3">
       <div className="flex items-center justify-between">
@@ -86,12 +94,15 @@ export function BlockEditor({ block, index, totalBlocks, onUpdate, onRemove, onM
       </div>
 
       <div className="space-y-2">
-        {block.entries.map((entry) => (
+        {block.entries.map((entry, i) => (
           <EntryRow
             key={entry.id}
             entry={entry}
+            index={i}
+            totalEntries={block.entries.length}
             onUpdate={(updates) => updateEntry(entry.id, updates)}
             onRemove={() => removeEntry(entry.id)}
+            onMove={(dir) => moveEntry(i, dir)}
           />
         ))}
       </div>
