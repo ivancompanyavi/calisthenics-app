@@ -41,7 +41,6 @@ export function WorkoutBuilder() {
             .map((e) => ({
               id: e.id,
               progressionId: e.progressionId,
-              mode: e.mode,
               targetReps: e.targetReps,
               targetSeconds: e.targetSeconds,
               perSide: e.perSide,
@@ -99,7 +98,6 @@ export function WorkoutBuilder() {
         restSeconds: b.restSeconds,
         entries: b.entries.map((e) => ({
           progressionId: e.progressionId,
-          mode: e.mode,
           targetReps: e.targetReps,
           targetSeconds: e.targetSeconds,
           perSide: e.perSide || undefined,

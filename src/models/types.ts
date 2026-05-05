@@ -18,6 +18,10 @@ export interface ProgressionLevel {
   progressionId: string
   movementId: string
   order: number
+  mode: SetMode
+  defaultTargetReps?: number
+  defaultTargetSeconds?: number
+  perSide?: boolean
 }
 
 export type BlockType = 'set' | 'superset'
@@ -43,7 +47,6 @@ export interface BlockEntry {
   id: string
   blockId: string
   progressionId: string
-  mode: SetMode
   targetReps?: number
   targetSeconds?: number
   perSide?: boolean

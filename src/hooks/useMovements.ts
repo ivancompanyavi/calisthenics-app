@@ -25,7 +25,7 @@ export function useCreateMovement() {
       const movement = await movementsRepository.create(data)
       await progressionsRepository.create({
         name: movement.name,
-        movementIds: [movement.id],
+        levels: [{ movementId: movement.id, mode: 'reps', defaultTargetReps: 10 }],
       })
       return movement
     },

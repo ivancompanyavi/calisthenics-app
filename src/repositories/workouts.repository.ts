@@ -12,7 +12,6 @@ export interface SaveWorkoutData {
     restSeconds: number
     entries: Array<{
       progressionId: string
-      mode: 'reps' | 'time' | 'max'
       targetReps?: number
       targetSeconds?: number
       perSide?: boolean
@@ -78,7 +77,6 @@ export const workoutsRepository = {
             id: generateId(),
             blockId: block.id,
             progressionId: entryData.progressionId,
-            mode: entryData.mode,
             targetReps: entryData.targetReps,
             targetSeconds: entryData.targetSeconds,
             perSide: entryData.perSide,
@@ -128,10 +126,10 @@ export const workoutsRepository = {
             movementId: movement?.id ?? '',
             movementName: movement?.name ?? 'Unknown',
             movementPhoto: movement?.photo,
-            mode: entry.mode,
-            targetReps: entry.targetReps,
-            targetSeconds: entry.targetSeconds,
-            perSide: entry.perSide,
+            mode: level?.mode ?? 'reps',
+            targetReps: entry.targetReps ?? level?.defaultTargetReps,
+            targetSeconds: entry.targetSeconds ?? level?.defaultTargetSeconds,
+            perSide: entry.perSide ?? level?.perSide,
             restSeconds: entry.restSeconds,
           }
         })

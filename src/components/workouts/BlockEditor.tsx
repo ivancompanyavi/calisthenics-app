@@ -25,8 +25,6 @@ export function BlockEditor({ block, index, totalBlocks, onUpdate, onRemove, onM
     const entry: DraftEntry = {
       id: generateId(),
       progressionId,
-      mode: 'reps',
-      targetReps: 10,
     }
     onUpdate({ entries: [...block.entries, entry] })
     setShowPicker(false)

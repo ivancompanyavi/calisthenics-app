@@ -19,7 +19,12 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
   const { data: levels } = useProgressionLevels(entry.progressionId)
   const [showRest, setShowRest] = useState(!!entry.restSeconds)
 
-  const currentMovement = levels?.[progression?.currentLevel ?? 0]?.movement
+  const currentLevelIndex = progression?.currentLevel ?? 0
+  const currentLevel = levels?.[currentLevelIndex]
+  const currentMovement = currentLevel?.movement
+  const mode = currentLevel?.mode ?? 'reps'
+
+  const modeBadgeLabel = mode === 'reps' ? 'Reps' : mode === 'time' ? 'Time' : 'Max'
 
   return (
     <div className="space-y-1">
@@ -28,60 +33,52 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
           <p className="text-sm font-medium truncate">
             {currentMovement?.name ?? progression?.name ?? 'Loading...'}
           </p>
-          {progression && levels && levels.length > 1 && (
-            <p className="text-xs text-muted-foreground">
-              Lvl {(progression.currentLevel ?? 0) + 1}/{levels.length}
-            </p>
-          )}
+          <div className="flex items-center gap-1.5">
+            {progression && levels && levels.length > 1 && (
+              <p className="text-xs text-muted-foreground">
+                Lvl {currentLevelIndex + 1}/{levels.length}
+              </p>
+            )}
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+              {modeBadgeLabel}
+            </span>
+          </div>
         </div>
 
-        <select
-          value={entry.mode}
-          onChange={(e) => {
-            const mode = e.target.value as 'reps' | 'time' | 'max'
-            onUpdate({
-              mode,
-              targetReps: mode === 'reps' ? 10 : undefined,
-              targetSeconds: mode === 'time' ? 30 : undefined,
-            })
-          }}
-          className="h-9 rounded-md border border-input bg-transparent px-2 text-xs"
-        >
-          <option value="reps">Reps</option>
-          <option value="time">Time</option>
-          <option value="max">Max Hold</option>
-        </select>
-
-        {entry.mode === 'reps' && (
+        {mode === 'reps' && (
           <Input
             type="number"
             min={1}
-            value={entry.targetReps ?? 10}
-            onChange={(e) => onUpdate({ targetReps: Math.max(1, parseInt(e.target.value) || 1) })}
+            value={entry.targetReps ?? ''}
+            onChange={(e) => onUpdate({ targetReps: parseInt(e.target.value) || undefined })}
+            placeholder={String(currentLevel?.defaultTargetReps ?? 10)}
             className="h-9 w-16 text-center"
           />
         )}
-        {entry.mode === 'time' && (
+        {mode === 'time' && (
           <Input
             type="number"
             min={5}
             step={5}
-            value={entry.targetSeconds ?? 30}
-            onChange={(e) => onUpdate({ targetSeconds: Math.max(5, parseInt(e.target.value) || 5) })}
+            value={entry.targetSeconds ?? ''}
+            onChange={(e) => onUpdate({ targetSeconds: parseInt(e.target.value) || undefined })}
+            placeholder={String(currentLevel?.defaultTargetSeconds ?? 30)}
             className="h-9 w-16 text-center"
           />
         )}
 
-        <span className="text-xs text-muted-foreground w-6">
-          {entry.mode === 'reps' ? 'rep' : entry.mode === 'time' ? 'sec' : ''}
-        </span>
+        {mode !== 'max' && (
+          <span className="text-xs text-muted-foreground w-6">
+            {mode === 'reps' ? 'rep' : 'sec'}
+          </span>
+        )}
 
-        {entry.mode === 'reps' && (
+        {mode === 'reps' && (
           <button
             type="button"
             onClick={() => onUpdate({ perSide: !entry.perSide })}
             className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
-              entry.perSide
+              entry.perSide ?? currentLevel?.perSide
                 ? 'bg-primary/20 border-primary text-primary'
                 : 'border-input text-muted-foreground'
             }`}

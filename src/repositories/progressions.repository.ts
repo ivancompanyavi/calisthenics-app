@@ -1,6 +1,14 @@
 import { db } from '@/db'
-import type { Progression, ProgressionLevel, SetLog, LevelUpCandidate } from '@/models/types'
+import type { Progression, ProgressionLevel, SetLog, SetMode, LevelUpCandidate } from '@/models/types'
 import { generateId } from '@/lib/utils'
+
+export interface LevelInput {
+  movementId: string
+  mode: SetMode
+  defaultTargetReps?: number
+  defaultTargetSeconds?: number
+  perSide?: boolean
+}
 
 export const progressionsRepository = {
   getAll: () => db.progressions.orderBy('name').toArray(),
@@ -20,18 +28,22 @@ export const progressionsRepository = {
     }))
   },
 
-  create: async (data: { name: string; movementIds: string[] }) => {
+  create: async (data: { name: string; levels: LevelInput[] }) => {
     const progression: Progression = {
       id: generateId(),
       name: data.name,
       currentLevel: 0,
       createdAt: Date.now(),
     }
-    const levels: ProgressionLevel[] = data.movementIds.map((movementId, i) => ({
+    const levels: ProgressionLevel[] = data.levels.map((lvl, i) => ({
       id: generateId(),
       progressionId: progression.id,
-      movementId,
+      movementId: lvl.movementId,
       order: i,
+      mode: lvl.mode,
+      defaultTargetReps: lvl.defaultTargetReps,
+      defaultTargetSeconds: lvl.defaultTargetSeconds,
+      perSide: lvl.perSide,
     }))
     await db.transaction('rw', [db.progressions, db.progressionLevels], async () => {
       await db.progressions.add(progression)
@@ -40,18 +52,22 @@ export const progressionsRepository = {
     return progression
   },
 
-  update: async (data: { id: string; name: string; currentLevel?: number; movementIds: string[] }) => {
+  update: async (data: { id: string; name: string; currentLevel?: number; levels: LevelInput[] }) => {
     await db.transaction('rw', [db.progressions, db.progressionLevels], async () => {
       await db.progressions.update(data.id, {
         name: data.name,
         ...(data.currentLevel !== undefined && { currentLevel: data.currentLevel }),
       })
       await db.progressionLevels.where('progressionId').equals(data.id).delete()
-      const levels: ProgressionLevel[] = data.movementIds.map((movementId, i) => ({
+      const levels: ProgressionLevel[] = data.levels.map((lvl, i) => ({
         id: generateId(),
         progressionId: data.id,
-        movementId,
+        movementId: lvl.movementId,
         order: i,
+        mode: lvl.mode,
+        defaultTargetReps: lvl.defaultTargetReps,
+        defaultTargetSeconds: lvl.defaultTargetSeconds,
+        perSide: lvl.perSide,
       }))
       await db.progressionLevels.bulkAdd(levels)
     })

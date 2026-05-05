@@ -1,5 +1,5 @@
 export { movementsRepository } from './movements.repository'
-export { progressionsRepository } from './progressions.repository'
+export { progressionsRepository, type LevelInput } from './progressions.repository'
 export { workoutsRepository } from './workouts.repository'
 export { workoutLogsRepository } from './workout-logs.repository'
 export { inProgressRepository } from './in-progress.repository'

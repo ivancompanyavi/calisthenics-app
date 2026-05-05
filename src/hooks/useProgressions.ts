@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { SetLog } from '@/models/types'
 import { queryKeys } from '@/lib/query-keys'
-import { progressionsRepository } from '@/repositories'
+import { progressionsRepository, type LevelInput } from '@/repositories'
 
 export function useProgressions() {
   return useQuery({
@@ -29,7 +29,7 @@ export function useProgressionLevels(progressionId: string | undefined) {
 export function useCreateProgression() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { name: string; movementIds: string[] }) =>
+    mutationFn: (data: { name: string; levels: LevelInput[] }) =>
       progressionsRepository.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
@@ -40,7 +40,7 @@ export function useCreateProgression() {
 export function useUpdateProgression() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data: { id: string; name: string; currentLevel?: number; movementIds: string[] }) =>
+    mutationFn: (data: { id: string; name: string; currentLevel?: number; levels: LevelInput[] }) =>
       progressionsRepository.update(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
