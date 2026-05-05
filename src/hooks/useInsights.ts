@@ -1,0 +1,133 @@
+import { useQuery } from '@tanstack/react-query'
+import { db } from '@/db'
+
+export interface WeeklyVolume {
+  week: string
+  count: number
+}
+
+export interface ProgressionTrend {
+  movementName: string
+  data: { date: string; value: number }[]
+  improving: boolean
+}
+
+export interface InsightsData {
+  streak: number
+  weeklyVolume: WeeklyVolume[]
+  totalSetsThisWeek: number
+  totalSetsLastWeek: number
+  progressionTrends: ProgressionTrend[]
+}
+
+function getWeekStart(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - d.getDay())
+  return d
+}
+
+function formatWeekLabel(date: Date): string {
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+export function useInsights() {
+  return useQuery({
+    queryKey: ['insights'],
+    queryFn: async (): Promise<InsightsData> => {
+      const logs = await db.workoutLogs.orderBy('completedAt').reverse().toArray()
+      const setLogs = await db.setLogs.toArray()
+
+      const now = new Date()
+      const thisWeekStart = getWeekStart(now)
+      const lastWeekStart = new Date(thisWeekStart)
+      lastWeekStart.setDate(lastWeekStart.getDate() - 7)
+
+      // Streak: consecutive weeks with at least 1 workout
+      let streak = 0
+      const weekStart = getWeekStart(now)
+      let checkWeek = new Date(weekStart)
+      while (true) {
+        const weekEnd = new Date(checkWeek)
+        weekEnd.setDate(weekEnd.getDate() + 7)
+        const hasWorkout = logs.some(
+          (l) => l.completedAt >= checkWeek.getTime() && l.completedAt < weekEnd.getTime()
+        )
+        if (hasWorkout) {
+          streak++
+          checkWeek.setDate(checkWeek.getDate() - 7)
+        } else {
+          break
+        }
+      }
+
+      // Weekly volume: last 8 weeks
+      const weeklyVolume: WeeklyVolume[] = []
+      for (let i = 7; i >= 0; i--) {
+        const wStart = new Date(thisWeekStart)
+        wStart.setDate(wStart.getDate() - i * 7)
+        const wEnd = new Date(wStart)
+        wEnd.setDate(wEnd.getDate() + 7)
+        const count = logs.filter(
+          (l) => l.completedAt >= wStart.getTime() && l.completedAt < wEnd.getTime()
+        ).length
+        weeklyVolume.push({ week: formatWeekLabel(wStart), count })
+      }
+
+      // Sets this week vs last week
+      const thisWeekEnd = new Date(thisWeekStart)
+      thisWeekEnd.setDate(thisWeekEnd.getDate() + 7)
+      const thisWeekLogIds = new Set(
+        logs.filter((l) => l.completedAt >= thisWeekStart.getTime() && l.completedAt < thisWeekEnd.getTime()).map((l) => l.id)
+      )
+      const lastWeekEnd = new Date(thisWeekStart)
+      const lastWeekLogIds = new Set(
+        logs.filter((l) => l.completedAt >= lastWeekStart.getTime() && l.completedAt < lastWeekEnd.getTime()).map((l) => l.id)
+      )
+      const totalSetsThisWeek = setLogs.filter((s) => thisWeekLogIds.has(s.workoutLogId)).length
+      const totalSetsLastWeek = setLogs.filter((s) => lastWeekLogIds.has(s.workoutLogId)).length
+
+      // Per-progression trends: group by movement, get last 6 sessions
+      const movementSets = new Map<string, { date: number; value: number }[]>()
+      for (const setLog of setLogs) {
+        const log = logs.find((l) => l.id === setLog.workoutLogId)
+        if (!log) continue
+        const value = setLog.actualReps ?? setLog.actualSeconds ?? 0
+        if (value === 0) continue
+
+        const arr = movementSets.get(setLog.movementName) ?? []
+        arr.push({ date: log.completedAt, value })
+        movementSets.set(setLog.movementName, arr)
+      }
+
+      const progressionTrends: ProgressionTrend[] = []
+      for (const [movementName, entries] of movementSets) {
+        if (entries.length < 2) continue
+        entries.sort((a, b) => a.date - b.date)
+        const recent = entries.slice(-8)
+        const data = recent.map((e) => ({
+          date: new Date(e.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+          value: e.value,
+        }))
+
+        const firstHalf = recent.slice(0, Math.ceil(recent.length / 2))
+        const secondHalf = recent.slice(Math.ceil(recent.length / 2))
+        const avgFirst = firstHalf.reduce((s, e) => s + e.value, 0) / firstHalf.length
+        const avgSecond = secondHalf.reduce((s, e) => s + e.value, 0) / secondHalf.length
+        const improving = avgSecond > avgFirst
+
+        progressionTrends.push({ movementName, data, improving })
+      }
+
+      progressionTrends.sort((a, b) => b.data.length - a.data.length)
+
+      return {
+        streak,
+        weeklyVolume,
+        totalSetsThisWeek,
+        totalSetsLastWeek,
+        progressionTrends: progressionTrends.slice(0, 6),
+      }
+    },
+  })
+}

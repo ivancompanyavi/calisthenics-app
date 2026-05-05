@@ -59,6 +59,12 @@ export function HistoryDetail() {
           })}
         </div>
 
+        {log.notes && (
+          <Card className="p-3">
+            <p className="text-sm italic text-muted-foreground">{log.notes}</p>
+          </Card>
+        )}
+
         <Button
           variant="destructive"
           size="sm"
@@ -114,6 +120,9 @@ export function HistoryDetail() {
                     )}
                   </div>
                 </div>
+                {set.notes && (
+                  <p className="text-xs italic text-muted-foreground mt-1 ml-9">{set.notes}</p>
+                )}
               </Card>
             )
           })}

@@ -3,6 +3,7 @@ import { useWorkoutLogs, useDeleteWorkoutLog } from '@/hooks/useHistory'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { InsightsPanel } from '@/components/history/InsightsPanel'
 import { Clock, ChevronRight, Trash2 } from 'lucide-react'
 
 export function History() {
@@ -27,6 +28,8 @@ export function History() {
       <PageHeader title="History" />
 
       <div className="px-4 space-y-6 pb-8">
+        <InsightsPanel />
+
         {isLoading && (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         )}

@@ -64,6 +64,7 @@ export interface SaveWorkoutData {
       targetReps?: number
       targetSeconds?: number
       perSide?: boolean
+      restSeconds?: number
     }>
   }>
 }
@@ -118,6 +119,7 @@ export function useSaveWorkout() {
               targetReps: entryData.targetReps,
               targetSeconds: entryData.targetSeconds,
               perSide: entryData.perSide,
+              restSeconds: entryData.restSeconds,
               order: j,
             }
             await db.blockEntries.add(entry)

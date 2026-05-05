@@ -14,6 +14,7 @@ export interface ResolvedEntry {
   targetReps?: number
   targetSeconds?: number
   perSide?: boolean
+  restSeconds?: number
 }
 
 export interface ResolvedBlock {
@@ -21,6 +22,12 @@ export interface ResolvedBlock {
   rounds: number
   restSeconds: number
   entries: ResolvedEntry[]
+}
+
+export interface SkippedEntry {
+  blockIndex: number
+  round: number
+  entryIndex: number
 }
 
 export interface ExecutionState {
@@ -34,8 +41,10 @@ export interface ExecutionState {
   currentRound: number
   currentEntryIndex: number
   completedSets: SetLog[]
+  skippedEntries: SkippedEntry[]
   adjustReps: number
   adjustSeconds: number
+  adjustNotes: string
   restRemaining: number
   exerciseTimeRemaining: number
   exerciseTimeElapsed: number
@@ -58,7 +67,9 @@ type Action =
   | { type: 'DONE_EXERCISE' }
   | { type: 'SET_ADJUST_REPS'; value: number }
   | { type: 'SET_ADJUST_SECONDS'; value: number }
+  | { type: 'SET_ADJUST_NOTES'; value: string }
   | { type: 'CONFIRM_ADJUST' }
+  | { type: 'SKIP_EXERCISE' }
   | { type: 'TICK_REST' }
   | { type: 'SKIP_REST' }
 
@@ -75,6 +86,14 @@ function getNextPosition(state: ExecutionState): { blockIndex: number; round: nu
   const nextEntryIndex = state.currentEntryIndex + 1
   if (nextEntryIndex < block.entries.length) {
     return { blockIndex: state.currentBlockIndex, round: state.currentRound, entryIndex: nextEntryIndex }
+  }
+
+  // Check for skipped entries in this block+round
+  const skippedForRound = state.skippedEntries.find(
+    (s) => s.blockIndex === state.currentBlockIndex && s.round === state.currentRound
+  )
+  if (skippedForRound) {
+    return { blockIndex: skippedForRound.blockIndex, round: skippedForRound.round, entryIndex: skippedForRound.entryIndex }
   }
 
   const nextRound = state.currentRound + 1
@@ -106,8 +125,10 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         ...action.payload,
         restBetweenBlocksSeconds: action.payload.restBetweenBlocksSeconds ?? 0,
         phase: 'ready',
+        skippedEntries: [],
         adjustReps: 0,
         adjustSeconds: 0,
+        adjustNotes: '',
         restRemaining: 0,
         exerciseTimeRemaining: 0,
         exerciseTimeElapsed: 0,
@@ -156,6 +177,82 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
     case 'SET_ADJUST_SECONDS':
       return { ...state, adjustSeconds: action.value }
 
+    case 'SET_ADJUST_NOTES':
+      return { ...state, adjustNotes: action.value }
+
+    case 'SKIP_EXERCISE': {
+      const block = state.blocks[state.currentBlockIndex]
+      if (!block) return state
+
+      const skipped: SkippedEntry = {
+        blockIndex: state.currentBlockIndex,
+        round: state.currentRound,
+        entryIndex: state.currentEntryIndex,
+      }
+      const newSkipped = [...state.skippedEntries, skipped]
+
+      const nextEntryIndex = state.currentEntryIndex + 1
+      if (nextEntryIndex < block.entries.length) {
+        const nextEntry = block.entries[nextEntryIndex]
+        return {
+          ...state,
+          skippedEntries: newSkipped,
+          currentEntryIndex: nextEntryIndex,
+          exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
+        }
+      }
+
+      // No more normal entries — advance to next round or next block
+      const nextRound = state.currentRound + 1
+      if (nextRound < block.rounds) {
+        const firstEntry = block.entries[0]
+        return {
+          ...state,
+          skippedEntries: newSkipped,
+          currentRound: nextRound,
+          currentEntryIndex: 0,
+          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
+        }
+      }
+
+      // No more rounds — try next block
+      const nextBlockIndex = state.currentBlockIndex + 1
+      if (nextBlockIndex < state.blocks.length) {
+        const nextBlock = state.blocks[nextBlockIndex]
+        const firstEntry = nextBlock.entries[0]
+        const restDuration = state.restBetweenBlocksSeconds > 0
+          ? state.restBetweenBlocksSeconds
+          : block.restSeconds
+
+        if (restDuration > 0) {
+          return {
+            ...state,
+            phase: 'resting',
+            skippedEntries: newSkipped,
+            restRemaining: restDuration,
+            currentBlockIndex: nextBlockIndex,
+            currentRound: 0,
+            currentEntryIndex: 0,
+          }
+        }
+
+        return {
+          ...state,
+          skippedEntries: newSkipped,
+          currentBlockIndex: nextBlockIndex,
+          currentRound: 0,
+          currentEntryIndex: 0,
+          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
+          exerciseTimeElapsed: 0,
+        }
+      }
+
+      // Nothing left to skip to — this is the very last entry, just stay
+      return state
+    }
+
     case 'CONFIRM_ADJUST': {
       const entry = getCurrentEntry(state)
       if (!entry) return state
@@ -170,29 +267,37 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         targetSeconds: entry.targetSeconds,
         actualSeconds: (entry.mode === 'time' || entry.mode === 'max') ? state.adjustSeconds : undefined,
         perSide: entry.perSide,
+        notes: state.adjustNotes || undefined,
         round: state.currentRound,
         order: state.completedSets.length,
       }
 
       const newCompletedSets = [...state.completedSets, setLog]
+      // Remove this entry from skipped list if it was a deferred exercise
+      const newSkipped = state.skippedEntries.filter(
+        (s) => !(s.blockIndex === state.currentBlockIndex && s.round === state.currentRound && s.entryIndex === state.currentEntryIndex)
+      )
       const block = state.blocks[state.currentBlockIndex]
 
       if (isLastEntryInRestGroup(state)) {
-        const next = getNextPosition(state)
+        const stateWithSkips = { ...state, skippedEntries: newSkipped }
+        const next = getNextPosition(stateWithSkips)
         if (!next) {
-          return { ...state, phase: 'complete', completedSets: newCompletedSets }
+          return { ...state, phase: 'complete', completedSets: newCompletedSets, skippedEntries: newSkipped, adjustNotes: '' }
         }
 
         const isBlockTransition = next.blockIndex !== state.currentBlockIndex
         const restDuration = isBlockTransition && state.restBetweenBlocksSeconds > 0
           ? state.restBetweenBlocksSeconds
-          : block.restSeconds
+          : (entry.restSeconds ?? block.restSeconds)
 
         if (restDuration > 0) {
           return {
             ...state,
             phase: 'resting',
             completedSets: newCompletedSets,
+            skippedEntries: newSkipped,
+            adjustNotes: '',
             restRemaining: restDuration,
             currentBlockIndex: next.blockIndex,
             currentRound: next.round,
@@ -205,6 +310,8 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
           ...state,
           phase: 'exercise',
           completedSets: newCompletedSets,
+          skippedEntries: newSkipped,
+          adjustNotes: '',
           currentBlockIndex: next.blockIndex,
           currentRound: next.round,
           currentEntryIndex: next.entryIndex,
@@ -219,6 +326,8 @@ function reducer(state: ExecutionState, action: Action): ExecutionState {
         ...state,
         phase: 'exercise',
         completedSets: newCompletedSets,
+        skippedEntries: newSkipped,
+        adjustNotes: '',
         currentEntryIndex: nextEntryIndex,
         exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
         exerciseTimeElapsed: 0,
@@ -266,8 +375,10 @@ const initialState: ExecutionState = {
   currentRound: 0,
   currentEntryIndex: 0,
   completedSets: [],
+  skippedEntries: [],
   adjustReps: 0,
   adjustSeconds: 0,
+  adjustNotes: '',
   restRemaining: 0,
   exerciseTimeRemaining: 0,
   exerciseTimeElapsed: 0,

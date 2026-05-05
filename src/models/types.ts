@@ -47,6 +47,7 @@ export interface BlockEntry {
   targetReps?: number
   targetSeconds?: number
   perSide?: boolean
+  restSeconds?: number
   order: number
 }
 
@@ -56,6 +57,7 @@ export interface WorkoutLog {
   workoutName: string
   startedAt: number
   completedAt: number
+  notes?: string
 }
 
 export interface SetLog {
@@ -68,6 +70,7 @@ export interface SetLog {
   targetSeconds?: number
   actualSeconds?: number
   perSide?: boolean
+  notes?: string
   round: number
   order: number
 }

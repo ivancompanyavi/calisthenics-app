@@ -15,6 +15,7 @@ export interface DraftEntry {
   targetReps?: number
   targetSeconds?: number
   perSide?: boolean
+  restSeconds?: number
 }
 
 export interface DraftBlock {
@@ -61,6 +62,7 @@ export function WorkoutBuilder() {
               targetReps: e.targetReps,
               targetSeconds: e.targetSeconds,
               perSide: e.perSide,
+              restSeconds: e.restSeconds,
             })),
         }))
       )
@@ -118,6 +120,7 @@ export function WorkoutBuilder() {
           targetReps: e.targetReps,
           targetSeconds: e.targetSeconds,
           perSide: e.perSide || undefined,
+          restSeconds: e.restSeconds,
         })),
       })),
     }

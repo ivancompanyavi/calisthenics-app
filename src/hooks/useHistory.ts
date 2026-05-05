@@ -48,7 +48,7 @@ export function useDeleteWorkoutLog() {
 export function useSaveWorkoutLog() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (data: { workoutId: string; workoutName: string; startedAt: number; sets: Omit<SetLog, 'id' | 'workoutLogId'>[] }) => {
+    mutationFn: async (data: { workoutId: string; workoutName: string; startedAt: number; notes?: string; sets: Omit<SetLog, 'id' | 'workoutLogId'>[] }) => {
       const logId = generateId()
       const log: WorkoutLog = {
         id: logId,
@@ -56,6 +56,7 @@ export function useSaveWorkoutLog() {
         workoutName: data.workoutName,
         startedAt: data.startedAt,
         completedAt: Date.now(),
+        notes: data.notes || undefined,
       }
       const setLogs: SetLog[] = data.sets.map((s, i) => ({
         ...s,

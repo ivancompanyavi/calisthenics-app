@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkout, useWorkoutBlocks, useAllBlockEntries } from '@/hooks/useWorkouts'
 import { useSaveWorkoutLog } from '@/hooks/useHistory'
 import { useWorkoutExecution, type ResolvedBlock } from '@/hooks/useWorkoutExecution'
+import { useProgressionReadiness } from '@/hooks/useProgressions'
 import { db } from '@/db'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExerciseDisplay } from '@/components/execution/ExerciseDisplay'
@@ -34,6 +35,22 @@ export function WorkoutExecution() {
 
   const { state, dispatch, currentEntry, progress, init } = useWorkoutExecution()
   const [initialized, setInitialized] = useState(false)
+  const [workoutNotes, setWorkoutNotes] = useState('')
+
+  const progressionIds = state.phase === 'complete'
+    ? [...new Set(state.completedSets.map((s) => {
+        const block = state.blocks.find((b) =>
+          b.entries.some((e) => e.movementId === s.movementId)
+        )
+        const entry = block?.entries.find((e) => e.movementId === s.movementId)
+        return entry?.progressionId ?? ''
+      }).filter(Boolean))]
+    : []
+
+  const { data: levelUpCandidates = [] } = useProgressionReadiness(
+    state.phase === 'complete' ? progressionIds : [],
+    state.completedSets
+  )
 
   useEffect(() => {
     if (!workout || !blocks || !entries || initialized) return
@@ -65,6 +82,7 @@ export function WorkoutExecution() {
               targetReps: entry.targetReps,
               targetSeconds: entry.targetSeconds,
               perSide: entry.perSide,
+              restSeconds: entry.restSeconds,
             }
           })
         )
@@ -102,11 +120,20 @@ export function WorkoutExecution() {
       workoutId: state.workoutId,
       workoutName: state.workoutName,
       startedAt: state.startedAt,
+      notes: workoutNotes || undefined,
       sets: state.completedSets,
     })
     await db.inProgressWorkout.clear()
     queryClient.invalidateQueries({ queryKey: ['inProgressWorkout'] })
     navigate('/')
+  }
+
+  const handleLevelUp = async (progressionId: string) => {
+    const progression = await db.progressions.get(progressionId)
+    if (progression) {
+      await db.progressions.update(progressionId, { currentLevel: progression.currentLevel + 1 })
+      queryClient.invalidateQueries({ queryKey: ['progressions'] })
+    }
   }
 
   const handleQuit = async () => {
@@ -156,6 +183,7 @@ export function WorkoutExecution() {
             round={state.currentRound + 1}
             totalRounds={currentBlock?.rounds ?? 1}
             onDone={() => dispatch({ type: 'DONE_EXERCISE' })}
+            onSkip={() => dispatch({ type: 'SKIP_EXERCISE' })}
           />
         )}
 
@@ -164,8 +192,10 @@ export function WorkoutExecution() {
             entry={currentEntry}
             adjustReps={state.adjustReps}
             adjustSeconds={state.adjustSeconds}
+            adjustNotes={state.adjustNotes}
             onSetReps={(v) => dispatch({ type: 'SET_ADJUST_REPS', value: v })}
             onSetSeconds={(v) => dispatch({ type: 'SET_ADJUST_SECONDS', value: v })}
+            onSetNotes={(v) => dispatch({ type: 'SET_ADJUST_NOTES', value: v })}
             onConfirm={() => dispatch({ type: 'CONFIRM_ADJUST' })}
           />
         )}
@@ -183,6 +213,10 @@ export function WorkoutExecution() {
             workoutName={state.workoutName}
             startedAt={state.startedAt}
             setsCompleted={state.completedSets.length}
+            notes={workoutNotes}
+            onSetNotes={setWorkoutNotes}
+            levelUpCandidates={levelUpCandidates}
+            onLevelUp={handleLevelUp}
             onFinish={handleComplete}
           />
         )}

@@ -2,7 +2,7 @@ import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { Button } from '@/components/ui/button'
 import { formatTime } from '@/lib/utils'
-import { Check } from 'lucide-react'
+import { Check, SkipForward } from 'lucide-react'
 
 interface ExerciseDisplayProps {
   entry: ResolvedEntry
@@ -11,9 +11,10 @@ interface ExerciseDisplayProps {
   round: number
   totalRounds: number
   onDone: () => void
+  onSkip: () => void
 }
 
-export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone }: ExerciseDisplayProps) {
+export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone, onSkip }: ExerciseDisplayProps) {
   const sideLabel = entry.perSide ? ' /side' : ''
 
   return (
@@ -65,6 +66,11 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
           Done
         </Button>
       )}
+
+      <Button variant="ghost" size="sm" className="mt-2 text-muted-foreground" onClick={onSkip}>
+        <SkipForward className="h-4 w-4 mr-1" />
+        Skip
+      </Button>
     </div>
   )
 }

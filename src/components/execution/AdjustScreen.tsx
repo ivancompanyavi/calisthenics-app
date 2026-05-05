@@ -1,18 +1,44 @@
+import { useState } from 'react'
 import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { Button } from '@/components/ui/button'
-import { Minus, Plus, Check } from 'lucide-react'
+import { Minus, Plus, Check, StickyNote } from 'lucide-react'
 
 interface AdjustScreenProps {
   entry: ResolvedEntry
   adjustReps: number
   adjustSeconds: number
+  adjustNotes: string
   onSetReps: (v: number) => void
   onSetSeconds: (v: number) => void
+  onSetNotes: (v: string) => void
   onConfirm: () => void
 }
 
-export function AdjustScreen({ entry, adjustReps, adjustSeconds, onSetReps, onSetSeconds, onConfirm }: AdjustScreenProps) {
+export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, onSetReps, onSetSeconds, onSetNotes, onConfirm }: AdjustScreenProps) {
   const sideLabel = entry.perSide ? ' /side' : ''
+  const [showNotes, setShowNotes] = useState(!!adjustNotes)
+
+  const notesSection = (
+    <div className="w-full max-w-xs">
+      {showNotes ? (
+        <textarea
+          value={adjustNotes}
+          onChange={(e) => onSetNotes(e.target.value)}
+          placeholder="Note for this set..."
+          className="w-full h-16 rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      ) : (
+        <button
+          type="button"
+          className="text-xs text-muted-foreground flex items-center gap-1 mx-auto"
+          onClick={() => setShowNotes(true)}
+        >
+          <StickyNote className="h-3 w-3" />
+          Add note
+        </button>
+      )}
+    </div>
+  )
 
   if (entry.mode === 'reps') {
     return (
@@ -47,6 +73,8 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, onSetReps, onSe
         <p className="text-xs text-muted-foreground">
           Target: {entry.targetReps} reps{sideLabel}
         </p>
+
+        {notesSection}
 
         <Button size="lg" className="text-lg px-12 mt-4" onClick={onConfirm}>
           <Check className="h-5 w-5 mr-2" />
@@ -90,6 +118,8 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, onSetReps, onSe
           Target: {entry.targetSeconds}s
         </p>
       )}
+
+      {notesSection}
 
       <Button size="lg" className="text-lg px-12 mt-4" onClick={onConfirm}>
         <Check className="h-5 w-5 mr-2" />

@@ -1,18 +1,35 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Trophy } from 'lucide-react'
+import { Trophy, TrendingUp } from 'lucide-react'
+
+export interface LevelUpCandidate {
+  progressionId: string
+  progressionName: string
+  nextMovementName: string
+}
 
 interface CompleteScreenProps {
   workoutName: string
   startedAt: number
   setsCompleted: number
+  notes: string
+  onSetNotes: (v: string) => void
+  levelUpCandidates: LevelUpCandidate[]
+  onLevelUp: (progressionId: string) => void
   onFinish: () => void
 }
 
-export function CompleteScreen({ workoutName, startedAt, setsCompleted, onFinish }: CompleteScreenProps) {
+export function CompleteScreen({ workoutName, startedAt, setsCompleted, notes, onSetNotes, levelUpCandidates, onLevelUp, onFinish }: CompleteScreenProps) {
   const duration = Math.round((Date.now() - startedAt) / 60000)
+  const [leveledUp, setLeveledUp] = useState<Set<string>>(new Set())
+
+  const handleLevelUp = (progressionId: string) => {
+    onLevelUp(progressionId)
+    setLeveledUp((prev) => new Set(prev).add(progressionId))
+  }
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
+    <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 py-8">
       <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center">
         <Trophy className="h-10 w-10 text-primary" />
       </div>
@@ -33,7 +50,41 @@ export function CompleteScreen({ workoutName, startedAt, setsCompleted, onFinish
         </div>
       </div>
 
-      <Button size="lg" className="text-lg px-12 mt-4" onClick={onFinish}>
+      {levelUpCandidates.length > 0 && (
+        <div className="w-full max-w-sm space-y-2">
+          <p className="text-sm font-medium text-center flex items-center justify-center gap-1">
+            <TrendingUp className="h-4 w-4 text-green-500" />
+            Ready to level up!
+          </p>
+          {levelUpCandidates.map((c) => (
+            <div key={c.progressionId} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+              <div>
+                <p className="text-sm font-medium">{c.progressionName}</p>
+                <p className="text-xs text-muted-foreground">Next: {c.nextMovementName}</p>
+              </div>
+              <Button
+                size="sm"
+                variant={leveledUp.has(c.progressionId) ? 'secondary' : 'default'}
+                disabled={leveledUp.has(c.progressionId)}
+                onClick={() => handleLevelUp(c.progressionId)}
+              >
+                {leveledUp.has(c.progressionId) ? 'Done!' : 'Level Up'}
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="w-full max-w-sm">
+        <textarea
+          value={notes}
+          onChange={(e) => onSetNotes(e.target.value)}
+          placeholder="How did the workout feel? Any notes..."
+          className="w-full h-20 rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+      </div>
+
+      <Button size="lg" className="text-lg px-12 mt-2" onClick={onFinish}>
         Save & Finish
       </Button>
     </div>

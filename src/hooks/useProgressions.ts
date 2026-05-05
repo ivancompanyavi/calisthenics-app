@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { db } from '@/db'
-import type { Progression, ProgressionLevel } from '@/models/types'
+import type { Progression, ProgressionLevel, SetLog } from '@/models/types'
 import { generateId } from '@/lib/utils'
+import type { LevelUpCandidate } from '@/components/execution/CompleteScreen'
 
 export function useProgressions() {
   return useQuery({
@@ -116,5 +117,85 @@ export function useUpdateCurrentLevel() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['progressions'] })
     },
+  })
+}
+
+/**
+ * Checks which progressions are ready to level up.
+ * A progression is ready if it hit targets in the current session AND
+ * the most recent previous session for the same movement.
+ */
+export function useProgressionReadiness(progressionIds: string[], currentSets: SetLog[]) {
+  return useQuery({
+    queryKey: ['progressionReadiness', progressionIds, currentSets.length],
+    queryFn: async (): Promise<LevelUpCandidate[]> => {
+      const candidates: LevelUpCandidate[] = []
+
+      for (const progressionId of progressionIds) {
+        const progression = await db.progressions.get(progressionId)
+        if (!progression) continue
+
+        const levels = await db.progressionLevels
+          .where('progressionId')
+          .equals(progressionId)
+          .sortBy('order')
+
+        const currentLevel = progression.currentLevel
+        if (currentLevel >= levels.length - 1) continue
+
+        const level = levels[currentLevel]
+        if (!level) continue
+
+        const movement = await db.movements.get(level.movementId)
+        if (!movement) continue
+
+        const setsForMovement = currentSets.filter((s) => s.movementId === movement.id)
+        const allHitTargetCurrent = setsForMovement.length > 0 && setsForMovement.every((s) => {
+          if (s.actualReps != null && s.targetReps != null) return s.actualReps >= s.targetReps
+          if (s.actualSeconds != null && s.targetSeconds != null) return s.actualSeconds >= s.targetSeconds
+          return false
+        })
+
+        if (!allHitTargetCurrent) continue
+
+        // Check the most recent previous session
+        const prevSetLogs = await db.setLogs
+          .where('movementId')
+          .equals(movement.id)
+          .reverse()
+          .limit(20)
+          .toArray()
+
+        // Filter to logs from a different workout session
+        const prevWorkoutLogIds = [...new Set(prevSetLogs.map((s) => s.workoutLogId))]
+        let hitTargetPrevious = false
+        for (const logId of prevWorkoutLogIds) {
+          const prevSets = prevSetLogs.filter((s) => s.workoutLogId === logId)
+          const allHit = prevSets.every((s) => {
+            if (s.actualReps != null && s.targetReps != null) return s.actualReps >= s.targetReps
+            if (s.actualSeconds != null && s.targetSeconds != null) return s.actualSeconds >= s.targetSeconds
+            return false
+          })
+          if (allHit) {
+            hitTargetPrevious = true
+            break
+          }
+        }
+
+        if (!hitTargetPrevious) continue
+
+        const nextLevel = levels[currentLevel + 1]
+        const nextMovement = nextLevel ? await db.movements.get(nextLevel.movementId) : undefined
+
+        candidates.push({
+          progressionId,
+          progressionName: progression.name,
+          nextMovementName: nextMovement?.name ?? 'Next level',
+        })
+      }
+
+      return candidates
+    },
+    enabled: progressionIds.length > 0,
   })
 }
