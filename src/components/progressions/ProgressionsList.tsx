@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useProgressions, useDeleteProgression } from '@/hooks/useProgressions'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { ProgressionForm } from './ProgressionForm'
@@ -27,12 +28,12 @@ export function ProgressionsList() {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input
+        <Input
           type="text"
           placeholder="Search progressions..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 h-11 rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex-1"
         />
         <Button size="icon" onClick={() => setCreating(true)}>
           <Plus className="h-5 w-5" />

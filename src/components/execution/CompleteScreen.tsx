@@ -1,12 +1,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { Trophy, TrendingUp } from 'lucide-react'
-
-export interface LevelUpCandidate {
-  progressionId: string
-  progressionName: string
-  nextMovementName: string
-}
+import type { LevelUpCandidate } from '@/models/types'
 
 interface CompleteScreenProps {
   workoutName: string
@@ -76,11 +72,11 @@ export function CompleteScreen({ workoutName, startedAt, setsCompleted, notes, o
       )}
 
       <div className="w-full max-w-sm">
-        <textarea
+        <Textarea
           value={notes}
           onChange={(e) => onSetNotes(e.target.value)}
           placeholder="How did the workout feel? Any notes..."
-          className="w-full h-20 rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-20 resize-none"
         />
       </div>
 

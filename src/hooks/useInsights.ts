@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { db } from '@/db'
+import { queryKeys } from '@/lib/query-keys'
+import { workoutLogsRepository } from '@/repositories'
 
 export interface WeeklyVolume {
   week: string
@@ -33,20 +34,19 @@ function formatWeekLabel(date: Date): string {
 
 export function useInsights() {
   return useQuery({
-    queryKey: ['insights'],
+    queryKey: queryKeys.insights,
     queryFn: async (): Promise<InsightsData> => {
-      const logs = await db.workoutLogs.orderBy('completedAt').reverse().toArray()
-      const setLogs = await db.setLogs.toArray()
+      const logs = await workoutLogsRepository.getAll()
+      const setLogs = await workoutLogsRepository.getAllSetLogs()
 
       const now = new Date()
       const thisWeekStart = getWeekStart(now)
       const lastWeekStart = new Date(thisWeekStart)
       lastWeekStart.setDate(lastWeekStart.getDate() - 7)
 
-      // Streak: consecutive weeks with at least 1 workout
       let streak = 0
       const weekStart = getWeekStart(now)
-      let checkWeek = new Date(weekStart)
+      const checkWeek = new Date(weekStart)
       while (true) {
         const weekEnd = new Date(checkWeek)
         weekEnd.setDate(weekEnd.getDate() + 7)
@@ -61,7 +61,6 @@ export function useInsights() {
         }
       }
 
-      // Weekly volume: last 8 weeks
       const weeklyVolume: WeeklyVolume[] = []
       for (let i = 7; i >= 0; i--) {
         const wStart = new Date(thisWeekStart)
@@ -74,7 +73,6 @@ export function useInsights() {
         weeklyVolume.push({ week: formatWeekLabel(wStart), count })
       }
 
-      // Sets this week vs last week
       const thisWeekEnd = new Date(thisWeekStart)
       thisWeekEnd.setDate(thisWeekEnd.getDate() + 7)
       const thisWeekLogIds = new Set(
@@ -87,7 +85,6 @@ export function useInsights() {
       const totalSetsThisWeek = setLogs.filter((s) => thisWeekLogIds.has(s.workoutLogId)).length
       const totalSetsLastWeek = setLogs.filter((s) => lastWeekLogIds.has(s.workoutLogId)).length
 
-      // Per-progression trends: group by movement, get last 6 sessions
       const movementSets = new Map<string, { date: number; value: number }[]>()
       for (const setLog of setLogs) {
         const log = logs.find((l) => l.id === setLog.workoutLogId)

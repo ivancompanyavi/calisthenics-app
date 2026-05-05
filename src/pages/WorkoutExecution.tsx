@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkout, useWorkoutBlocks, useAllBlockEntries } from '@/hooks/useWorkouts'
 import { useSaveWorkoutLog } from '@/hooks/useHistory'
-import { useWorkoutExecution, type ResolvedBlock } from '@/hooks/useWorkoutExecution'
-import { useProgressionReadiness } from '@/hooks/useProgressions'
-import { db } from '@/db'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useWorkoutExecution } from '@/hooks/useWorkoutExecution'
+import { useProgressionReadiness, useUpdateCurrentLevel } from '@/hooks/useProgressions'
+import { useInProgressWorkout } from '@/hooks/useInProgressWorkout'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/query-keys'
+import { workoutsRepository, inProgressRepository, progressionsRepository } from '@/repositories'
 import { ExerciseDisplay } from '@/components/execution/ExerciseDisplay'
 import { RestScreen } from '@/components/execution/RestScreen'
 import { AdjustScreen } from '@/components/execution/AdjustScreen'
 import { CompleteScreen } from '@/components/execution/CompleteScreen'
 import { Button } from '@/components/ui/button'
 import { Play, X } from 'lucide-react'
-import type { InProgressWorkout } from '@/models/types'
 
 export function WorkoutExecution() {
   const { id } = useParams<{ id: string }>()
@@ -25,13 +26,8 @@ export function WorkoutExecution() {
   const { data: entries } = useAllBlockEntries(blockIds)
   const saveLog = useSaveWorkoutLog()
 
-  const { data: inProgress } = useQuery({
-    queryKey: ['inProgressWorkout'],
-    queryFn: async (): Promise<InProgressWorkout | undefined> => {
-      const all = await db.inProgressWorkout.toArray()
-      return all[0]
-    },
-  })
+  const { data: inProgress } = useInProgressWorkout()
+  const updateLevel = useUpdateCurrentLevel()
 
   const { state, dispatch, currentEntry, progress, init } = useWorkoutExecution()
   const [initialized, setInitialized] = useState(false)
@@ -55,49 +51,7 @@ export function WorkoutExecution() {
   useEffect(() => {
     if (!workout || !blocks || !entries || initialized) return
 
-    const resolveBlocks = async (): Promise<ResolvedBlock[]> => {
-      const resolved: ResolvedBlock[] = []
-      for (const block of blocks) {
-        const blockEntries = entries
-          .filter((e) => e.blockId === block.id)
-          .sort((a, b) => a.order - b.order)
-
-        const resolvedEntries = await Promise.all(
-          blockEntries.map(async (entry) => {
-            const progression = await db.progressions.get(entry.progressionId)
-            const levels = await db.progressionLevels
-              .where('progressionId')
-              .equals(entry.progressionId)
-              .sortBy('order')
-            const currentLevel = progression?.currentLevel ?? 0
-            const level = levels[currentLevel] ?? levels[0]
-            const movement = level ? await db.movements.get(level.movementId) : undefined
-
-            return {
-              progressionId: entry.progressionId,
-              movementId: movement?.id ?? '',
-              movementName: movement?.name ?? 'Unknown',
-              movementPhoto: movement?.photo,
-              mode: entry.mode,
-              targetReps: entry.targetReps,
-              targetSeconds: entry.targetSeconds,
-              perSide: entry.perSide,
-              restSeconds: entry.restSeconds,
-            }
-          })
-        )
-
-        resolved.push({
-          type: block.type,
-          rounds: block.rounds,
-          restSeconds: block.restSeconds,
-          entries: resolvedEntries,
-        })
-      }
-      return resolved
-    }
-
-    resolveBlocks().then((resolvedBlocks) => {
+    workoutsRepository.resolveBlocks(blocks, entries).then((resolvedBlocks) => {
       const resumeData = inProgress?.workoutId === id ? inProgress : null
 
       init({
@@ -123,16 +77,15 @@ export function WorkoutExecution() {
       notes: workoutNotes || undefined,
       sets: state.completedSets,
     })
-    await db.inProgressWorkout.clear()
-    queryClient.invalidateQueries({ queryKey: ['inProgressWorkout'] })
+    await inProgressRepository.clear()
+    queryClient.invalidateQueries({ queryKey: queryKeys.inProgress })
     navigate('/')
   }
 
   const handleLevelUp = async (progressionId: string) => {
-    const progression = await db.progressions.get(progressionId)
+    const progression = await progressionsRepository.getById(progressionId)
     if (progression) {
-      await db.progressions.update(progressionId, { currentLevel: progression.currentLevel + 1 })
-      queryClient.invalidateQueries({ queryKey: ['progressions'] })
+      await updateLevel.mutateAsync({ id: progressionId, currentLevel: progression.currentLevel + 1 })
     }
   }
 

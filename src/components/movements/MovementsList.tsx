@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMovements, useDeleteMovement } from '@/hooks/useMovements'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { MovementForm } from './MovementForm'
@@ -26,12 +27,12 @@ export function MovementsList() {
   return (
     <div className="space-y-3">
       <div className="flex gap-2">
-        <input
+        <Input
           type="text"
           placeholder="Search movements..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 h-11 rounded-lg border border-input bg-transparent px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex-1"
         />
         <Button size="icon" onClick={() => setCreating(true)}>
           <Plus className="h-5 w-5" />

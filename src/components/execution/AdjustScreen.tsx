@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
 import { Minus, Plus, Check, StickyNote } from 'lucide-react'
 
 interface AdjustScreenProps {
@@ -21,11 +22,11 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, on
   const notesSection = (
     <div className="w-full max-w-xs">
       {showNotes ? (
-        <textarea
+        <Textarea
           value={adjustNotes}
           onChange={(e) => onSetNotes(e.target.value)}
           placeholder="Note for this set..."
-          className="w-full h-16 rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-16 resize-none"
         />
       ) : (
         <button

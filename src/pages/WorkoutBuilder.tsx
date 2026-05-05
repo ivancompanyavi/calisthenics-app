@@ -7,24 +7,7 @@ import { Input } from '@/components/ui/input'
 import { BlockEditor } from '@/components/workouts/BlockEditor'
 import { Plus, Save, ArrowLeft } from 'lucide-react'
 import { generateId } from '@/lib/utils'
-
-export interface DraftEntry {
-  id: string
-  progressionId: string
-  mode: 'reps' | 'time' | 'max'
-  targetReps?: number
-  targetSeconds?: number
-  perSide?: boolean
-  restSeconds?: number
-}
-
-export interface DraftBlock {
-  id: string
-  type: 'set' | 'superset'
-  rounds: number
-  restSeconds: number
-  entries: DraftEntry[]
-}
+import type { DraftBlock } from '@/models/types'
 
 export function WorkoutBuilder() {
   const { id } = useParams<{ id: string }>()

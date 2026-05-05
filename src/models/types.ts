@@ -85,3 +85,19 @@ export interface InProgressWorkout {
   currentEntryIndex: number
   completedSets: SetLog[]
 }
+
+export interface LevelUpCandidate {
+  progressionId: string
+  progressionName: string
+  nextMovementName: string
+}
+
+export type DraftEntry = Omit<BlockEntry, 'blockId' | 'order'> & { id: string }
+
+export interface DraftBlock {
+  id: string
+  type: BlockType
+  rounds: number
+  restSeconds: number
+  entries: DraftEntry[]
+}

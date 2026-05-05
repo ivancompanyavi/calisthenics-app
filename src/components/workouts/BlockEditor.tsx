@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { DraftBlock, DraftEntry } from '@/pages/WorkoutBuilder'
+import type { DraftBlock, DraftEntry } from '@/models/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'

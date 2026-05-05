@@ -1,13 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useWorkouts } from '@/hooks/useWorkouts'
 import { useWorkoutLogs } from '@/hooks/useHistory'
+import { useInProgressWorkout, useDiscardInProgress } from '@/hooks/useInProgressWorkout'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Play, Plus, Dumbbell, Clock, Download, Upload } from 'lucide-react'
-import { db } from '@/db'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { InProgressWorkout } from '@/models/types'
+import { useQueryClient } from '@tanstack/react-query'
 import { exportAllData, importAllData, downloadJson } from '@/lib/data-transfer'
 import { useRef } from 'react'
 
@@ -17,14 +16,8 @@ export function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { data: workouts } = useWorkouts()
   const { data: recentLogs } = useWorkoutLogs()
-
-  const { data: inProgress } = useQuery({
-    queryKey: ['inProgressWorkout'],
-    queryFn: async (): Promise<InProgressWorkout | undefined> => {
-      const all = await db.inProgressWorkout.toArray()
-      return all[0]
-    },
-  })
+  const { data: inProgress } = useInProgressWorkout()
+  const discardInProgress = useDiscardInProgress()
 
   const lastThreeLogs = recentLogs?.slice(0, 3)
 
@@ -53,10 +46,7 @@ export function Home() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={async () => {
-                    await db.inProgressWorkout.clear()
-                    window.location.reload()
-                  }}
+                  onClick={() => discardInProgress.mutate()}
                 >
                   Discard
                 </Button>

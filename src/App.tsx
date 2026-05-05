@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { TabLayout } from '@/components/layout/TabLayout'
+import { Toaster } from '@/components/ui/toast'
+import { showToast } from '@/lib/toast'
 import { Home } from '@/pages/Home'
 import { History } from '@/pages/History'
 import { HistoryDetail } from '@/pages/HistoryDetail'
@@ -16,6 +18,14 @@ const queryClient = new QueryClient({
       staleTime: 1000 * 60,
     },
   },
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      showToast(
+        error instanceof Error ? error.message : 'Something went wrong',
+        'error'
+      )
+    },
+  }),
 })
 
 export default function App() {
@@ -36,6 +46,7 @@ export default function App() {
             <Route path="/execute/:id" element={<WorkoutExecution />} />
           </Routes>
         </BrowserRouter>
+        <Toaster />
       </QueryClientProvider>
     </ErrorBoundary>
   )

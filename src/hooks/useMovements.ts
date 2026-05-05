@@ -1,19 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { db } from '@/db'
 import type { Movement } from '@/models/types'
-import { generateId } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
+import { movementsRepository, progressionsRepository } from '@/repositories'
 
 export function useMovements() {
   return useQuery({
-    queryKey: ['movements'],
-    queryFn: () => db.movements.orderBy('name').toArray(),
+    queryKey: queryKeys.movements.all,
+    queryFn: () => movementsRepository.getAll(),
   })
 }
 
 export function useMovement(id: string | undefined) {
   return useQuery({
-    queryKey: ['movements', id],
-    queryFn: () => (id ? db.movements.get(id) : undefined),
+    queryKey: queryKeys.movements.detail(id!),
+    queryFn: () => movementsRepository.getById(id!),
     enabled: !!id,
   })
 }
@@ -22,32 +22,16 @@ export function useCreateMovement() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (data: Omit<Movement, 'id' | 'createdAt'>) => {
-      const movement: Movement = {
-        ...data,
-        id: generateId(),
-        createdAt: Date.now(),
-      }
-      await db.movements.add(movement)
-
-      const progression = {
-        id: generateId(),
+      const movement = await movementsRepository.create(data)
+      await progressionsRepository.create({
         name: movement.name,
-        currentLevel: 0,
-        createdAt: Date.now(),
-      }
-      await db.progressions.add(progression)
-      await db.progressionLevels.add({
-        id: generateId(),
-        progressionId: progression.id,
-        movementId: movement.id,
-        order: 0,
+        movementIds: [movement.id],
       })
-
       return movement
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['movements'] })
-      qc.invalidateQueries({ queryKey: ['progressions'] })
+      qc.invalidateQueries({ queryKey: queryKeys.movements.all })
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
     },
   })
 }
@@ -56,10 +40,10 @@ export function useUpdateMovement() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, ...data }: Partial<Movement> & { id: string }) => {
-      await db.movements.update(id, data)
+      await movementsRepository.update(id, data)
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['movements'] })
+      qc.invalidateQueries({ queryKey: queryKeys.movements.all })
     },
   })
 }
@@ -67,15 +51,10 @@ export function useUpdateMovement() {
 export function useDeleteMovement() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (id: string) => {
-      await db.transaction('rw', [db.movements, db.progressionLevels], async () => {
-        await db.movements.delete(id)
-        await db.progressionLevels.where('movementId').equals(id).delete()
-      })
-    },
+    mutationFn: (id: string) => movementsRepository.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['movements'] })
-      qc.invalidateQueries({ queryKey: ['progressions'] })
+      qc.invalidateQueries({ queryKey: queryKeys.movements.all })
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
     },
   })
 }

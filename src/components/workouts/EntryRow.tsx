@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { DraftEntry } from '@/pages/WorkoutBuilder'
+import type { DraftEntry } from '@/models/types'
 import { useProgression, useProgressionLevels } from '@/hooks/useProgressions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
