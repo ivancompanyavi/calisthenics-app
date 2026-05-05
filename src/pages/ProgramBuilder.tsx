@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { DialogTitle } from '@/components/ui/dialog'
-import { Plus, Save, ArrowLeft, X, ChevronUp, ChevronDown, Moon, Dumbbell, AlertTriangle } from 'lucide-react'
+import { Save, ArrowLeft, X, ChevronUp, ChevronDown, Moon, Dumbbell, AlertTriangle } from 'lucide-react'
 
 interface DraftDay {
   id: string
