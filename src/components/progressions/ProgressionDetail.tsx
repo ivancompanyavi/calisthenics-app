@@ -40,6 +40,7 @@ export function ProgressionDetail({ progression: initialProgression, onEdit }: P
         <div className="flex flex-col items-center gap-3">
           <MovementPhoto
             photo={currentMovement.photo}
+            seedImagePath={currentMovement.seedImagePath}
             name={currentMovement.name}
             size="lg"
           />

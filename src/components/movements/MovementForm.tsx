@@ -61,7 +61,12 @@ export function MovementForm({ movement, onDone }: MovementFormProps) {
           onClick={() => fileInputRef.current?.click()}
           className="relative group"
         >
-          <MovementPhoto photo={photo} name={name || 'New'} size="lg" />
+          <MovementPhoto
+            photo={photo}
+            seedImagePath={movement?.seedImagePath}
+            name={name || 'New'}
+            size="lg"
+          />
           <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
             <Camera className="h-6 w-6 text-white" />
           </div>

@@ -90,7 +90,9 @@ export function WorkoutExecution() {
   }
 
   const handleQuit = async () => {
-    if (!confirm('Quit this workout? Progress will be saved.')) return
+    if (!confirm('Cancel this workout? Progress will be lost.')) return
+    await inProgressRepository.clear()
+    queryClient.invalidateQueries({ queryKey: queryKeys.inProgress })
     navigate('/')
   }
 

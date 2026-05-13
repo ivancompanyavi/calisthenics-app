@@ -48,7 +48,12 @@ export function MovementsList() {
       {filtered?.map((movement) => (
         <Card key={movement.id} className="p-3">
           <div className="flex items-center gap-3">
-            <MovementPhoto photo={movement.photo} name={movement.name} size="sm" />
+            <MovementPhoto
+              photo={movement.photo}
+              seedImagePath={movement.seedImagePath}
+              name={movement.name}
+              size="sm"
+            />
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{movement.name}</p>
               {movement.description && (

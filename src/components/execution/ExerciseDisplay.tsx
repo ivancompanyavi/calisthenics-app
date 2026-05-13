@@ -22,16 +22,22 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
     <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
       <MovementPhoto
         photo={entry.movementPhoto}
+        seedImagePath={entry.movementSeedImagePath}
         name={entry.movementName}
         size="lg"
         className="h-32 w-32"
       />
 
-      <div className="text-center">
+      <div className="text-center max-w-md">
         <h2 className="text-2xl font-bold">{entry.movementName}</h2>
         {totalRounds > 1 && (
           <p className="text-sm text-muted-foreground mt-1">
             Round {round} of {totalRounds}
+          </p>
+        )}
+        {entry.movementCoachingCues && (
+          <p className="text-sm text-muted-foreground mt-2 italic">
+            {entry.movementCoachingCues}
           </p>
         )}
       </div>

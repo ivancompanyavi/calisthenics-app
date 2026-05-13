@@ -29,6 +29,7 @@ function ProgressionRow({ progressionId, name, currentLevel, onSelect }: {
     >
       <MovementPhoto
         photo={currentMovement?.photo}
+        seedImagePath={currentMovement?.seedImagePath}
         name={name}
         size="sm"
       />
@@ -122,7 +123,12 @@ export function ExercisePicker({ onSelect }: ExercisePickerProps) {
                 onClick={() => onSelect({ type: 'movement', movementId: m.id })}
                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-secondary transition-colors touch-manipulation text-left"
               >
-                <MovementPhoto photo={m.photo} name={m.name} size="sm" />
+                <MovementPhoto
+                  photo={m.photo}
+                  seedImagePath={m.seedImagePath}
+                  name={m.name}
+                  size="sm"
+                />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{m.name}</p>
                   {m.description && (

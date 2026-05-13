@@ -8,6 +8,8 @@ export interface ResolvedEntry {
   movementId: string
   movementName: string
   movementPhoto?: Blob
+  movementSeedImagePath?: string
+  movementCoachingCues?: string
   mode: 'reps' | 'time' | 'max'
   targetReps?: number
   targetSeconds?: number

@@ -2,7 +2,9 @@ export interface Movement {
   id: string
   name: string
   photo?: Blob
+  seedImagePath?: string
   description?: string
+  coachingCues?: string
   createdAt: number
 }
 
