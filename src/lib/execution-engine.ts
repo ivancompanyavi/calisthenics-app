@@ -47,6 +47,7 @@ export interface ExecutionState {
   adjustSeconds: number
   adjustNotes: string
   restRemaining: number
+  restTotal: number
   exerciseTimeRemaining: number
   exerciseTimeElapsed: number
 }
@@ -137,6 +138,7 @@ export const initialState: ExecutionState = {
   adjustSeconds: 0,
   adjustNotes: '',
   restRemaining: 0,
+  restTotal: 0,
   exerciseTimeRemaining: 0,
   exerciseTimeElapsed: 0,
 }
@@ -154,6 +156,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         adjustSeconds: 0,
         adjustNotes: '',
         restRemaining: 0,
+        restTotal: 0,
         exerciseTimeRemaining: 0,
         exerciseTimeElapsed: 0,
       }
@@ -254,6 +257,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             phase: 'resting',
             skippedEntries: newSkipped,
             restRemaining: restDuration,
+            restTotal: restDuration,
             currentBlockIndex: nextBlockIndex,
             currentRound: 0,
             currentEntryIndex: 0,
@@ -342,6 +346,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             cancelledEntries: newCancelled,
             completedSets: newCompletedSets,
             restRemaining: restDuration,
+            restTotal: restDuration,
             currentBlockIndex: nextBlockIndex,
             currentRound: 0,
             currentEntryIndex: 0,
@@ -412,6 +417,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             skippedEntries: newSkipped,
             adjustNotes: '',
             restRemaining: restDuration,
+            restTotal: restDuration,
             currentBlockIndex: next.blockIndex,
             currentRound: next.round,
             currentEntryIndex: next.entryIndex,

@@ -9,6 +9,7 @@ import { History } from '@/pages/History'
 import { HistoryDetail } from '@/pages/HistoryDetail'
 import { Workouts } from '@/pages/Workouts'
 import { WorkoutBuilder } from '@/pages/WorkoutBuilder'
+import { WorkoutDetail } from '@/pages/WorkoutDetail'
 import { LibraryPage } from '@/pages/Library'
 import { Programs } from '@/pages/Programs'
 import { ProgramBuilder } from '@/pages/ProgramBuilder'
@@ -43,6 +44,7 @@ export default function App() {
               <Route path="/history/:id" element={<HistoryDetail />} />
               <Route path="/workouts" element={<Workouts />} />
               <Route path="/workouts/new" element={<WorkoutBuilder />} />
+              <Route path="/workouts/:id" element={<WorkoutDetail />} />
               <Route path="/workouts/:id/edit" element={<WorkoutBuilder />} />
               <Route path="/programs" element={<Programs />} />
               <Route path="/programs/new" element={<ProgramBuilder />} />

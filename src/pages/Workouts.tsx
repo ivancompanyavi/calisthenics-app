@@ -40,12 +40,16 @@ export function Workouts() {
         {workouts?.map((workout) => (
           <Card key={workout.id} className="p-4">
             <div className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
+              <button
+                type="button"
+                onClick={() => navigate(`/workouts/${workout.id}`)}
+                className="flex-1 min-w-0 text-left -my-2 py-2 -ml-2 pl-2 pr-2 rounded-md hover:bg-secondary/50 transition-colors touch-manipulation"
+              >
                 <p className="font-semibold truncate">{workout.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(workout.createdAt).toLocaleDateString()}
                 </p>
-              </div>
+              </button>
               <div className="flex gap-1">
                 <Button
                   variant="ghost"

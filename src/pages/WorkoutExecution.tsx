@@ -173,7 +173,8 @@ export function WorkoutExecution() {
         {state.phase === 'resting' && (
           <RestScreen
             remaining={state.restRemaining}
-            total={currentBlock?.restSeconds ?? 60}
+            total={state.restTotal}
+            nextEntry={currentEntry}
             onSkip={() => dispatch({ type: 'SKIP_REST' })}
           />
         )}

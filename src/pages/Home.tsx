@@ -155,10 +155,14 @@ export function Home() {
           <div className="space-y-2">
             {workouts?.map((workout) => (
               <Card key={workout.id} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold">{workout.name}</p>
-                  </div>
+                <div className="flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/workouts/${workout.id}`)}
+                    className="flex-1 min-w-0 text-left -my-2 py-2 -ml-2 pl-2 pr-2 rounded-md hover:bg-secondary/50 transition-colors touch-manipulation"
+                  >
+                    <p className="font-semibold truncate">{workout.name}</p>
+                  </button>
                   <Button
                     size="sm"
                     onClick={() => navigate(`/execute/${workout.id}`)}
