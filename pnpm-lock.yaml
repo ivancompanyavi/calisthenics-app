@@ -44,6 +44,9 @@ importers:
       uuid:
         specifier: ^14.0.0
         version: 14.0.0
+      workbox-window:
+        specifier: ^7.4.1
+        version: 7.4.1
     devDependencies:
       '@eslint/js':
         specifier: ^10.0.1

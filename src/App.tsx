@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { TabLayout } from '@/components/layout/TabLayout'
 import { Toaster } from '@/components/ui/toast'
+import { UpdatePrompt } from '@/components/UpdatePrompt'
 import { showToast } from '@/lib/toast'
 import { Home } from '@/pages/Home'
 import { History } from '@/pages/History'
@@ -56,6 +57,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
         <Toaster />
+        <UpdatePrompt />
       </QueryClientProvider>
     </ErrorBoundary>
   )
