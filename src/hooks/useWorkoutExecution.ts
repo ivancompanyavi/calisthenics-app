@@ -17,9 +17,58 @@ import {
 
 export type { ExecutionState, ResolvedBlock, ResolvedEntry, ExecutionPhase, SkippedEntry }
 
+// Wraps navigator.wakeLock so a workout keeps the screen on (and JS un-throttled).
+function useScreenWakeLock(active: boolean) {
+  const sentinelRef = useRef<WakeLockSentinel | null>(null)
+
+  useEffect(() => {
+    if (!active) return
+    let cancelled = false
+
+    const request = async () => {
+      const wakeLock = navigator.wakeLock
+      if (!wakeLock) return
+      try {
+        const sentinel = await wakeLock.request('screen')
+        if (cancelled) {
+          sentinel.release().catch(() => {})
+          return
+        }
+        sentinelRef.current = sentinel
+        sentinel.addEventListener('release', () => {
+          if (sentinelRef.current === sentinel) sentinelRef.current = null
+        })
+      } catch {
+        // User denied, browser doesn't support it, or some other transient failure.
+        // Workout still runs — timestamps already make the timer correct on return.
+      }
+    }
+
+    request()
+
+    // Re-acquire if the page becomes visible again (browsers drop the lock on hide).
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !sentinelRef.current) request()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisibility)
+      const sentinel = sentinelRef.current
+      sentinelRef.current = null
+      sentinel?.release().catch(() => {})
+    }
+  }, [active])
+}
+
 export function useWorkoutExecution() {
   const [state, dispatch] = useReducer(executionReducer, initialState)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const workoutActive =
+    state.phase !== 'ready' && state.phase !== 'complete' && !!state.workoutId
+  useScreenWakeLock(workoutActive)
 
   useEffect(() => {
     if (timerRef.current) {
@@ -28,19 +77,36 @@ export function useWorkoutExecution() {
     }
 
     const entry = getCurrentEntry(state)
-    const needsTick = state.phase === 'exercise' && (state.exerciseTimeRemaining > 0 || entry?.mode === 'max')
-    if (needsTick) {
-      timerRef.current = setInterval(() => {
-        dispatch({ type: 'TICK_EXERCISE' })
-      }, 1000)
-    } else if (state.phase === 'resting' && state.restRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        dispatch({ type: 'TICK_REST' })
-      }, 1000)
+    const needsExerciseTick =
+      state.phase === 'exercise' && (state.exerciseTimeRemaining > 0 || entry?.mode === 'max')
+    const needsRestTick = state.phase === 'resting' && state.restRemaining > 0
+
+    if (!needsExerciseTick && !needsRestTick) return
+
+    const tick = () => {
+      if (needsExerciseTick) {
+        dispatch({ type: 'TICK_EXERCISE', now: Date.now() })
+      } else {
+        dispatch({ type: 'TICK_REST', now: Date.now() })
+      }
     }
+
+    timerRef.current = setInterval(tick, 1000)
+
+    // When the app becomes visible again, fire an immediate tick so the
+    // display catches up (background intervals on iOS/Android are throttled
+    // or paused entirely; the reducer is timestamp-driven so one tick is
+    // enough to resync — and may transition phases if the timer elapsed).
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', tick)
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', tick)
     }
   }, [state.phase, state.exerciseTimeRemaining > 0, state.restRemaining > 0, state.currentEntryIndex, state.currentBlockIndex])
 

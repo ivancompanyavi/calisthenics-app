@@ -102,7 +102,7 @@ export function WorkoutExecution() {
         <h1 className="text-2xl font-bold mb-2">{workout?.name ?? 'Loading...'}</h1>
         <p className="text-muted-foreground mb-8">Ready to start?</p>
         {initialized && (
-          <Button size="lg" className="text-lg px-8" onClick={() => dispatch({ type: 'START' })}>
+          <Button size="lg" className="text-lg px-8" onClick={() => dispatch({ type: 'START', now: Date.now() })}>
             <Play className="h-5 w-5 mr-2" />
             {inProgress?.workoutId === id ? 'Resume Workout' : 'Start Workout'}
           </Button>
@@ -151,9 +151,9 @@ export function WorkoutExecution() {
             timeElapsed={state.exerciseTimeElapsed}
             round={state.currentRound + 1}
             totalRounds={currentBlock?.rounds ?? 1}
-            onDone={() => dispatch({ type: 'DONE_EXERCISE' })}
-            onDelay={() => dispatch({ type: 'DELAY_EXERCISE' })}
-            onSkip={() => dispatch({ type: 'SKIP_EXERCISE' })}
+            onDone={() => dispatch({ type: 'DONE_EXERCISE', now: Date.now() })}
+            onDelay={() => dispatch({ type: 'DELAY_EXERCISE', now: Date.now() })}
+            onSkip={() => dispatch({ type: 'SKIP_EXERCISE', now: Date.now() })}
           />
         )}
 
@@ -166,7 +166,7 @@ export function WorkoutExecution() {
             onSetReps={(v) => dispatch({ type: 'SET_ADJUST_REPS', value: v })}
             onSetSeconds={(v) => dispatch({ type: 'SET_ADJUST_SECONDS', value: v })}
             onSetNotes={(v) => dispatch({ type: 'SET_ADJUST_NOTES', value: v })}
-            onConfirm={() => dispatch({ type: 'CONFIRM_ADJUST' })}
+            onConfirm={() => dispatch({ type: 'CONFIRM_ADJUST', now: Date.now() })}
           />
         )}
 
@@ -175,7 +175,7 @@ export function WorkoutExecution() {
             remaining={state.restRemaining}
             total={state.restTotal}
             nextEntry={currentEntry}
-            onSkip={() => dispatch({ type: 'SKIP_REST' })}
+            onSkip={() => dispatch({ type: 'SKIP_REST', now: Date.now() })}
           />
         )}
 

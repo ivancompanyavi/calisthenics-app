@@ -11,6 +11,8 @@ import {
   type ResolvedBlock,
 } from '../execution-engine'
 
+const T0 = 1_700_000_000_000
+
 function makeEntry(overrides = {}) {
   return {
     progressionId: 'prog-1',
@@ -38,7 +40,7 @@ function makeInitializedState(overrides: Partial<ExecutionState> = {}): Executio
     workoutId: 'w-1',
     workoutName: 'Test Workout',
     blocks: [makeBlock()],
-    startedAt: Date.now(),
+    startedAt: T0,
     phase: 'exercise',
     ...overrides,
   }
@@ -92,46 +94,72 @@ describe('executionReducer', () => {
   describe('START', () => {
     it('transitions from ready to exercise', () => {
       const state = makeInitializedState({ phase: 'ready' })
-      const result = executionReducer(state, { type: 'START' })
+      const result = executionReducer(state, { type: 'START', now: T0 })
       expect(result.phase).toBe('exercise')
     })
 
-    it('sets timer for time-based exercises', () => {
+    it('sets timer endsAt for time-based exercises', () => {
       const state = makeInitializedState({
         phase: 'ready',
         blocks: [makeBlock({ entries: [makeEntry({ mode: 'time', targetSeconds: 45 })] })],
       })
-      const result = executionReducer(state, { type: 'START' })
+      const result = executionReducer(state, { type: 'START', now: T0 })
       expect(result.exerciseTimeRemaining).toBe(45)
+      expect(result.exerciseEndsAt).toBe(T0 + 45_000)
+    })
+
+    it('sets startedAt for max-mode exercises', () => {
+      const state = makeInitializedState({
+        phase: 'ready',
+        blocks: [makeBlock({ entries: [makeEntry({ mode: 'max' })] })],
+      })
+      const result = executionReducer(state, { type: 'START', now: T0 })
+      expect(result.exerciseStartedAt).toBe(T0)
+      expect(result.exerciseTimeElapsed).toBe(0)
     })
   })
 
   describe('TICK_EXERCISE', () => {
-    it('decrements time remaining for timed exercises', () => {
+    it('recomputes remaining from endsAt for timed exercises', () => {
       const state = makeInitializedState({
         blocks: [makeBlock({ entries: [makeEntry({ mode: 'time', targetSeconds: 30 })] })],
-        exerciseTimeRemaining: 20,
+        exerciseTimeRemaining: 30,
+        exerciseEndsAt: T0 + 30_000,
       })
-      const result = executionReducer(state, { type: 'TICK_EXERCISE' })
+      const result = executionReducer(state, { type: 'TICK_EXERCISE', now: T0 + 11_000 })
       expect(result.exerciseTimeRemaining).toBe(19)
     })
 
-    it('transitions to adjust when timer reaches zero', () => {
+    it('survives a long backgrounding — remaining stays correct after >1s gap', () => {
+      // Simulates the phone being locked for 25s — interval doesn't fire but on
+      // resume one tick should jump straight to the correct remaining time.
+      const state = makeInitializedState({
+        blocks: [makeBlock({ entries: [makeEntry({ mode: 'time', targetSeconds: 60 })] })],
+        exerciseTimeRemaining: 60,
+        exerciseEndsAt: T0 + 60_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_EXERCISE', now: T0 + 25_000 })
+      expect(result.exerciseTimeRemaining).toBe(35)
+    })
+
+    it('transitions to adjust when timer has elapsed', () => {
       const state = makeInitializedState({
         blocks: [makeBlock({ entries: [makeEntry({ mode: 'time', targetSeconds: 30 })] })],
         exerciseTimeRemaining: 1,
+        exerciseEndsAt: T0 + 1_000,
       })
-      const result = executionReducer(state, { type: 'TICK_EXERCISE' })
+      const result = executionReducer(state, { type: 'TICK_EXERCISE', now: T0 + 1_500 })
       expect(result.phase).toBe('adjust')
       expect(result.exerciseTimeRemaining).toBe(0)
     })
 
-    it('increments elapsed time for max-mode exercises', () => {
+    it('computes elapsed from startedAt for max-mode exercises', () => {
       const state = makeInitializedState({
         blocks: [makeBlock({ entries: [makeEntry({ mode: 'max' })] })],
-        exerciseTimeElapsed: 5,
+        exerciseStartedAt: T0,
+        exerciseTimeElapsed: 0,
       })
-      const result = executionReducer(state, { type: 'TICK_EXERCISE' })
+      const result = executionReducer(state, { type: 'TICK_EXERCISE', now: T0 + 6_400 })
       expect(result.exerciseTimeElapsed).toBe(6)
     })
   })
@@ -139,24 +167,36 @@ describe('executionReducer', () => {
   describe('DONE_EXERCISE', () => {
     it('transitions to adjust phase', () => {
       const state = makeInitializedState()
-      const result = executionReducer(state, { type: 'DONE_EXERCISE' })
+      const result = executionReducer(state, { type: 'DONE_EXERCISE', now: T0 })
       expect(result.phase).toBe('adjust')
       expect(result.adjustReps).toBe(10)
+    })
+
+    it('snapshots elapsed time for max-mode at finish', () => {
+      const state = makeInitializedState({
+        blocks: [makeBlock({ entries: [makeEntry({ mode: 'max' })] })],
+        exerciseStartedAt: T0,
+      })
+      const result = executionReducer(state, { type: 'DONE_EXERCISE', now: T0 + 12_000 })
+      expect(result.adjustSeconds).toBe(12)
+      expect(result.exerciseTimeElapsed).toBe(12)
     })
   })
 
   describe('CONFIRM_ADJUST', () => {
-    it('adds a completed set and advances to rest', () => {
+    it('adds a completed set and advances to rest with endsAt set', () => {
       const state = makeInitializedState({
         phase: 'adjust',
         adjustReps: 10,
         blocks: [makeBlock({ rounds: 3, restSeconds: 60 })],
         currentRound: 0,
       })
-      const result = executionReducer(state, { type: 'CONFIRM_ADJUST' })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
       expect(result.completedSets).toHaveLength(1)
       expect(result.phase).toBe('resting')
       expect(result.restRemaining).toBe(60)
+      expect(result.restTotal).toBe(60)
+      expect(result.restEndsAt).toBe(T0 + 60_000)
       expect(result.currentRound).toBe(1)
     })
 
@@ -167,7 +207,7 @@ describe('executionReducer', () => {
         blocks: [makeBlock({ rounds: 1, restSeconds: 60 })],
         currentRound: 0,
       })
-      const result = executionReducer(state, { type: 'CONFIRM_ADJUST' })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
       expect(result.phase).toBe('complete')
       expect(result.completedSets).toHaveLength(1)
     })
@@ -183,7 +223,7 @@ describe('executionReducer', () => {
         blocks: [makeBlock({ type: 'superset', rounds: 1, entries })],
         currentEntryIndex: 0,
       })
-      const result = executionReducer(state, { type: 'CONFIRM_ADJUST' })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
       expect(result.phase).toBe('exercise')
       expect(result.currentEntryIndex).toBe(1)
     })
@@ -199,7 +239,7 @@ describe('executionReducer', () => {
         blocks: [makeBlock({ type: 'superset', entries, rounds: 1 })],
         currentEntryIndex: 0,
       })
-      const result = executionReducer(state, { type: 'DELAY_EXERCISE' })
+      const result = executionReducer(state, { type: 'DELAY_EXERCISE', now: T0 })
       expect(result.skippedEntries).toHaveLength(1)
       expect(result.currentEntryIndex).toBe(1)
     })
@@ -215,7 +255,7 @@ describe('executionReducer', () => {
         blocks: [makeBlock({ type: 'superset', entries, rounds: 1 })],
         currentEntryIndex: 0,
       })
-      const result = executionReducer(state, { type: 'SKIP_EXERCISE' })
+      const result = executionReducer(state, { type: 'SKIP_EXERCISE', now: T0 })
       expect(result.cancelledEntries).toHaveLength(1)
       expect(result.completedSets).toHaveLength(1)
       expect(result.completedSets[0].skipped).toBe(true)
@@ -225,24 +265,52 @@ describe('executionReducer', () => {
   })
 
   describe('REST actions', () => {
-    it('TICK_REST decrements rest remaining', () => {
-      const state = makeInitializedState({ phase: 'resting', restRemaining: 30 })
-      const result = executionReducer(state, { type: 'TICK_REST' })
+    it('TICK_REST recomputes remaining from endsAt', () => {
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 30,
+        restTotal: 30,
+        restEndsAt: T0 + 30_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 1_000 })
       expect(result.restRemaining).toBe(29)
     })
 
-    it('TICK_REST transitions to exercise when done', () => {
-      const state = makeInitializedState({ phase: 'resting', restRemaining: 1 })
-      const result = executionReducer(state, { type: 'TICK_REST' })
+    it('TICK_REST survives long backgrounding', () => {
+      // Phone locked for the entire 60s rest — coming back, timer should be at 0.
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 60,
+        restTotal: 60,
+        restEndsAt: T0 + 60_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 75_000 })
+      expect(result.phase).toBe('exercise')
+      expect(result.restRemaining).toBe(0)
+    })
+
+    it('TICK_REST transitions to exercise when endsAt has passed', () => {
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 1,
+        restTotal: 60,
+        restEndsAt: T0 + 1_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 1_500 })
       expect(result.phase).toBe('exercise')
       expect(result.restRemaining).toBe(0)
     })
 
     it('SKIP_REST immediately transitions to exercise', () => {
-      const state = makeInitializedState({ phase: 'resting', restRemaining: 45 })
-      const result = executionReducer(state, { type: 'SKIP_REST' })
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 45,
+        restEndsAt: T0 + 45_000,
+      })
+      const result = executionReducer(state, { type: 'SKIP_REST', now: T0 })
       expect(result.phase).toBe('exercise')
       expect(result.restRemaining).toBe(0)
+      expect(result.restEndsAt).toBe(0)
     })
   })
 })

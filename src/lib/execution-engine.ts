@@ -46,10 +46,17 @@ export interface ExecutionState {
   adjustReps: number
   adjustSeconds: number
   adjustNotes: string
+  // Display values, derived from timestamps below on each tick.
   restRemaining: number
   restTotal: number
   exerciseTimeRemaining: number
   exerciseTimeElapsed: number
+  // Source-of-truth timestamps (ms since epoch). 0 = inactive.
+  // Stored so the timer survives the app being backgrounded — on resume we
+  // recompute display values from Date.now() instead of relying on interval ticks.
+  restEndsAt: number
+  exerciseEndsAt: number
+  exerciseStartedAt: number
 }
 
 export type Action =
@@ -64,18 +71,18 @@ export type Action =
       currentEntryIndex: number
       completedSets: SetLog[]
     } }
-  | { type: 'START' }
-  | { type: 'TICK_EXERCISE' }
-  | { type: 'DONE_EXERCISE' }
+  | { type: 'START'; now: number }
+  | { type: 'TICK_EXERCISE'; now: number }
+  | { type: 'DONE_EXERCISE'; now: number }
   | { type: 'SET_ADJUST_REPS'; value: number }
   | { type: 'SET_ADJUST_SECONDS'; value: number }
   | { type: 'SET_ADJUST_NOTES'; value: string }
-  | { type: 'CONFIRM_ADJUST' }
-  | { type: 'DELAY_EXERCISE' }
-  | { type: 'SKIP_EXERCISE' }
+  | { type: 'CONFIRM_ADJUST'; now: number }
+  | { type: 'DELAY_EXERCISE'; now: number }
+  | { type: 'SKIP_EXERCISE'; now: number }
   | { type: 'FINISH_WORKOUT' }
-  | { type: 'TICK_REST' }
-  | { type: 'SKIP_REST' }
+  | { type: 'TICK_REST'; now: number }
+  | { type: 'SKIP_REST'; now: number }
 
 export function getCurrentEntry(state: ExecutionState): ResolvedEntry | null {
   const block = state.blocks[state.currentBlockIndex]
@@ -141,6 +148,47 @@ export const initialState: ExecutionState = {
   restTotal: 0,
   exerciseTimeRemaining: 0,
   exerciseTimeElapsed: 0,
+  restEndsAt: 0,
+  exerciseEndsAt: 0,
+  exerciseStartedAt: 0,
+}
+
+function startExerciseFields(entry: ResolvedEntry | null, now: number): Pick<
+  ExecutionState,
+  'exerciseTimeRemaining' | 'exerciseTimeElapsed' | 'exerciseEndsAt' | 'exerciseStartedAt'
+> {
+  if (!entry) {
+    return { exerciseTimeRemaining: 0, exerciseTimeElapsed: 0, exerciseEndsAt: 0, exerciseStartedAt: 0 }
+  }
+  if (entry.mode === 'time') {
+    const seconds = entry.targetSeconds ?? 30
+    return {
+      exerciseTimeRemaining: seconds,
+      exerciseTimeElapsed: 0,
+      exerciseEndsAt: now + seconds * 1000,
+      exerciseStartedAt: 0,
+    }
+  }
+  if (entry.mode === 'max') {
+    return {
+      exerciseTimeRemaining: 0,
+      exerciseTimeElapsed: 0,
+      exerciseEndsAt: 0,
+      exerciseStartedAt: now,
+    }
+  }
+  return { exerciseTimeRemaining: 0, exerciseTimeElapsed: 0, exerciseEndsAt: 0, exerciseStartedAt: 0 }
+}
+
+function startRestFields(durationSeconds: number, now: number): Pick<
+  ExecutionState,
+  'restRemaining' | 'restTotal' | 'restEndsAt'
+> {
+  return {
+    restRemaining: durationSeconds,
+    restTotal: durationSeconds,
+    restEndsAt: now + durationSeconds * 1000,
+  }
 }
 
 export function executionReducer(state: ExecutionState, action: Action): ExecutionState {
@@ -159,6 +207,9 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         restTotal: 0,
         exerciseTimeRemaining: 0,
         exerciseTimeElapsed: 0,
+        restEndsAt: 0,
+        exerciseEndsAt: 0,
+        exerciseStartedAt: 0,
       }
 
     case 'START': {
@@ -166,35 +217,53 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
       return {
         ...state,
         phase: 'exercise',
-        exerciseTimeRemaining: entry?.mode === 'time' ? (entry.targetSeconds ?? 30) : 0,
-        exerciseTimeElapsed: 0,
+        ...startExerciseFields(entry, action.now),
       }
     }
 
     case 'TICK_EXERCISE': {
       const entry = getCurrentEntry(state)
       if (entry?.mode === 'max') {
-        return { ...state, exerciseTimeElapsed: state.exerciseTimeElapsed + 1 }
-      }
-      if (state.exerciseTimeRemaining <= 1) {
+        const startedAt = state.exerciseStartedAt || action.now
         return {
           ...state,
-          phase: 'adjust',
-          exerciseTimeRemaining: 0,
-          adjustSeconds: entry?.targetSeconds ?? 0,
-          adjustReps: entry?.targetReps ?? 0,
+          exerciseStartedAt: startedAt,
+          exerciseTimeElapsed: Math.max(0, Math.floor((action.now - startedAt) / 1000)),
         }
       }
-      return { ...state, exerciseTimeRemaining: state.exerciseTimeRemaining - 1 }
+      if (entry?.mode === 'time') {
+        const endsAt = state.exerciseEndsAt
+        if (endsAt && action.now >= endsAt) {
+          return {
+            ...state,
+            phase: 'adjust',
+            exerciseTimeRemaining: 0,
+            exerciseEndsAt: 0,
+            adjustSeconds: entry?.targetSeconds ?? 0,
+            adjustReps: entry?.targetReps ?? 0,
+          }
+        }
+        const remaining = endsAt
+          ? Math.max(0, Math.ceil((endsAt - action.now) / 1000))
+          : state.exerciseTimeRemaining
+        return { ...state, exerciseTimeRemaining: remaining }
+      }
+      return state
     }
 
     case 'DONE_EXERCISE': {
       const entry = getCurrentEntry(state)
+      const elapsed = entry?.mode === 'max' && state.exerciseStartedAt
+        ? Math.max(0, Math.floor((action.now - state.exerciseStartedAt) / 1000))
+        : state.exerciseTimeElapsed
       return {
         ...state,
         phase: 'adjust',
+        exerciseTimeElapsed: elapsed,
+        exerciseStartedAt: 0,
+        exerciseEndsAt: 0,
         adjustReps: entry?.targetReps ?? 0,
-        adjustSeconds: entry?.mode === 'max' ? state.exerciseTimeElapsed : (entry?.targetSeconds ?? 0),
+        adjustSeconds: entry?.mode === 'max' ? elapsed : (entry?.targetSeconds ?? 0),
       }
     }
 
@@ -225,8 +294,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           ...state,
           skippedEntries: newSkipped,
           currentEntryIndex: nextEntryIndex,
-          exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          ...startExerciseFields(nextEntry, action.now),
         }
       }
 
@@ -238,8 +306,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           skippedEntries: newSkipped,
           currentRound: nextRound,
           currentEntryIndex: 0,
-          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          ...startExerciseFields(firstEntry, action.now),
         }
       }
 
@@ -256,8 +323,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             ...state,
             phase: 'resting',
             skippedEntries: newSkipped,
-            restRemaining: restDuration,
-            restTotal: restDuration,
+            ...startRestFields(restDuration, action.now),
             currentBlockIndex: nextBlockIndex,
             currentRound: 0,
             currentEntryIndex: 0,
@@ -270,8 +336,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           currentBlockIndex: nextBlockIndex,
           currentRound: 0,
           currentEntryIndex: 0,
-          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          ...startExerciseFields(firstEntry, action.now),
         }
       }
 
@@ -312,8 +377,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           cancelledEntries: newCancelled,
           completedSets: newCompletedSets,
           currentEntryIndex: nextEntryIndex,
-          exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          ...startExerciseFields(nextEntry, action.now),
         }
       }
 
@@ -326,8 +390,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           completedSets: newCompletedSets,
           currentRound: nextRound,
           currentEntryIndex: 0,
-          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          ...startExerciseFields(firstEntry, action.now),
         }
       }
 
@@ -345,8 +408,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             phase: 'resting',
             cancelledEntries: newCancelled,
             completedSets: newCompletedSets,
-            restRemaining: restDuration,
-            restTotal: restDuration,
+            ...startRestFields(restDuration, action.now),
             currentBlockIndex: nextBlockIndex,
             currentRound: 0,
             currentEntryIndex: 0,
@@ -360,8 +422,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           currentBlockIndex: nextBlockIndex,
           currentRound: 0,
           currentEntryIndex: 0,
-          exerciseTimeRemaining: firstEntry?.mode === 'time' ? (firstEntry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          ...startExerciseFields(firstEntry, action.now),
         }
       }
 
@@ -416,15 +477,14 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             completedSets: newCompletedSets,
             skippedEntries: newSkipped,
             adjustNotes: '',
-            restRemaining: restDuration,
-            restTotal: restDuration,
+            ...startRestFields(restDuration, action.now),
             currentBlockIndex: next.blockIndex,
             currentRound: next.round,
             currentEntryIndex: next.entryIndex,
           }
         }
 
-        const nextEntry = state.blocks[next.blockIndex]?.entries[next.entryIndex]
+        const nextEntry = state.blocks[next.blockIndex]?.entries[next.entryIndex] ?? null
         return {
           ...state,
           phase: 'exercise',
@@ -434,13 +494,12 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           currentBlockIndex: next.blockIndex,
           currentRound: next.round,
           currentEntryIndex: next.entryIndex,
-          exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          ...startExerciseFields(nextEntry, action.now),
         }
       }
 
       const nextEntryIndex = state.currentEntryIndex + 1
-      const nextEntry = block.entries[nextEntryIndex]
+      const nextEntry = block.entries[nextEntryIndex] ?? null
       return {
         ...state,
         phase: 'exercise',
@@ -448,23 +507,26 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         skippedEntries: newSkipped,
         adjustNotes: '',
         currentEntryIndex: nextEntryIndex,
-        exerciseTimeRemaining: nextEntry?.mode === 'time' ? (nextEntry.targetSeconds ?? 30) : 0,
-        exerciseTimeElapsed: 0,
+        ...startExerciseFields(nextEntry, action.now),
       }
     }
 
     case 'TICK_REST': {
-      if (state.restRemaining <= 1) {
+      const endsAt = state.restEndsAt
+      if (endsAt && action.now >= endsAt) {
         const entry = getCurrentEntry(state)
         return {
           ...state,
           phase: 'exercise',
           restRemaining: 0,
-          exerciseTimeRemaining: entry?.mode === 'time' ? (entry.targetSeconds ?? 30) : 0,
-          exerciseTimeElapsed: 0,
+          restEndsAt: 0,
+          ...startExerciseFields(entry, action.now),
         }
       }
-      return { ...state, restRemaining: state.restRemaining - 1 }
+      const remaining = endsAt
+        ? Math.max(0, Math.ceil((endsAt - action.now) / 1000))
+        : state.restRemaining
+      return { ...state, restRemaining: remaining }
     }
 
     case 'SKIP_REST': {
@@ -473,8 +535,8 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         ...state,
         phase: 'exercise',
         restRemaining: 0,
-        exerciseTimeRemaining: entry?.mode === 'time' ? (entry.targetSeconds ?? 30) : 0,
-        exerciseTimeElapsed: 0,
+        restEndsAt: 0,
+        ...startExerciseFields(entry, action.now),
       }
     }
 
