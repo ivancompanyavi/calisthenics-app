@@ -9,11 +9,15 @@
 //   node scripts/generate-exercise-images.mjs              # all missing
 //   node scripts/generate-exercise-images.mjs push-ups dips # only listed
 
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { EXERCISES } from "./exercise-descriptions.mjs";
+
+const execFileP = promisify(execFile);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -53,13 +57,17 @@ async function generateImage(prompt) {
 }
 
 async function processOne(ex) {
-  const destPath = join(OUT_DIR, `${ex.slug}.png`);
-  if (existsSync(destPath)) {
+  const webpPath = join(OUT_DIR, `${ex.slug}.webp`);
+  const pngPath = join(OUT_DIR, `${ex.slug}.png`);
+  if (existsSync(webpPath)) {
     return { slug: ex.slug, status: "skipped" };
   }
   try {
     const buf = await generateImage(STYLE_PROMPT(ex.pose));
-    await writeFile(destPath, buf);
+    await writeFile(pngPath, buf);
+    // Convert PNG → WebP (the app reads .webp), then remove the intermediate PNG.
+    await execFileP("cwebp", ["-q", "85", pngPath, "-o", webpPath]);
+    await unlink(pngPath).catch(() => {});
     return { slug: ex.slug, status: "ok", bytes: buf.length };
   } catch (e) {
     return { slug: ex.slug, status: "error", error: e.message };

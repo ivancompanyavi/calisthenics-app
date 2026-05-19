@@ -6,9 +6,21 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
     restBetweenBlocksSeconds: 120,
     blocks: [
       {
+        type: "set",
+        rounds: 1,
+        restSeconds: 0,
+        entries: [
+          {
+            movement: "Wrist Mobility Routine",
+            mode: "time",
+            targetSeconds: 300,
+          },
+        ],
+      },
+      {
         type: "superset",
         rounds: 3,
-        restSeconds: 60,
+        restSeconds: 90,
         entries: [
           { progression: "Planche Progression" },
           { movement: "Planche Leans", mode: "reps", targetReps: 10 },
@@ -18,45 +30,18 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       {
         type: "superset",
         rounds: 3,
-        restSeconds: 60,
+        restSeconds: 75,
         entries: [
           { movement: "Pseudo Push-Up Hold", mode: "time", targetSeconds: 15 },
           { progression: "Push-Up Progression", targetReps: 8 },
           {
-            movement: "Knee Archer Push-Ups",
+            movement: "Archer Push-Ups",
             mode: "reps",
-            targetReps: 10,
+            targetReps: 6,
             perSide: true,
           },
           { movement: "Slow Motion Push-Ups", mode: "reps", targetReps: 1 },
         ],
-      },
-    ],
-  },
-  {
-    name: "Pull Day",
-    restBetweenBlocksSeconds: 90,
-    blocks: [
-      {
-        type: "set",
-        rounds: 4,
-        restSeconds: 90,
-        entries: [{ progression: "Pull-Up Progression", targetSeconds: 30 }],
-      },
-      {
-        type: "superset",
-        rounds: 3,
-        restSeconds: 60,
-        entries: [
-          { progression: "Front Lever Progression" },
-          { progression: "Leg Raise Progression", targetReps: 12 },
-        ],
-      },
-      {
-        type: "set",
-        rounds: 3,
-        restSeconds: 60,
-        entries: [{ progression: "L-Sit Progression" }],
       },
     ],
   },
@@ -79,7 +64,7 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       {
         type: "set",
         rounds: 4,
-        restSeconds: 60,
+        restSeconds: 90,
         entries: [
           {
             movement: "Planche Lean Hold",
@@ -104,50 +89,131 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         type: "set",
         rounds: 3,
         restSeconds: 90,
-        entries: [
-          { movement: "Pike Push-Ups", mode: "reps", targetReps: 8 },
-        ],
+        entries: [{ movement: "Dips", mode: "reps", targetReps: 7 }],
       },
       {
         type: "set",
         rounds: 3,
         restSeconds: 90,
-        entries: [{ movement: "Dips", mode: "reps", targetReps: 7 }],
+        entries: [{ movement: "Pike Push-Ups", mode: "reps", targetReps: 8 }],
       },
       {
         type: "set",
-        rounds: 2,
+        rounds: 3,
         restSeconds: 60,
         entries: [
-          { movement: "Diamond Push-Ups", mode: "reps", targetReps: 12 },
+          {
+            movement: "Archer Push-Ups",
+            mode: "reps",
+            targetReps: 6,
+            perSide: true,
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 45,
+        entries: [
+          { movement: "Calf Raises", mode: "reps", targetReps: 20 },
         ],
       },
     ],
   },
   {
-    name: "Pull + Volume Building",
-    restBetweenBlocksSeconds: 90,
+    name: "Pull A (Heavy)",
+    restBetweenBlocksSeconds: 120,
     blocks: [
       {
         type: "set",
-        rounds: 3,
-        restSeconds: 60,
+        rounds: 2,
+        restSeconds: 30,
+        entries: [{ movement: "Dead Hang", mode: "time", targetSeconds: 30 }],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [{ movement: "Scapular Pulls", mode: "reps", targetReps: 10 }],
+      },
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 90,
         entries: [
-          { movement: "Scapular Pulls", mode: "reps", targetReps: 10 },
+          { movement: "Front Lever Tuck Hold", mode: "max" },
         ],
       },
       {
         type: "set",
-        rounds: 3,
-        restSeconds: 60,
-        entries: [
-          { movement: "Dead Hang", mode: "time", targetSeconds: 40 },
-        ],
+        rounds: 5,
+        restSeconds: 150,
+        entries: [{ movement: "Pull-Ups", mode: "reps", targetReps: 2 }],
       },
       {
         type: "set",
         rounds: 3,
         restSeconds: 90,
+        entries: [
+          { movement: "Inverted Rows", mode: "reps", targetReps: 10 },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          {
+            movement: "Nordic Hamstring Curl",
+            mode: "reps",
+            targetReps: 5,
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 45,
+        entries: [
+          {
+            movement: "Single-Leg Glute Bridge",
+            mode: "reps",
+            targetReps: 10,
+            perSide: true,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    name: "Pull B (Volume)",
+    previousNames: ["Pull + Volume Building"],
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [{ movement: "Dead Hang", mode: "time", targetSeconds: 40 }],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [{ movement: "Scapular Pulls", mode: "reps", targetReps: 10 }],
+      },
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 90,
+        entries: [
+          { movement: "Front Lever Tuck Hold", mode: "max" },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 150,
         entries: [{ movement: "Pull-Ups", mode: "reps", targetReps: 3 }],
       },
       {
@@ -161,10 +227,10 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       {
         type: "set",
         rounds: 3,
-        restSeconds: 60,
+        restSeconds: 90,
         entries: [
           {
-            movement: "Australian Pull-Ups",
+            movement: "Inverted Rows",
             mode: "reps",
             targetReps: 12,
           },
@@ -173,18 +239,61 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       {
         type: "set",
         rounds: 2,
-        restSeconds: 60,
+        restSeconds: 90,
         entries: [{ movement: "Chin-Up Hold", mode: "max" }],
+      },
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          {
+            movement: "Single-Leg Glute Bridge",
+            mode: "reps",
+            targetReps: 12,
+            perSide: true,
+          },
+        ],
       },
     ],
   },
   {
-    name: "Core + Compression",
-    restBetweenBlocksSeconds: 60,
+    name: "Legs + Core",
+    previousNames: ["Core + Compression"],
+    restBetweenBlocksSeconds: 90,
     blocks: [
       {
         type: "set",
-        rounds: 4,
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Squat Progression" },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          {
+            movement: "Bulgarian Split Squats",
+            mode: "reps",
+            targetReps: 10,
+            perSide: true,
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 75,
+        entries: [
+          { movement: "Nordic Hamstring Curl", mode: "reps", targetReps: 5 },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 3,
         restSeconds: 45,
         entries: [
           {
@@ -200,19 +309,6 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         restSeconds: 45,
         entries: [
           {
-            movement: "Seated Single Leg Raise",
-            mode: "reps",
-            targetReps: 10,
-            perSide: true,
-          },
-        ],
-      },
-      {
-        type: "set",
-        rounds: 4,
-        restSeconds: 45,
-        entries: [
-          {
             movement: "Hollow Body Hold",
             mode: "time",
             targetSeconds: 30,
@@ -222,10 +318,8 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       {
         type: "set",
         rounds: 3,
-        restSeconds: 60,
-        entries: [
-          { movement: "Leg Raises", mode: "reps", targetReps: 10 },
-        ],
+        restSeconds: 45,
+        entries: [{ movement: "Leg Raises", mode: "reps", targetReps: 10 }],
       },
       {
         type: "set",
@@ -237,7 +331,7 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       },
       {
         type: "set",
-        rounds: 3,
+        rounds: 2,
         restSeconds: 45,
         entries: [
           {

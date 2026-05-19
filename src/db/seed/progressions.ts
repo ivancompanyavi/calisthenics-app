@@ -33,7 +33,7 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
     levels: [
       { movement: "Dead Hang", mode: "time", defaultTargetSeconds: 30 },
       { movement: "Scapular Pulls", mode: "reps", defaultTargetReps: 10 },
-      { movement: "Australian Pull-Ups", mode: "reps", defaultTargetReps: 12 },
+      { movement: "Inverted Rows", mode: "reps", defaultTargetReps: 12 },
       { movement: "Negative Pull-Ups", mode: "reps", defaultTargetReps: 8 },
       {
         movement: "Band-Assisted Pull-Ups",

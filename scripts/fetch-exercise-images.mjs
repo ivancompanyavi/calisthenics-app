@@ -26,7 +26,7 @@ const SEED_MOVEMENTS = [
   "Pistol Squats", "Knee Raises", "Leg Raises", "Toes to Bar",
   "Windshield Wipers", "Plank", "Side Plank", "Hollow Body Hold",
   "Superman Hold", "Jumping Jacks", "Burpees", "Mountain Climbers",
-  "Box Jumps", "Australian Pull-Ups", "Tuck Planche", "Advanced Tuck Planche",
+  "Box Jumps", "Inverted Rows", "Tuck Planche", "Advanced Tuck Planche",
   "Straddle Planche", "Full Planche", "Planche Leans", "Planche Lean Hold",
   "Pseudo Push-Up Hold", "Knee Archer Push-Ups", "Slow Motion Push-Ups",
   "Skin the Cat", "Back Lever", "Front Lever Tuck Hold", "Front Lever",
@@ -34,6 +34,7 @@ const SEED_MOVEMENTS = [
   "Seated Single Leg Raise", "Pike Compression", "Arch Body Hold",
   "Chin-Up Hold", "Hip Flexor Stretch", "Seated Forward Fold",
   "Band Pull-Aparts", "Chest & Shoulder Stretch",
+  "Calf Raises", "Single-Leg Glute Bridge", "Nordic Hamstring Curl",
 ];
 
 function normalize(s) {

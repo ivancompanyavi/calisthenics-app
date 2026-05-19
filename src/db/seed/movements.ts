@@ -63,7 +63,7 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     name: "Pull-Ups",
     description: "Standard pull-ups with palms facing away.",
     coachingCues:
-      "Cluster style: do max reps (~2–3), rest 20 sec, repeat. Builds volume without burnout.",
+      "Heavy day = straight sets, 2 reps, full rest, clean & explosive. Volume day = cluster (2+2+2, 20s rest between clusters).",
   },
   {
     name: "L-Sit Pull-Ups",
@@ -187,10 +187,11 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
   },
   { name: "Box Jumps", description: "Jump onto an elevated surface." },
   {
-    name: "Australian Pull-Ups",
-    description: "Inverted rows under a low bar.",
+    name: "Inverted Rows",
+    previousNames: ["Australian Pull-Ups"],
+    description: "Horizontal body row under a low bar.",
     coachingCues:
-      "Bar at hip height, heels on floor, body straight. Lower bar = harder.",
+      "Bar at hip height, heels on floor, body straight. Lower bar = harder. Squeeze shoulder blades at top.",
   },
   {
     name: "Tuck Planche",
@@ -308,5 +309,26 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     description: "Chest and shoulder mobility stretch.",
     coachingCues:
       "Doorframe stretch or behind-back clasp. Helps with dip and planche range.",
+  },
+
+  {
+    name: "Calf Raises",
+    description: "Standing calf raises for ankle and lower-leg strength.",
+    coachingCues:
+      "Full range — pause at the top, slow on the way down. Single-leg version is harder.",
+  },
+  {
+    name: "Single-Leg Glute Bridge",
+    description:
+      "Single-leg hip bridge from the floor for glute and posterior-chain strength.",
+    coachingCues:
+      "Lie on back, one foot flat on floor, other leg straight. Drive hips up by squeezing the glute hard, then lower under control. Posterior chain = planche line support.",
+  },
+  {
+    name: "Nordic Hamstring Curl",
+    description:
+      "Kneeling eccentric hamstring curl, body lowering forward under control.",
+    coachingCues:
+      "Anchor feet (couch, partner, band). Lower forward as slow as possible (5–8 sec). Catch with hands. Brutal but bulletproofs hamstrings.",
   },
 ];

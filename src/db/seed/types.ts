@@ -4,6 +4,7 @@ export interface SeedMovement {
   name: string;
   description?: string;
   coachingCues?: string;
+  previousNames?: string[];
 }
 
 export interface SeedLevelDef {
@@ -37,12 +38,14 @@ export interface SeedBlockDef {
 
 export interface SeedWorkout {
   name: string;
+  previousNames?: string[];
   restBetweenBlocksSeconds?: number;
   blocks: SeedBlockDef[];
 }
 
 export interface SeedProgram {
   name: string;
+  previousNames?: string[];
   totalCycles: number;
   days: Array<{ workout: string } | null>;
 }

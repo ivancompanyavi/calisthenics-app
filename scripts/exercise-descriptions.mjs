@@ -290,10 +290,10 @@ export const EXERCISES = [
     pose: "performing a box jump at the take-off, body crouched with knees bent and arms swung back, leaping forward and upward toward a sturdy waist-high box just ahead, side profile view",
   },
 
-  // ───── Australian / Inverted Row ─────
+  // ───── Inverted Row (formerly Australian Pull-Up) ─────
   {
-    slug: "australian-pull-ups",
-    pose: "performing an Australian pull-up (inverted row), body straight at an angle under a horizontal bar set at hip height, both hands gripping the bar overhand at shoulder width, chest pulled up to the bar, heels on the floor and body straight, side profile view",
+    slug: "inverted-rows",
+    pose: "performing an inverted row, body straight at an angle under a horizontal bar set at hip height, both hands gripping the bar overhand at shoulder width, chest pulled up to the bar, heels on the floor and body straight, side profile view",
   },
 
   // ───── Muscle-Up ─────
@@ -322,5 +322,19 @@ export const EXERCISES = [
   {
     slug: "chest-and-shoulder-stretch",
     pose: "performing a doorway chest and shoulder stretch, standing in a doorway with one bent arm raised so the forearm rests against the door frame at shoulder height, torso rotated gently away from that arm to stretch the chest, side profile view",
+  },
+
+  // ───── Legs / posterior chain ─────
+  {
+    slug: "calf-raises",
+    pose: "performing a standing calf raise at the top position, standing upright with both feet flat on the floor and heels lifted high off the floor balancing on the balls of the feet, body straight, arms relaxed at the sides, side profile view",
+  },
+  {
+    slug: "single-leg-glute-bridge",
+    pose: "performing a single-leg glute bridge at the top position, lying on the back on the floor with one knee bent and that foot flat on the floor, the other leg extended straight in the air at hip level, hips lifted off the floor in a straight line from shoulders to the lifted knee, arms flat on the floor at the sides, side profile view",
+  },
+  {
+    slug: "nordic-hamstring-curl",
+    pose: "performing the lowering phase of a Nordic hamstring curl, kneeling on a soft pad with feet anchored under a fixed support, body lowering forward toward the floor in one straight line from knees to head, arms held in front of the chest ready to catch on the floor, side profile view",
   },
 ];

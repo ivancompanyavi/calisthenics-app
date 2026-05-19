@@ -14,6 +14,7 @@ import { SEED_MOVEMENTS } from "./seed/movements";
 import { SEED_PROGRESSIONS } from "./seed/progressions";
 import { SEED_WORKOUTS } from "./seed/workouts";
 import { SEED_PROGRAMS } from "./seed/programs";
+import type { SeedBlockDef } from "./seed/types";
 
 function movementSlug(name: string): string {
   return name
@@ -41,14 +42,38 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
   const toAdd: Movement[] = [];
   const toUpdate: Array<{
     id: string;
-    changes: Partial<Pick<Movement, "seedImagePath" | "coachingCues">>;
+    changes: Partial<
+      Pick<Movement, "name" | "seedImagePath" | "coachingCues" | "description">
+    >;
   }> = [];
 
   const seedByName = new Map(SEED_MOVEMENTS.map((m) => [m.name, m]));
 
   for (const m of SEED_MOVEMENTS) {
     const seedImagePath = seedImagePathFor(m.name);
-    const existingMovement = existingByName.get(m.name);
+
+    // Handle rename: if current name isn't in DB but a previousName is, rename it.
+    let existingMovement = existingByName.get(m.name);
+    if (!existingMovement && m.previousNames?.length) {
+      for (const prev of m.previousNames) {
+        const prevMovement = existingByName.get(prev);
+        if (prevMovement) {
+          existingMovement = prevMovement;
+          toUpdate.push({
+            id: prevMovement.id,
+            changes: {
+              name: m.name,
+              seedImagePath,
+              description: m.description,
+              coachingCues: m.coachingCues,
+            },
+          });
+          movementMap.set(m.name, prevMovement.id);
+          break;
+        }
+      }
+    }
+
     if (!existingMovement) {
       const id = generateId();
       movementMap.set(m.name, id);
@@ -63,8 +88,9 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
       continue;
     }
 
-    const changes: Partial<Pick<Movement, "seedImagePath" | "coachingCues">> =
-      {};
+    const changes: Partial<
+      Pick<Movement, "seedImagePath" | "coachingCues" | "description">
+    > = {};
     if (existingMovement.seedImagePath !== seedImagePath) {
       changes.seedImagePath = seedImagePath;
     }
@@ -153,122 +179,223 @@ async function ensureProgressionsExist(
   return progressionMap;
 }
 
+function buildBlocks(
+  workoutId: string,
+  blockDefs: SeedBlockDef[],
+  progressionMap: Map<string, string>,
+  movementMap: Map<string, string>,
+): { blocks: WorkoutBlock[]; entries: BlockEntry[] } {
+  const blocks: WorkoutBlock[] = [];
+  const entries: BlockEntry[] = [];
+
+  for (let i = 0; i < blockDefs.length; i++) {
+    const blockDef = blockDefs[i];
+    const blockId = generateId();
+    blocks.push({
+      id: blockId,
+      workoutId,
+      type: blockDef.type,
+      order: i,
+      rounds: blockDef.rounds,
+      restSeconds: blockDef.restSeconds,
+    });
+
+    for (let j = 0; j < blockDef.entries.length; j++) {
+      const entryDef = blockDef.entries[j];
+
+      if (entryDef.movement) {
+        const movementId = movementMap.get(entryDef.movement);
+        if (!movementId) continue;
+        entries.push({
+          id: generateId(),
+          blockId,
+          movementId,
+          mode: entryDef.mode,
+          targetReps: entryDef.targetReps,
+          targetSeconds: entryDef.targetSeconds,
+          perSide: entryDef.perSide,
+          order: j,
+        });
+      } else if (entryDef.progression) {
+        const progressionId = progressionMap.get(entryDef.progression);
+        if (!progressionId) continue;
+        entries.push({
+          id: generateId(),
+          blockId,
+          progressionId,
+          targetReps: entryDef.targetReps,
+          targetSeconds: entryDef.targetSeconds,
+          perSide: entryDef.perSide,
+          order: j,
+        });
+      }
+    }
+  }
+
+  return { blocks, entries };
+}
+
 async function ensureWorkoutsExist(
   progressionMap: Map<string, string>,
   movementMap: Map<string, string>,
 ) {
   const existingWorkouts = await db.workouts.toArray();
-  const existingNames = new Set(existingWorkouts.map((w) => w.name));
-
-  const newWorkouts: Workout[] = [];
-  const newBlocks: WorkoutBlock[] = [];
-  const newEntries: BlockEntry[] = [];
+  const byName = new Map(existingWorkouts.map((w) => [w.name, w]));
 
   for (const sw of SEED_WORKOUTS) {
-    if (existingNames.has(sw.name)) continue;
+    // Rename existing workout if seed previousNames matches a DB entry.
+    let existing = byName.get(sw.name);
+    if (!existing && sw.previousNames?.length) {
+      for (const prev of sw.previousNames) {
+        const prevWorkout = byName.get(prev);
+        if (prevWorkout) {
+          existing = prevWorkout;
+          await db.workouts.update(prevWorkout.id, { name: sw.name });
+          existing = { ...prevWorkout, name: sw.name };
+          byName.delete(prev);
+          byName.set(sw.name, existing);
+          break;
+        }
+      }
+    }
 
+    if (existing) {
+      // Re-seed blocks/entries while preserving workout ID so logs stay linked.
+      const oldBlocks = await db.workoutBlocks
+        .where("workoutId")
+        .equals(existing.id)
+        .toArray();
+      const oldBlockIds = oldBlocks.map((b) => b.id);
+
+      const { blocks, entries } = buildBlocks(
+        existing.id,
+        sw.blocks,
+        progressionMap,
+        movementMap,
+      );
+
+      await db.transaction(
+        "rw",
+        [db.workouts, db.workoutBlocks, db.blockEntries],
+        async () => {
+          if (existing.restBetweenBlocksSeconds !== sw.restBetweenBlocksSeconds) {
+            await db.workouts.update(existing.id, {
+              restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds,
+            });
+          }
+          if (oldBlockIds.length > 0) {
+            await db.blockEntries
+              .where("blockId")
+              .anyOf(oldBlockIds)
+              .delete();
+            await db.workoutBlocks.bulkDelete(oldBlockIds);
+          }
+          if (blocks.length > 0) {
+            await db.workoutBlocks.bulkAdd(blocks);
+          }
+          if (entries.length > 0) {
+            await db.blockEntries.bulkAdd(entries);
+          }
+        },
+      );
+      continue;
+    }
+
+    // Fresh insert.
     const workoutId = generateId();
-    newWorkouts.push({
+    const newWorkout: Workout = {
       id: workoutId,
       name: sw.name,
       restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds,
       createdAt: Date.now(),
-    });
+    };
+    const { blocks, entries } = buildBlocks(
+      workoutId,
+      sw.blocks,
+      progressionMap,
+      movementMap,
+    );
 
-    for (let i = 0; i < sw.blocks.length; i++) {
-      const blockDef = sw.blocks[i];
-      const blockId = generateId();
-      newBlocks.push({
-        id: blockId,
-        workoutId,
-        type: blockDef.type,
-        order: i,
-        rounds: blockDef.rounds,
-        restSeconds: blockDef.restSeconds,
-      });
-
-      for (let j = 0; j < blockDef.entries.length; j++) {
-        const entryDef = blockDef.entries[j];
-
-        if (entryDef.movement) {
-          const movementId = movementMap.get(entryDef.movement);
-          if (!movementId) continue;
-          newEntries.push({
-            id: generateId(),
-            blockId,
-            movementId,
-            mode: entryDef.mode,
-            targetReps: entryDef.targetReps,
-            targetSeconds: entryDef.targetSeconds,
-            perSide: entryDef.perSide,
-            order: j,
-          });
-        } else if (entryDef.progression) {
-          const progressionId = progressionMap.get(entryDef.progression);
-          if (!progressionId) continue;
-          newEntries.push({
-            id: generateId(),
-            blockId,
-            progressionId,
-            targetReps: entryDef.targetReps,
-            targetSeconds: entryDef.targetSeconds,
-            perSide: entryDef.perSide,
-            order: j,
-          });
-        }
-      }
-    }
-  }
-
-  if (newWorkouts.length > 0) {
     await db.transaction(
       "rw",
       [db.workouts, db.workoutBlocks, db.blockEntries],
       async () => {
-        await db.workouts.bulkAdd(newWorkouts);
-        await db.workoutBlocks.bulkAdd(newBlocks);
-        await db.blockEntries.bulkAdd(newEntries);
+        await db.workouts.add(newWorkout);
+        if (blocks.length > 0) await db.workoutBlocks.bulkAdd(blocks);
+        if (entries.length > 0) await db.blockEntries.bulkAdd(entries);
       },
     );
+    byName.set(sw.name, newWorkout);
   }
 }
 
 async function ensureProgramsExist() {
   const existingPrograms = await db.programs.toArray();
-  const existingNames = new Set(existingPrograms.map((p) => p.name));
+  const byName = new Map(existingPrograms.map((p) => [p.name, p]));
 
   const allWorkouts = await db.workouts.toArray();
   const workoutByName = new Map(allWorkouts.map((w) => [w.name, w.id]));
 
-  const newPrograms: Program[] = [];
-  const newDays: ProgramDay[] = [];
-
   for (const sp of SEED_PROGRAMS) {
-    if (existingNames.has(sp.name)) continue;
+    let existing = byName.get(sp.name);
+    if (!existing && sp.previousNames?.length) {
+      for (const prev of sp.previousNames) {
+        const prevProgram = byName.get(prev);
+        if (prevProgram) {
+          existing = prevProgram;
+          await db.programs.update(prevProgram.id, { name: sp.name });
+          existing = { ...prevProgram, name: sp.name };
+          byName.delete(prev);
+          byName.set(sp.name, existing);
+          break;
+        }
+      }
+    }
+
+    const buildDays = (programId: string): ProgramDay[] =>
+      sp.days.map((day, i) => ({
+        id: generateId(),
+        programId,
+        dayNumber: i + 1,
+        workoutId: day ? workoutByName.get(day.workout) : undefined,
+      }));
+
+    if (existing) {
+      const newDays = buildDays(existing.id);
+      await db.transaction(
+        "rw",
+        [db.programs, db.programDays],
+        async () => {
+          if (
+            existing.cycleLengthDays !== sp.days.length ||
+            existing.totalCycles !== sp.totalCycles
+          ) {
+            await db.programs.update(existing.id, {
+              cycleLengthDays: sp.days.length,
+              totalCycles: sp.totalCycles,
+            });
+          }
+          await db.programDays
+            .where("programId")
+            .equals(existing.id)
+            .delete();
+          await db.programDays.bulkAdd(newDays);
+        },
+      );
+      continue;
+    }
 
     const programId = generateId();
-    newPrograms.push({
+    const newProgram: Program = {
       id: programId,
       name: sp.name,
       cycleLengthDays: sp.days.length,
       totalCycles: sp.totalCycles,
       createdAt: Date.now(),
-    });
-
-    for (let i = 0; i < sp.days.length; i++) {
-      const day = sp.days[i];
-      newDays.push({
-        id: generateId(),
-        programId,
-        dayNumber: i + 1,
-        workoutId: day ? workoutByName.get(day.workout) : undefined,
-      });
-    }
-  }
-
-  if (newPrograms.length > 0) {
+    };
+    const newDays = buildDays(programId);
     await db.transaction("rw", [db.programs, db.programDays], async () => {
-      await db.programs.bulkAdd(newPrograms);
+      await db.programs.add(newProgram);
       await db.programDays.bulkAdd(newDays);
     });
   }
