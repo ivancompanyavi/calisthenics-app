@@ -27,7 +27,7 @@ export const queryKeys = {
     detail: (id: string) => ['programs', id] as const,
     days: (programId: string) => ['programs', programId, 'days'] as const,
     active: ['programs', 'active'] as const,
-    todaySchedule: ['programs', 'today'] as const,
+    currentSlot: ['programs', 'currentSlot'] as const,
     history: (programId: string) => ['programs', programId, 'history'] as const,
     completionStats: (activeProgramId: string) => ['programs', 'completion', activeProgramId] as const,
   },

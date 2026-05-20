@@ -62,7 +62,7 @@ export function useDeleteWorkout() {
     mutationFn: (id: string) => workoutsRepository.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.workouts.all })
-      qc.invalidateQueries({ queryKey: queryKeys.programs.todaySchedule })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.currentSlot })
     },
   })
 }

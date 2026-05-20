@@ -1,6 +1,20 @@
 import { db } from '@/db'
-import type { Program, ProgramDay, ActiveProgram } from '@/models/types'
+import type {
+  Program,
+  ProgramDay,
+  ActiveProgram,
+  CycleSlot,
+  Workout,
+} from '@/models/types'
 import { generateId } from '@/lib/utils'
+import {
+  makeFreshCycle,
+  getCurrentSlotIndex,
+  isCycleComplete,
+  markSlotDone as markSlotDonePure,
+  markSlotSkipped as markSlotSkippedPure,
+  resizeCycle,
+} from '@/lib/program-engine'
 
 export interface SaveProgramData {
   name: string
@@ -8,38 +22,110 @@ export interface SaveProgramData {
   days: Array<{ workoutId?: string }>
 }
 
-export interface TodaySchedule {
-  programName: string
-  programId: string
-  activeProgramId?: string
+export interface CycleSlotView {
   dayNumber: number
-  cycleLengthDays: number
-  currentCycle: number
-  totalCycles: number
-  isRestDay: boolean
   workoutId?: string
   workoutName?: string
-  nextWorkoutName?: string
-  nextWorkoutDayLabel?: string
-  justCompleted?: boolean
+  status: CycleSlot['status']
+  completedAt?: number
+}
+
+export interface CurrentSlot {
+  programId: string
+  programName: string
+  activeProgramId: string
+  currentCycle: number
+  totalCycles: number
+  cycleLengthDays: number
+  cycleSlots: CycleSlotView[]
+  // Index into cycleSlots that the pointer is on. null = cycle complete.
+  pointerIndex: number | null
+  // Convenience for the Home screen.
+  pointerWorkoutId?: string
+  pointerWorkoutName?: string
+  pointerIsRestDay: boolean
+  // True once totalCycles is reached.
+  programCompleted: boolean
 }
 
 export interface ProgramHistoryEntry {
   id: string
   startedAt: number
   status: 'completed' | 'abandoned'
-  endLabel: string
   workoutsCompleted: number
 }
 
-export interface CompletionInfo {
-  programId: string
-  programName: string
-  activeProgramId: string
-  startedAt: number
-  totalDays: number
-  workoutsCompleted: number
-  workoutsScheduled: number
+async function resolveSlots(
+  activeProgram: ActiveProgram,
+  program: Program,
+): Promise<{ slots: CycleSlotView[]; days: ProgramDay[]; workouts: Map<string, Workout> }> {
+  const days = await db.programDays
+    .where('programId')
+    .equals(program.id)
+    .sortBy('dayNumber')
+
+  const workoutIds = [...new Set(days.map((d) => d.workoutId).filter(Boolean) as string[])]
+  const workoutsArr = await db.workouts.bulkGet(workoutIds)
+  const workouts = new Map<string, Workout>()
+  for (const w of workoutsArr) {
+    if (w) workouts.set(w.id, w)
+  }
+
+  const cycle = activeProgram.cycleProgress
+  const slots: CycleSlotView[] = days.map((day, i) => {
+    const slot = cycle[i] ?? { status: 'pending' as const }
+    return {
+      dayNumber: day.dayNumber,
+      workoutId: day.workoutId,
+      workoutName: day.workoutId ? workouts.get(day.workoutId)?.name : undefined,
+      status: slot.status,
+      completedAt: slot.completedAt,
+    }
+  })
+
+  return { slots, days, workouts }
+}
+
+// Lazy-fixes: ensure cycleProgress exists and matches the program's day count.
+// Returns the (possibly updated) active program.
+async function ensureCycleProgressShape(
+  active: ActiveProgram,
+  program: Program,
+): Promise<ActiveProgram> {
+  const expectedLength = program.cycleLengthDays
+  const current = active.cycleProgress ?? []
+  if (current.length === expectedLength) return active
+
+  const next = current.length === 0
+    ? makeFreshCycle(expectedLength)
+    : resizeCycle(current, expectedLength)
+  await db.activePrograms.update(active.id, { cycleProgress: next })
+  return { ...active, cycleProgress: next }
+}
+
+// If the cycle is complete, reset slots and bump currentCycle (or mark the
+// whole program completed when we've reached totalCycles).
+async function maybeResetCycle(
+  active: ActiveProgram,
+  program: Program,
+): Promise<ActiveProgram> {
+  if (!isCycleComplete(active.cycleProgress)) return active
+
+  const nextCycleIndex = active.currentCycle + 1
+  if (program.totalCycles > 0 && nextCycleIndex >= program.totalCycles) {
+    await db.activePrograms.update(active.id, {
+      status: 'completed',
+      currentCycle: nextCycleIndex,
+    })
+    return { ...active, status: 'completed', currentCycle: nextCycleIndex }
+  }
+
+  const fresh = makeFreshCycle(program.cycleLengthDays)
+  await db.activePrograms.update(active.id, {
+    currentCycle: nextCycleIndex,
+    cycleProgress: fresh,
+  })
+  return { ...active, currentCycle: nextCycleIndex, cycleProgress: fresh }
 }
 
 export const programsRepository = {
@@ -63,7 +149,7 @@ export const programsRepository = {
   save: async (data: SaveProgramData & { id?: string }) => {
     const programId = data.id ?? generateId()
 
-    await db.transaction('rw', [db.programs, db.programDays], async () => {
+    await db.transaction('rw', [db.programs, db.programDays, db.activePrograms], async () => {
       if (data.id) {
         await db.programs.update(programId, {
           name: data.name,
@@ -71,6 +157,14 @@ export const programsRepository = {
           totalCycles: data.totalCycles,
         })
         await db.programDays.where('programId').equals(programId).delete()
+
+        // Resize any active runs of this program to match the new day count.
+        const activeRuns = await db.activePrograms.where('programId').equals(programId).toArray()
+        for (const run of activeRuns) {
+          if (run.status !== 'active') continue
+          const resized = resizeCycle(run.cycleProgress ?? [], data.days.length)
+          await db.activePrograms.update(run.id, { cycleProgress: resized })
+        }
       } else {
         const program: Program = {
           id: programId,
@@ -111,6 +205,9 @@ export const programsRepository = {
   },
 
   activate: async (programId: string) => {
+    const program = await db.programs.get(programId)
+    if (!program) return
+
     await db.transaction('rw', [db.activePrograms], async () => {
       const current = await db.activePrograms.where('status').equals('active').first()
       if (current) {
@@ -126,6 +223,7 @@ export const programsRepository = {
         startedAt: startOfToday.getTime(),
         currentCycle: 0,
         status: 'active',
+        cycleProgress: makeFreshCycle(program.cycleLengthDays),
       }
       await db.activePrograms.add(activeProgram)
     })
@@ -139,76 +237,71 @@ export const programsRepository = {
     await db.activePrograms.update(id, { status: 'completed' })
   },
 
-  getTodaySchedule: async (): Promise<TodaySchedule | undefined> => {
-    const active = await db.activePrograms.where('status').equals('active').first()
-    if (!active) return undefined
+  getCurrentSlot: async (): Promise<CurrentSlot | undefined> => {
+    const rawActive = await db.activePrograms.where('status').equals('active').first()
+    if (!rawActive) return undefined
 
-    const program = await db.programs.get(active.programId)
+    const program = await db.programs.get(rawActive.programId)
     if (!program) return undefined
 
-    const now = new Date()
-    now.setHours(0, 0, 0, 0)
-    const daysSinceStart = Math.floor((now.getTime() - active.startedAt) / (1000 * 60 * 60 * 24))
-    const currentCycle = Math.floor(daysSinceStart / program.cycleLengthDays)
+    let active = await ensureCycleProgressShape(rawActive, program)
+    active = await maybeResetCycle(active, program)
 
-    if (program.totalCycles > 0 && currentCycle >= program.totalCycles) {
-      await db.activePrograms.update(active.id, { status: 'completed' })
-      return {
-        programName: program.name,
-        programId: program.id,
-        activeProgramId: active.id,
-        dayNumber: program.cycleLengthDays,
-        cycleLengthDays: program.cycleLengthDays,
-        currentCycle: program.totalCycles - 1,
-        totalCycles: program.totalCycles,
-        isRestDay: true,
-        justCompleted: true,
-      }
-    }
-
-    const dayInCycle = (daysSinceStart % program.cycleLengthDays) + 1
-
-    const days = await db.programDays
-      .where('programId')
-      .equals(program.id)
-      .sortBy('dayNumber')
-
-    const today = days.find((d) => d.dayNumber === dayInCycle)
-    const isRestDay = !today?.workoutId
-
-    let workoutName: string | undefined
-    if (today?.workoutId) {
-      const workout = await db.workouts.get(today.workoutId)
-      workoutName = workout?.name
-    }
-
-    let nextWorkoutName: string | undefined
-    let nextWorkoutDayLabel: string | undefined
-    if (isRestDay) {
-      for (let offset = 1; offset <= program.cycleLengthDays; offset++) {
-        const nextDayNum = ((dayInCycle - 1 + offset) % program.cycleLengthDays) + 1
-        const nextDay = days.find((d) => d.dayNumber === nextDayNum)
-        if (nextDay?.workoutId) {
-          const workout = await db.workouts.get(nextDay.workoutId)
-          nextWorkoutName = workout?.name
-          nextWorkoutDayLabel = offset === 1 ? 'tomorrow' : `in ${offset} days`
-          break
-        }
-      }
-    }
+    const { slots } = await resolveSlots(active, program)
+    const pointerIndex = active.status === 'completed' ? null : getCurrentSlotIndex(active.cycleProgress)
+    const pointerSlot = pointerIndex !== null ? slots[pointerIndex] : undefined
 
     return {
-      programName: program.name,
       programId: program.id,
-      dayNumber: dayInCycle,
-      cycleLengthDays: program.cycleLengthDays,
-      currentCycle,
+      programName: program.name,
+      activeProgramId: active.id,
+      currentCycle: active.currentCycle,
       totalCycles: program.totalCycles,
-      isRestDay,
-      workoutId: today?.workoutId,
-      workoutName,
-      nextWorkoutName,
-      nextWorkoutDayLabel,
+      cycleLengthDays: program.cycleLengthDays,
+      cycleSlots: slots,
+      pointerIndex,
+      pointerWorkoutId: pointerSlot?.workoutId,
+      pointerWorkoutName: pointerSlot?.workoutName,
+      pointerIsRestDay: pointerSlot ? !pointerSlot.workoutId : false,
+      programCompleted: active.status === 'completed',
+    }
+  },
+
+  markSlotDone: async (slotIndex: number, workoutLogId?: string) => {
+    const active = await db.activePrograms.where('status').equals('active').first()
+    if (!active) return
+    const program = await db.programs.get(active.programId)
+    if (!program) return
+
+    let next = markSlotDonePure(
+      active.cycleProgress ?? makeFreshCycle(program.cycleLengthDays),
+      slotIndex,
+      workoutLogId,
+      Date.now(),
+    )
+    await db.activePrograms.update(active.id, { cycleProgress: next })
+
+    // Auto-reset if this completion finished the cycle.
+    if (isCycleComplete(next)) {
+      await maybeResetCycle({ ...active, cycleProgress: next }, program)
+    }
+  },
+
+  markSlotSkipped: async (slotIndex: number) => {
+    const active = await db.activePrograms.where('status').equals('active').first()
+    if (!active) return
+    const program = await db.programs.get(active.programId)
+    if (!program) return
+
+    const next = markSlotSkippedPure(
+      active.cycleProgress ?? makeFreshCycle(program.cycleLengthDays),
+      slotIndex,
+      Date.now(),
+    )
+    await db.activePrograms.update(active.id, { cycleProgress: next })
+
+    if (isCycleComplete(next)) {
+      await maybeResetCycle({ ...active, cycleProgress: next }, program)
     }
   },
 
@@ -222,69 +315,16 @@ export const programsRepository = {
       .filter((r) => r.status !== 'active')
       .sort((a, b) => b.startedAt - a.startedAt)
 
-    const results: ProgramHistoryEntry[] = []
-    for (const run of finished) {
-      const program = await db.programs.get(run.programId)
-      const durationMs = program
-        ? program.cycleLengthDays * (program.totalCycles || 1) * 86400000
-        : 0
-      const endTimestamp = run.startedAt + durationMs
-
-      const logs = await db.workoutLogs
-        .where('startedAt')
-        .between(run.startedAt, endTimestamp)
-        .toArray()
-
-      results.push({
+    return finished.map((run) => {
+      const cycle = run.cycleProgress ?? []
+      const completed = cycle.filter((s) => s.status === 'done').length
+      return {
         id: run.id,
         startedAt: run.startedAt,
         status: run.status as 'completed' | 'abandoned',
-        endLabel: new Date(endTimestamp).toLocaleDateString(),
-        workoutsCompleted: logs.length,
-      })
-    }
-
-    return results
-  },
-
-  getCompletionStats: async (activeProgramId: string): Promise<CompletionInfo | undefined> => {
-    const active = await db.activePrograms.get(activeProgramId)
-    if (!active || active.status !== 'completed') return undefined
-
-    const program = await db.programs.get(active.programId)
-    if (!program) return undefined
-
-    const totalDays = program.cycleLengthDays * program.totalCycles
-    const endTimestamp = active.startedAt + totalDays * 86400000
-
-    const days = await db.programDays
-      .where('programId')
-      .equals(program.id)
-      .toArray()
-    const workoutsScheduled = days.filter((d) => d.workoutId).length * program.totalCycles
-
-    const logs = await db.workoutLogs
-      .where('startedAt')
-      .between(active.startedAt, endTimestamp)
-      .toArray()
-
-    return {
-      programId: program.id,
-      programName: program.name,
-      activeProgramId: active.id,
-      startedAt: active.startedAt,
-      totalDays,
-      workoutsCompleted: logs.length,
-      workoutsScheduled,
-    }
-  },
-
-  getCompletedCount: async (programId: string): Promise<number> => {
-    const runs = await db.activePrograms
-      .where('programId')
-      .equals(programId)
-      .toArray()
-    return runs.filter((r) => r.status === 'completed').length
+        workoutsCompleted: completed,
+      }
+    })
   },
 
   checkWorkoutUsage: async (workoutId: string): Promise<string[]> => {

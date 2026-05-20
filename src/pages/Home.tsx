@@ -2,12 +2,13 @@ import { useNavigate } from 'react-router-dom'
 import { useWorkouts } from '@/hooks/useWorkouts'
 import { useWorkoutLogs } from '@/hooks/useHistory'
 import { useInProgressWorkout, useDiscardInProgress } from '@/hooks/useInProgressWorkout'
-import { useTodaySchedule } from '@/hooks/usePrograms'
+import { useCurrentSlot, useMarkSlotDone } from '@/hooks/usePrograms'
 import { ProgramCompleteCard } from '@/components/programs/ProgramCompleteCard'
+import { PickWorkoutSheet } from '@/components/programs/PickWorkoutSheet'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Play, Plus, Dumbbell, Clock, Download, Upload, CalendarDays, Moon, AlertTriangle } from 'lucide-react'
+import { Play, Plus, Dumbbell, Clock, Download, Upload, CalendarDays, Moon, AlertTriangle, Shuffle, Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { exportAllData, importAllData, downloadJson } from '@/lib/data-transfer'
 import { useRef, useState } from 'react'
@@ -20,10 +21,21 @@ export function Home() {
   const { data: recentLogs } = useWorkoutLogs()
   const { data: inProgress } = useInProgressWorkout()
   const discardInProgress = useDiscardInProgress()
-  const { data: todaySchedule } = useTodaySchedule()
+  const { data: currentSlot } = useCurrentSlot()
+  const markSlotDone = useMarkSlotDone()
   const [dismissedCompletion, setDismissedCompletion] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const lastThreeLogs = recentLogs?.slice(0, 3)
+
+  // When you pick a different workout from the cycle, we carry the slot index
+  // through execution so the right slot gets marked done on complete.
+  const startWorkoutForSlot = (slotIndex: number) => {
+    const slot = currentSlot?.cycleSlots[slotIndex]
+    if (!slot?.workoutId) return
+    setPickerOpen(false)
+    navigate(`/execute/${slot.workoutId}?slot=${slotIndex}`)
+  }
 
   return (
     <div>
@@ -43,7 +55,13 @@ export function Home() {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  onClick={() => navigate(`/execute/${inProgress.workoutId}`)}
+                  onClick={() => {
+                    const slotQs =
+                      inProgress.programDayIndex !== undefined
+                        ? `?slot=${inProgress.programDayIndex}`
+                        : ''
+                    navigate(`/execute/${inProgress.workoutId}${slotQs}`)
+                  }}
                 >
                   Resume
                 </Button>
@@ -59,41 +77,55 @@ export function Home() {
           </Card>
         )}
 
-        {todaySchedule?.justCompleted && !dismissedCompletion && todaySchedule.activeProgramId && (
+        {currentSlot?.programCompleted && !dismissedCompletion && (
           <ProgramCompleteCard
-            activeProgramId={todaySchedule.activeProgramId}
+            programId={currentSlot.programId}
+            programName={currentSlot.programName}
+            cyclesCompleted={currentSlot.currentCycle}
             onDismiss={() => setDismissedCompletion(true)}
           />
         )}
 
-        {todaySchedule && !todaySchedule.justCompleted && (
+        {currentSlot && !currentSlot.programCompleted && (
           <Card className="border-primary/30 bg-primary/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <CalendarDays className="h-5 w-5 text-primary" />
-                {todaySchedule.programName}
+                {currentSlot.programName}
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                Day {todaySchedule.dayNumber}/{todaySchedule.cycleLengthDays}
-                {todaySchedule.totalCycles > 0 && (
-                  <> &middot; Cycle {todaySchedule.currentCycle + 1}/{todaySchedule.totalCycles}</>
+                {currentSlot.pointerIndex !== null && (
+                  <>Day {currentSlot.pointerIndex + 1}/{currentSlot.cycleLengthDays}</>
+                )}
+                {currentSlot.totalCycles > 0 && (
+                  <> &middot; Cycle {currentSlot.currentCycle + 1}/{currentSlot.totalCycles}</>
                 )}
               </p>
             </CardHeader>
             <CardContent>
-              {todaySchedule.isRestDay ? (
-                <div className="flex items-center gap-2">
-                  <Moon className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Rest Day</p>
-                    {todaySchedule.nextWorkoutName && (
-                      <p className="text-xs text-muted-foreground">
-                        Next up: {todaySchedule.nextWorkoutName} ({todaySchedule.nextWorkoutDayLabel})
-                      </p>
-                    )}
+              {currentSlot.pointerIndex === null ? (
+                <p className="text-sm text-muted-foreground">Cycle complete — starting the next one.</p>
+              ) : currentSlot.pointerIsRestDay ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Moon className="h-4 w-4 text-muted-foreground" />
+                    <p className="text-sm font-medium">Today is a rest day</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => markSlotDone.mutate({ slotIndex: currentSlot.pointerIndex! })}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Mark Done
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setPickerOpen(true)}>
+                      <Shuffle className="h-4 w-4 mr-1" />
+                      Do a workout instead
+                    </Button>
                   </div>
                 </div>
-              ) : todaySchedule.workoutId && !todaySchedule.workoutName ? (
+              ) : currentSlot.pointerWorkoutId && !currentSlot.pointerWorkoutName ? (
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive" />
                   <div>
@@ -105,28 +137,60 @@ export function Home() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigate(`/programs/${todaySchedule.programId}/edit`)}
+                    onClick={() => navigate(`/programs/${currentSlot.programId}/edit`)}
                   >
                     Edit
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Dumbbell className="h-4 w-4 text-primary" />
-                    <p className="text-sm font-medium">{todaySchedule.workoutName}</p>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Dumbbell className="h-4 w-4 text-primary shrink-0" />
+                      <p className="text-sm font-medium truncate">{currentSlot.pointerWorkoutName}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        navigate(`/execute/${currentSlot.pointerWorkoutId}?slot=${currentSlot.pointerIndex}`)
+                      }
+                    >
+                      <Play className="h-4 w-4 mr-1" />
+                      Start
+                    </Button>
                   </div>
                   <Button
                     size="sm"
-                    onClick={() => navigate(`/execute/${todaySchedule.workoutId}`)}
+                    variant="ghost"
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setPickerOpen(true)}
                   >
-                    <Play className="h-4 w-4 mr-1" />
-                    Start
+                    <Shuffle className="h-3.5 w-3.5 mr-1" />
+                    Pick a different workout
                   </Button>
                 </div>
               )}
             </CardContent>
           </Card>
+        )}
+
+        {currentSlot && (
+          <PickWorkoutSheet
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            slots={currentSlot.cycleSlots}
+            pointerIndex={currentSlot.pointerIndex}
+            onPick={(slotIndex) => {
+              const slot = currentSlot.cycleSlots[slotIndex]
+              if (!slot.workoutId) {
+                // Picked a rest day from the sheet — mark it done directly.
+                markSlotDone.mutate({ slotIndex })
+                setPickerOpen(false)
+                return
+              }
+              startWorkoutForSlot(slotIndex)
+            }}
+          />
         )}
 
         <section>

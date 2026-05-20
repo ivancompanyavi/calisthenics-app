@@ -104,4 +104,30 @@ db.version(4).stores({
   activePrograms: 'id, programId, status',
 })
 
+// v5: switch programs from date-driven scheduling to sequence-driven.
+// ActiveProgram gains cycleProgress[]. Wipe per-run data (logs, active runs,
+// in-progress workouts) so the new model starts from a clean state; seed
+// definitions (movements/workouts/programs) stay intact.
+db.version(5).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
+}).upgrade(async (tx) => {
+  await Promise.all([
+    tx.table('workoutLogs').clear(),
+    tx.table('setLogs').clear(),
+    tx.table('inProgressWorkout').clear(),
+    tx.table('activePrograms').clear(),
+  ])
+})
+
 export { db }

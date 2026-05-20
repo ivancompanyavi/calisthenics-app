@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useWorkout, useWorkoutBlocks, useAllBlockEntries } from '@/hooks/useWorkouts'
 import { useSaveWorkoutLog } from '@/hooks/useHistory'
 import { useWorkoutExecution } from '@/hooks/useWorkoutExecution'
 import { useProgressionReadiness, useUpdateCurrentLevel } from '@/hooks/useProgressions'
 import { useInProgressWorkout } from '@/hooks/useInProgressWorkout'
+import { useMarkSlotDone } from '@/hooks/usePrograms'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
 import { workoutsRepository, inProgressRepository, progressionsRepository } from '@/repositories'
@@ -17,19 +18,27 @@ import { Play, X, Flag } from 'lucide-react'
 
 export function WorkoutExecution() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+
+  const slotParam = searchParams.get('slot')
+  const slotFromUrl = slotParam !== null ? Number(slotParam) : undefined
 
   const { data: workout } = useWorkout(id)
   const { data: blocks } = useWorkoutBlocks(id)
   const blockIds = blocks?.map((b) => b.id) ?? []
   const { data: entries } = useAllBlockEntries(blockIds)
   const saveLog = useSaveWorkoutLog()
+  const markSlotDone = useMarkSlotDone()
 
   const { data: inProgress } = useInProgressWorkout()
   const updateLevel = useUpdateCurrentLevel()
 
-  const { state, dispatch, currentEntry, progress, init } = useWorkoutExecution()
+  // activeProgramDayIndex is finalized below once we know the resume record;
+  // pass slotFromUrl here so a fresh start gets the slot persisted from the
+  // very first auto-save. (Resume already has it on the record itself.)
+  const { state, dispatch, currentEntry, progress, init } = useWorkoutExecution(slotFromUrl)
   const [initialized, setInitialized] = useState(false)
   const [workoutNotes, setWorkoutNotes] = useState('')
 
@@ -48,12 +57,15 @@ export function WorkoutExecution() {
     state.completedSets
   )
 
+  // Resumed runs carry the original programDayIndex on the in-progress record;
+  // fresh runs use whatever the URL specified (if any).
+  const resumeData = inProgress?.workoutId === id ? inProgress : null
+  const activeProgramDayIndex = resumeData?.programDayIndex ?? slotFromUrl
+
   useEffect(() => {
     if (!workout || !blocks || !entries || initialized) return
 
     workoutsRepository.resolveBlocks(blocks, entries).then((resolvedBlocks) => {
-      const resumeData = inProgress?.workoutId === id ? inProgress : null
-
       init({
         workoutId: workout.id,
         workoutName: workout.name,
@@ -67,16 +79,19 @@ export function WorkoutExecution() {
       })
       setInitialized(true)
     })
-  }, [workout, blocks, entries, inProgress, id, init, initialized])
+  }, [workout, blocks, entries, resumeData, id, init, initialized])
 
   const handleComplete = async () => {
-    await saveLog.mutateAsync({
+    const logId = await saveLog.mutateAsync({
       workoutId: state.workoutId,
       workoutName: state.workoutName,
       startedAt: state.startedAt,
       notes: workoutNotes || undefined,
       sets: state.completedSets,
     })
+    if (activeProgramDayIndex !== undefined) {
+      await markSlotDone.mutateAsync({ slotIndex: activeProgramDayIndex, workoutLogId: logId })
+    }
     await inProgressRepository.clear()
     queryClient.invalidateQueries({ queryKey: queryKeys.inProgress })
     navigate('/')

@@ -1,27 +1,27 @@
 import { useNavigate } from 'react-router-dom'
-import { useProgramCompletionStats, useActivateProgram } from '@/hooks/usePrograms'
+import { useActivateProgram } from '@/hooks/usePrograms'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Trophy, RotateCcw, Plus } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
-import { queryKeys } from '@/lib/query-keys'
 
 interface ProgramCompleteCardProps {
-  activeProgramId: string
+  programId: string
+  programName: string
+  cyclesCompleted: number
   onDismiss: () => void
 }
 
-export function ProgramCompleteCard({ activeProgramId, onDismiss }: ProgramCompleteCardProps) {
+export function ProgramCompleteCard({
+  programId,
+  programName,
+  cyclesCompleted,
+  onDismiss,
+}: ProgramCompleteCardProps) {
   const navigate = useNavigate()
-  const qc = useQueryClient()
-  const { data: stats } = useProgramCompletionStats(activeProgramId)
   const activateProgram = useActivateProgram()
 
-  if (!stats) return null
-
   const handleRestart = async () => {
-    await activateProgram.mutateAsync(stats.programId)
-    qc.invalidateQueries({ queryKey: queryKeys.programs.todaySchedule })
+    await activateProgram.mutateAsync(programId)
   }
 
   return (
@@ -34,9 +34,9 @@ export function ProgramCompleteCard({ activeProgramId, onDismiss }: ProgramCompl
       </CardHeader>
       <CardContent className="space-y-3">
         <div>
-          <p className="text-sm font-medium">{stats.programName}</p>
+          <p className="text-sm font-medium">{programName}</p>
           <p className="text-xs text-muted-foreground">
-            {stats.totalDays} days &middot; {stats.workoutsCompleted}/{stats.workoutsScheduled} workouts completed
+            {cyclesCompleted} cycle{cyclesCompleted !== 1 ? 's' : ''} completed
           </p>
         </div>
         <div className="flex gap-2">

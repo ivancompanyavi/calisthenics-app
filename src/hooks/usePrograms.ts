@@ -32,10 +32,10 @@ export function useActiveProgram() {
   })
 }
 
-export function useTodaySchedule() {
+export function useCurrentSlot() {
   return useQuery({
-    queryKey: queryKeys.programs.todaySchedule,
-    queryFn: () => programsRepository.getTodaySchedule(),
+    queryKey: queryKeys.programs.currentSlot,
+    queryFn: () => programsRepository.getCurrentSlot(),
   })
 }
 
@@ -55,6 +55,7 @@ export function useUpdateProgram() {
     mutationFn: (data: SaveProgramData & { id: string }) => programsRepository.save(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.programs.all })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.currentSlot })
     },
   })
 }
@@ -66,7 +67,7 @@ export function useDeleteProgram() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.programs.all })
       qc.invalidateQueries({ queryKey: queryKeys.programs.active })
-      qc.invalidateQueries({ queryKey: queryKeys.programs.todaySchedule })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.currentSlot })
     },
   })
 }
@@ -77,7 +78,7 @@ export function useActivateProgram() {
     mutationFn: (programId: string) => programsRepository.activate(programId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.programs.active })
-      qc.invalidateQueries({ queryKey: queryKeys.programs.todaySchedule })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.currentSlot })
     },
   })
 }
@@ -88,7 +89,30 @@ export function useDeactivateProgram() {
     mutationFn: (id: string) => programsRepository.deactivate(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.programs.active })
-      qc.invalidateQueries({ queryKey: queryKeys.programs.todaySchedule })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.currentSlot })
+    },
+  })
+}
+
+export function useMarkSlotDone() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ slotIndex, workoutLogId }: { slotIndex: number; workoutLogId?: string }) =>
+      programsRepository.markSlotDone(slotIndex, workoutLogId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.programs.currentSlot })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.active })
+    },
+  })
+}
+
+export function useMarkSlotSkipped() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (slotIndex: number) => programsRepository.markSlotSkipped(slotIndex),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.programs.currentSlot })
+      qc.invalidateQueries({ queryKey: queryKeys.programs.active })
     },
   })
 }
@@ -98,13 +122,5 @@ export function useProgramHistory(programId: string | undefined) {
     queryKey: queryKeys.programs.history(programId!),
     queryFn: () => programsRepository.getHistory(programId!),
     enabled: !!programId,
-  })
-}
-
-export function useProgramCompletionStats(activeProgramId: string | undefined) {
-  return useQuery({
-    queryKey: queryKeys.programs.completionStats(activeProgramId!),
-    queryFn: () => programsRepository.getCompletionStats(activeProgramId!),
-    enabled: !!activeProgramId,
   })
 }

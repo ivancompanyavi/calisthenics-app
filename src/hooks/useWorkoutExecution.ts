@@ -62,7 +62,7 @@ function useScreenWakeLock(active: boolean) {
   }, [active])
 }
 
-export function useWorkoutExecution() {
+export function useWorkoutExecution(programDayIndex?: number) {
   const [state, dispatch] = useReducer(executionReducer, initialState)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -123,11 +123,12 @@ export function useWorkoutExecution() {
         currentRound: state.currentRound,
         currentEntryIndex: state.currentEntryIndex,
         completedSets: state.completedSets,
+        programDayIndex,
       }
       await inProgressRepository.save(progress)
     }
     save()
-  }, [state.currentBlockIndex, state.currentRound, state.currentEntryIndex, state.completedSets.length, state.phase])
+  }, [state.currentBlockIndex, state.currentRound, state.currentEntryIndex, state.completedSets.length, state.phase, programDayIndex])
 
   const totalSets = computeTotalSets(state.blocks)
   const nonSkippedSets = state.completedSets.filter((s) => !s.skipped).length

@@ -92,6 +92,7 @@ export interface InProgressWorkout {
   currentRound: number
   currentEntryIndex: number
   completedSets: SetLog[]
+  programDayIndex?: number
 }
 
 export interface LevelUpCandidate {
@@ -117,12 +118,21 @@ export interface ProgramDay {
 
 export type ActiveProgramStatus = 'active' | 'completed' | 'abandoned'
 
+export type CycleSlotStatus = 'pending' | 'done' | 'skipped'
+
+export interface CycleSlot {
+  status: CycleSlotStatus
+  completedAt?: number
+  workoutLogId?: string
+}
+
 export interface ActiveProgram {
   id: string
   programId: string
   startedAt: number
   currentCycle: number
   status: ActiveProgramStatus
+  cycleProgress: CycleSlot[]
 }
 
 export type DraftEntry = Omit<BlockEntry, 'blockId' | 'order'> & { id: string }
