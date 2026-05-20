@@ -14,6 +14,7 @@ import {
   markSlotDone as markSlotDonePure,
   markSlotSkipped as markSlotSkippedPure,
   resizeCycle,
+  isSameLocalDay,
 } from '@/lib/program-engine'
 
 export interface SaveProgramData {
@@ -46,6 +47,12 @@ export interface CurrentSlot {
   pointerIsRestDay: boolean
   // True once totalCycles is reached.
   programCompleted: boolean
+  // True when the user has already marked a slot done today (workout or rest).
+  // Home uses this to switch to a "good work, see you tomorrow" state instead
+  // of nagging them to do the next pointer workout.
+  didActivityToday: boolean
+  todayActivityName?: string
+  todayActivityWasRest?: boolean
 }
 
 export interface ProgramHistoryEntry {
@@ -251,6 +258,9 @@ export const programsRepository = {
     const pointerIndex = active.status === 'completed' ? null : getCurrentSlotIndex(active.cycleProgress)
     const pointerSlot = pointerIndex !== null ? slots[pointerIndex] : undefined
 
+    const didActivityToday =
+      active.lastActivityAt !== undefined && isSameLocalDay(active.lastActivityAt, Date.now())
+
     return {
       programId: program.id,
       programName: program.name,
@@ -264,6 +274,9 @@ export const programsRepository = {
       pointerWorkoutName: pointerSlot?.workoutName,
       pointerIsRestDay: pointerSlot ? !pointerSlot.workoutId : false,
       programCompleted: active.status === 'completed',
+      didActivityToday,
+      todayActivityName: didActivityToday ? active.lastActivityName : undefined,
+      todayActivityWasRest: didActivityToday ? active.lastActivityWasRest : undefined,
     }
   },
 
@@ -273,15 +286,39 @@ export const programsRepository = {
     const program = await db.programs.get(active.programId)
     if (!program) return
 
-    let next = markSlotDonePure(
+    // Look up what the user actually did so we can stash a display name on
+    // the active program (survives cycle resets unlike cycleProgress entries).
+    const days = await db.programDays
+      .where('programId')
+      .equals(program.id)
+      .sortBy('dayNumber')
+    const day = days[slotIndex]
+    let activityName = 'Workout'
+    let wasRest = false
+    if (!day?.workoutId) {
+      activityName = 'Rest day'
+      wasRest = true
+    } else {
+      const workout = await db.workouts.get(day.workoutId)
+      activityName = workout?.name ?? 'Workout'
+    }
+
+    const now = Date.now()
+    const next = markSlotDonePure(
       active.cycleProgress ?? makeFreshCycle(program.cycleLengthDays),
       slotIndex,
       workoutLogId,
-      Date.now(),
+      now,
     )
-    await db.activePrograms.update(active.id, { cycleProgress: next })
+    await db.activePrograms.update(active.id, {
+      cycleProgress: next,
+      lastActivityAt: now,
+      lastActivityName: activityName,
+      lastActivityWasRest: wasRest,
+    })
 
-    // Auto-reset if this completion finished the cycle.
+    // Auto-reset if this completion finished the cycle. lastActivity fields
+    // stay on the record — they aren't touched by the reset.
     if (isCycleComplete(next)) {
       await maybeResetCycle({ ...active, cycleProgress: next }, program)
     }

@@ -133,6 +133,12 @@ export interface ActiveProgram {
   currentCycle: number
   status: ActiveProgramStatus
   cycleProgress: CycleSlot[]
+  // Most recent slot completion (workout or rest). Survives cycle resets so
+  // "I already trained today" can be checked even if the rest-day mark was
+  // what completed the cycle.
+  lastActivityAt?: number
+  lastActivityName?: string
+  lastActivityWasRest?: boolean
 }
 
 export type DraftEntry = Omit<BlockEntry, 'blockId' | 'order'> & { id: string }

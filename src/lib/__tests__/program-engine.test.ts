@@ -6,6 +6,7 @@ import {
   markSlotDone,
   markSlotSkipped,
   resizeCycle,
+  isSameLocalDay,
 } from '../program-engine'
 
 const T0 = 1_700_000_000_000
@@ -91,6 +92,26 @@ describe('markSlotSkipped', () => {
   it('records skip metadata', () => {
     const cycle = markSlotSkipped(makeFreshCycle(3), 0, T0)
     expect(cycle[0]).toEqual({ status: 'skipped', completedAt: T0 })
+  })
+})
+
+describe('isSameLocalDay', () => {
+  it('returns true for timestamps an hour apart on the same day', () => {
+    const morning = new Date(2026, 4, 15, 8, 0, 0).getTime()
+    const evening = new Date(2026, 4, 15, 20, 30, 0).getTime()
+    expect(isSameLocalDay(morning, evening)).toBe(true)
+  })
+
+  it('returns false for midnight-spanning timestamps', () => {
+    const lateNight = new Date(2026, 4, 15, 23, 55, 0).getTime()
+    const earlyMorning = new Date(2026, 4, 16, 0, 10, 0).getTime()
+    expect(isSameLocalDay(lateNight, earlyMorning)).toBe(false)
+  })
+
+  it('returns false for the same wall-clock hour on different dates', () => {
+    const day1 = new Date(2026, 4, 15, 10, 0, 0).getTime()
+    const day2 = new Date(2026, 4, 16, 10, 0, 0).getTime()
+    expect(isSameLocalDay(day1, day2)).toBe(false)
   })
 })
 

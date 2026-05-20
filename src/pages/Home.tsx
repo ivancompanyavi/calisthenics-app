@@ -8,7 +8,7 @@ import { PickWorkoutSheet } from '@/components/programs/PickWorkoutSheet'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { Play, Plus, Dumbbell, Clock, Download, Upload, CalendarDays, Moon, AlertTriangle, Shuffle, Check } from 'lucide-react'
+import { Play, Plus, Dumbbell, Clock, Download, Upload, CalendarDays, Moon, AlertTriangle, Shuffle, Check, PartyPopper } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { exportAllData, importAllData, downloadJson } from '@/lib/data-transfer'
 import { useRef, useState } from 'react'
@@ -103,7 +103,38 @@ export function Home() {
               </p>
             </CardHeader>
             <CardContent>
-              {currentSlot.pointerIndex === null ? (
+              {currentSlot.didActivityToday ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    {currentSlot.todayActivityWasRest ? (
+                      <Moon className="h-5 w-5 text-primary" />
+                    ) : (
+                      <PartyPopper className="h-5 w-5 text-primary" />
+                    )}
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {currentSlot.todayActivityWasRest
+                          ? 'Rest day taken'
+                          : `${currentSlot.todayActivityName} completed`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {currentSlot.todayActivityWasRest
+                          ? 'Enjoy the recovery — see you tomorrow.'
+                          : 'Good work today. See you tomorrow.'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <Shuffle className="h-3.5 w-3.5 mr-1" />
+                    Add another workout
+                  </Button>
+                </div>
+              ) : currentSlot.pointerIndex === null ? (
                 <p className="text-sm text-muted-foreground">Cycle complete — starting the next one.</p>
               ) : currentSlot.pointerIsRestDay ? (
                 <div className="space-y-3">

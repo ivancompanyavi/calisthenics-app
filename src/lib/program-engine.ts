@@ -42,3 +42,15 @@ export function resizeCycle(cycle: CycleSlot[], newLength: number): CycleSlot[] 
   if (newLength < cycle.length) return cycle.slice(0, newLength)
   return [...cycle, ...makeFreshCycle(newLength - cycle.length)]
 }
+
+// Compare two unix-ms timestamps under the device's local timezone. "Today"
+// for the Home screen means same local calendar date.
+export function isSameLocalDay(a: number, b: number): boolean {
+  const da = new Date(a)
+  const db = new Date(b)
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  )
+}
