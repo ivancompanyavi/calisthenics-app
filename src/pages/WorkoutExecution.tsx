@@ -42,14 +42,10 @@ export function WorkoutExecution() {
   const [initialized, setInitialized] = useState(false)
   const [workoutNotes, setWorkoutNotes] = useState('')
 
+  // SetLog now carries progressionId directly, so we can collect the set of
+  // progressions this workout exercised without searching block structure.
   const progressionIds = state.phase === 'complete'
-    ? [...new Set(state.completedSets.map((s) => {
-        const block = state.blocks.find((b) =>
-          b.entries.some((e) => e.movementId === s.movementId)
-        )
-        const entry = block?.entries.find((e) => e.movementId === s.movementId)
-        return entry?.progressionId ?? ''
-      }).filter(Boolean))]
+    ? [...new Set(state.completedSets.map((s) => s.progressionId).filter((id): id is string => !!id))]
     : []
 
   const { data: levelUpCandidates = [] } = useProgressionReadiness(

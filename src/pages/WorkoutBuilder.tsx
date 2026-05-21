@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWorkout, useWorkoutBlocks, useAllBlockEntries, useSaveWorkout, type SaveWorkoutData } from '@/hooks/useWorkouts'
+import type { SaveEntry } from '@/repositories/workouts.repository'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { BlockEditor } from '@/components/workouts/BlockEditor'
 import { Plus, Save, ArrowLeft } from 'lucide-react'
 import { generateId } from '@/lib/utils'
-import type { DraftBlock } from '@/models/types'
+import type { BlockEntry, DraftBlock, DraftEntry } from '@/models/types'
 
 interface InitialFormData {
   name: string
@@ -29,6 +30,19 @@ export function WorkoutBuilder() {
 
   if (isEditing && (!existingWorkout || !existingBlocks || !existingEntries)) return null
 
+  const toDraftEntry = (e: BlockEntry): DraftEntry => {
+    const shared = {
+      id: e.id,
+      targetReps: e.targetReps,
+      targetSeconds: e.targetSeconds,
+      perSide: e.perSide,
+      restSeconds: e.restSeconds,
+    }
+    return e.kind === 'progression'
+      ? { ...shared, kind: 'progression', progressionId: e.progressionId }
+      : { ...shared, kind: 'movement', movementId: e.movementId, mode: e.mode }
+  }
+
   const initial: InitialFormData = isEditing && existingWorkout && existingBlocks && existingEntries
     ? {
         name: existingWorkout.name,
@@ -40,16 +54,7 @@ export function WorkoutBuilder() {
           restSeconds: block.restSeconds,
           entries: existingEntries
             .filter((e) => e.blockId === block.id)
-            .map((e) => ({
-              id: e.id,
-              progressionId: e.progressionId,
-              movementId: e.movementId,
-              mode: e.mode,
-              targetReps: e.targetReps,
-              targetSeconds: e.targetSeconds,
-              perSide: e.perSide,
-              restSeconds: e.restSeconds,
-            })),
+            .map(toDraftEntry),
         })),
       }
     : { name: '', restBetweenBlocks: 0, blocks: [] }
@@ -103,6 +108,18 @@ function WorkoutBuilderInner({ id, initial }: { id: string | undefined; initial:
   const handleSave = async () => {
     if (!name.trim() || blocks.length === 0) return
 
+    const toSaveEntry = (e: DraftEntry): SaveEntry => {
+      const shared = {
+        targetReps: e.targetReps,
+        targetSeconds: e.targetSeconds,
+        perSide: e.perSide || undefined,
+        restSeconds: e.restSeconds,
+      }
+      return e.kind === 'progression'
+        ? { ...shared, kind: 'progression', progressionId: e.progressionId }
+        : { ...shared, kind: 'movement', movementId: e.movementId, mode: e.mode }
+    }
+
     const data: SaveWorkoutData & { id?: string } = {
       id: isEditing ? id : undefined,
       name: name.trim(),
@@ -111,15 +128,7 @@ function WorkoutBuilderInner({ id, initial }: { id: string | undefined; initial:
         type: b.type,
         rounds: b.rounds,
         restSeconds: b.restSeconds,
-        entries: b.entries.map((e) => ({
-          progressionId: e.progressionId,
-          movementId: e.movementId,
-          mode: e.mode,
-          targetReps: e.targetReps,
-          targetSeconds: e.targetSeconds,
-          perSide: e.perSide || undefined,
-          restSeconds: e.restSeconds,
-        })),
+        entries: b.entries.map(toSaveEntry),
       })),
     }
 

@@ -3,6 +3,17 @@ import type { Movement, Progression, ProgressionLevel, Workout, WorkoutBlock, Bl
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 import { generateId } from '@/lib/utils'
 
+interface SaveEntryShared {
+  targetReps?: number
+  targetSeconds?: number
+  perSide?: boolean
+  restSeconds?: number
+}
+
+export type SaveEntry =
+  | (SaveEntryShared & { kind: 'progression'; progressionId: string })
+  | (SaveEntryShared & { kind: 'movement'; movementId: string; mode: 'reps' | 'time' | 'max' })
+
 export interface SaveWorkoutData {
   name: string
   restBetweenBlocksSeconds?: number
@@ -10,15 +21,7 @@ export interface SaveWorkoutData {
     type: 'set' | 'superset'
     rounds: number
     restSeconds: number
-    entries: Array<{
-      progressionId?: string
-      movementId?: string
-      mode?: 'reps' | 'time' | 'max'
-      targetReps?: number
-      targetSeconds?: number
-      perSide?: boolean
-      restSeconds?: number
-    }>
+    entries: SaveEntry[]
   }>
 }
 
@@ -78,18 +81,18 @@ export const workoutsRepository = {
 
         for (let j = 0; j < blockData.entries.length; j++) {
           const entryData = blockData.entries[j]
-          const entry: BlockEntry = {
+          const shared = {
             id: generateId(),
             blockId: block.id,
-            progressionId: entryData.progressionId,
-            movementId: entryData.movementId,
-            mode: entryData.mode,
+            order: j,
             targetReps: entryData.targetReps,
             targetSeconds: entryData.targetSeconds,
             perSide: entryData.perSide,
             restSeconds: entryData.restSeconds,
-            order: j,
           }
+          const entry: BlockEntry = entryData.kind === 'progression'
+            ? { ...shared, kind: 'progression', progressionId: entryData.progressionId }
+            : { ...shared, kind: 'movement', movementId: entryData.movementId, mode: entryData.mode }
           await db.blockEntries.add(entry)
         }
       }
@@ -143,7 +146,7 @@ export const workoutsRepository = {
     }
 
     const resolveEntry = (entry: BlockEntry): ResolvedEntry => {
-      if (entry.movementId) {
+      if (entry.kind === 'movement') {
         const movement = movementMap.get(entry.movementId)
         return {
           progressionId: undefined,
@@ -152,7 +155,7 @@ export const workoutsRepository = {
           movementPhoto: movement?.photo,
           movementSeedImagePath: movement?.seedImagePath,
           movementCoachingCues: movement?.coachingCues,
-          mode: entry.mode ?? 'reps',
+          mode: entry.mode,
           targetReps: entry.targetReps,
           targetSeconds: entry.targetSeconds,
           perSide: entry.perSide,
@@ -160,8 +163,8 @@ export const workoutsRepository = {
         }
       }
 
-      const progression = progressionMap.get(entry.progressionId!)
-      const levels = levelsByProgression.get(entry.progressionId!) ?? []
+      const progression = progressionMap.get(entry.progressionId)
+      const levels = levelsByProgression.get(entry.progressionId) ?? []
       const currentLevel = progression?.currentLevel ?? 0
       const level = levels[currentLevel] ?? levels[0]
       const movement = level ? movementMap.get(level.movementId) : undefined

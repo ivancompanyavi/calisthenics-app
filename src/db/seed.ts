@@ -203,30 +203,31 @@ function buildBlocks(
     for (let j = 0; j < blockDef.entries.length; j++) {
       const entryDef = blockDef.entries[j];
 
+      const shared = {
+        id: generateId(),
+        blockId,
+        order: j,
+        targetReps: entryDef.targetReps,
+        targetSeconds: entryDef.targetSeconds,
+        perSide: entryDef.perSide,
+      };
+
       if (entryDef.movement) {
         const movementId = movementMap.get(entryDef.movement);
         if (!movementId) continue;
         entries.push({
-          id: generateId(),
-          blockId,
+          ...shared,
+          kind: "movement",
           movementId,
-          mode: entryDef.mode,
-          targetReps: entryDef.targetReps,
-          targetSeconds: entryDef.targetSeconds,
-          perSide: entryDef.perSide,
-          order: j,
+          mode: entryDef.mode ?? "reps",
         });
       } else if (entryDef.progression) {
         const progressionId = progressionMap.get(entryDef.progression);
         if (!progressionId) continue;
         entries.push({
-          id: generateId(),
-          blockId,
+          ...shared,
+          kind: "progression",
           progressionId,
-          targetReps: entryDef.targetReps,
-          targetSeconds: entryDef.targetSeconds,
-          perSide: entryDef.perSide,
-          order: j,
         });
       }
     }

@@ -212,6 +212,36 @@ describe('executionReducer', () => {
       expect(result.completedSets).toHaveLength(1)
     })
 
+    it('threads progressionId from the resolved entry into the SetLog', () => {
+      const state = makeInitializedState({
+        phase: 'adjust',
+        adjustReps: 10,
+        blocks: [makeBlock({
+          rounds: 1, restSeconds: 60,
+          entries: [makeEntry({ progressionId: 'prog-pull', movementId: 'mv-row' })],
+        })],
+        currentRound: 0,
+      })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
+      expect(result.completedSets[0].progressionId).toBe('prog-pull')
+      expect(result.completedSets[0].movementId).toBe('mv-row')
+    })
+
+    it('omits progressionId on the SetLog for standalone movement entries', () => {
+      const state = makeInitializedState({
+        phase: 'adjust',
+        adjustReps: 10,
+        blocks: [makeBlock({
+          rounds: 1, restSeconds: 60,
+          entries: [makeEntry({ progressionId: undefined, movementId: 'mv-solo' })],
+        })],
+        currentRound: 0,
+      })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
+      expect(result.completedSets[0].progressionId).toBeUndefined()
+      expect(result.completedSets[0].movementId).toBe('mv-solo')
+    })
+
     it('advances to next entry in superset without rest', () => {
       const entries = [
         makeEntry({ movementId: 'mov-1', movementName: 'Push Up' }),

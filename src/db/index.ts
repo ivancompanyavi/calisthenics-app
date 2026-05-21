@@ -130,4 +130,45 @@ db.version(5).stores({
   ])
 })
 
+// v6: BlockEntry becomes a discriminated union with a `kind` field. SetLog
+// gains an optional `progressionId` to make progression-grouped history
+// queries possible without joining via name. Non-destructive: existing rows
+// are transformed in place. New blockEntries index on `kind`; setLogs index
+// on `progressionId` for fast per-progression queries.
+db.version(6).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, kind, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, progressionId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
+}).upgrade(async (tx) => {
+  // Backfill `kind` on every existing BlockEntry based on which legacy field
+  // it carries. Movement-kind entries default mode to 'reps' to satisfy the
+  // new required-mode constraint for that branch of the union.
+  const entries = await tx.table('blockEntries').toArray()
+  const updates = entries.map((e: Record<string, unknown>) => {
+    if (e.progressionId) {
+      return { ...e, kind: 'progression', movementId: undefined, mode: undefined }
+    }
+    return {
+      ...e,
+      kind: 'movement',
+      mode: e.mode ?? 'reps',
+      progressionId: undefined,
+    }
+  })
+  if (updates.length > 0) {
+    await tx.table('blockEntries').bulkPut(updates)
+  }
+  // SetLog.progressionId is optional; existing rows simply have it absent.
+  // No backfill needed — the field defaults to undefined.
+})
+
 export { db }

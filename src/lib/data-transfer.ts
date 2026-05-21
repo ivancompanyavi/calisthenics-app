@@ -71,7 +71,19 @@ export async function importAllData(json: string): Promise<void> {
       if (data.progressionLevels.length > 0) await db.progressionLevels.bulkAdd(data.progressionLevels)
       if (data.workouts.length > 0) await db.workouts.bulkAdd(data.workouts)
       if (data.workoutBlocks.length > 0) await db.workoutBlocks.bulkAdd(data.workoutBlocks)
-      if (data.blockEntries.length > 0) await db.blockEntries.bulkAdd(data.blockEntries)
+      if (data.blockEntries.length > 0) {
+        // Backups from before v6 don't carry the `kind` discriminator. Derive
+        // it from the legacy progressionId/movementId presence so older files
+        // import cleanly without going through a separate migration path.
+        const entries = data.blockEntries.map((e: Record<string, unknown>) => {
+          if (e.kind) return e
+          if (e.progressionId) {
+            return { ...e, kind: 'progression', movementId: undefined, mode: undefined }
+          }
+          return { ...e, kind: 'movement', mode: e.mode ?? 'reps', progressionId: undefined }
+        })
+        await db.blockEntries.bulkAdd(entries)
+      }
       if (data.workoutLogs.length > 0) await db.workoutLogs.bulkAdd(data.workoutLogs)
       if (data.setLogs.length > 0) await db.setLogs.bulkAdd(data.setLogs)
       if (data.programs?.length > 0) await db.programs.bulkAdd(data.programs)

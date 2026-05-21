@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { ExercisePicker, type ExerciseSelection } from './ExercisePicker'
-import { EntryRow } from './EntryRow'
+import { EntryRow, type EntryRowUpdate } from './EntryRow'
 import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
 import { generateId } from '@/lib/utils'
 
@@ -23,17 +23,21 @@ export function BlockEditor({ block, index, totalBlocks, onUpdate, onRemove, onM
 
   const addEntry = (selection: ExerciseSelection) => {
     const entry: DraftEntry = selection.type === 'progression'
-      ? { id: generateId(), progressionId: selection.progressionId }
-      : { id: generateId(), movementId: selection.movementId, mode: 'reps', targetReps: 10 }
+      ? { id: generateId(), kind: 'progression', progressionId: selection.progressionId }
+      : { id: generateId(), kind: 'movement', movementId: selection.movementId, mode: 'reps', targetReps: 10 }
     onUpdate({ entries: [...block.entries, entry] })
     setShowPicker(false)
   }
 
-  const updateEntry = (entryId: string, updates: Partial<DraftEntry>) => {
+  const updateEntry = (entryId: string, updates: EntryRowUpdate) => {
     onUpdate({
-      entries: block.entries.map((e) =>
-        e.id === entryId ? { ...e, ...updates } : e
-      ),
+      entries: block.entries.map((e) => {
+        if (e.id !== entryId) return e
+        // Spread preserves e.kind; EntryRowUpdate touches only shared fields
+        // plus mode (which the UI guards to movement-kind), so the resulting
+        // object still satisfies the discriminated union.
+        return { ...e, ...updates } as DraftEntry
+      }),
     })
   }
 

@@ -28,6 +28,7 @@ export interface ProgressionLevel {
 
 export type BlockType = 'set' | 'superset'
 export type SetMode = 'reps' | 'time' | 'max'
+export type BlockEntryKind = 'progression' | 'movement'
 
 export interface Workout {
   id: string
@@ -45,18 +46,34 @@ export interface WorkoutBlock {
   restSeconds: number
 }
 
-export interface BlockEntry {
+interface BlockEntryShared {
   id: string
   blockId: string
-  progressionId?: string
-  movementId?: string
-  mode?: SetMode
+  order: number
   targetReps?: number
   targetSeconds?: number
   perSide?: boolean
   restSeconds?: number
-  order: number
 }
+
+// Discriminated union: an entry is either driven by a progression (movement +
+// mode are derived from the progression's current level) or a standalone
+// movement (movement + mode live on the entry itself). `kind` lets TypeScript
+// narrow the two paths instead of the previous "trust the optional fields"
+// pattern that allowed nonsensical { progressionId, movementId } pairs.
+export type BlockEntry =
+  | (BlockEntryShared & {
+      kind: 'progression'
+      progressionId: string
+      movementId?: never
+      mode?: never
+    })
+  | (BlockEntryShared & {
+      kind: 'movement'
+      movementId: string
+      mode: SetMode
+      progressionId?: never
+    })
 
 export interface WorkoutLog {
   id: string
@@ -72,6 +89,10 @@ export interface SetLog {
   workoutLogId: string
   movementId: string
   movementName: string
+  // When the set was performed against a progression, record which one so
+  // history/analytics can group across renames and level changes without
+  // reverse-engineering the link from movementId.
+  progressionId?: string
   targetReps?: number
   actualReps?: number
   targetSeconds?: number
@@ -141,7 +162,29 @@ export interface ActiveProgram {
   lastActivityWasRest?: boolean
 }
 
-export type DraftEntry = Omit<BlockEntry, 'blockId' | 'order'> & { id: string }
+// DraftEntry mirrors BlockEntry's discriminated union shape (TS's Omit<> over
+// a union collapses the discrimination, so we define it directly).
+interface DraftEntryShared {
+  id: string
+  targetReps?: number
+  targetSeconds?: number
+  perSide?: boolean
+  restSeconds?: number
+}
+
+export type DraftEntry =
+  | (DraftEntryShared & {
+      kind: 'progression'
+      progressionId: string
+      movementId?: never
+      mode?: never
+    })
+  | (DraftEntryShared & {
+      kind: 'movement'
+      movementId: string
+      mode: SetMode
+      progressionId?: never
+    })
 
 export interface DraftBlock {
   id: string

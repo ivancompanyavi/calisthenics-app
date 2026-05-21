@@ -6,20 +6,31 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, Timer, ChevronUp, ChevronDown } from 'lucide-react'
 
+// The row can mutate any of the per-entry knobs but not the discriminator
+// itself — switching kind would require picking a different exercise, which
+// happens via remove + add through the picker.
+export interface EntryRowUpdate {
+  targetReps?: number
+  targetSeconds?: number
+  perSide?: boolean
+  restSeconds?: number
+  mode?: SetMode
+}
+
 interface EntryRowProps {
   entry: DraftEntry
   index: number
   totalEntries: number
-  onUpdate: (updates: Partial<DraftEntry>) => void
+  onUpdate: (updates: EntryRowUpdate) => void
   onRemove: () => void
   onMove: (direction: 'up' | 'down') => void
 }
 
 export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMove }: EntryRowProps) {
-  const isStandalone = !!entry.movementId
-  const { data: progression } = useProgression(entry.progressionId)
-  const { data: levels } = useProgressionLevels(entry.progressionId)
-  const { data: standaloneMovement } = useMovement(entry.movementId)
+  const isStandalone = entry.kind === 'movement'
+  const { data: progression } = useProgression(entry.kind === 'progression' ? entry.progressionId : undefined)
+  const { data: levels } = useProgressionLevels(entry.kind === 'progression' ? entry.progressionId : undefined)
+  const { data: standaloneMovement } = useMovement(entry.kind === 'movement' ? entry.movementId : undefined)
   const [showRest, setShowRest] = useState(!!entry.restSeconds)
 
   const currentLevelIndex = progression?.currentLevel ?? 0
@@ -29,8 +40,8 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
     ? standaloneMovement?.name ?? 'Loading...'
     : currentLevel?.movement?.name ?? progression?.name ?? 'Loading...'
 
-  const mode: SetMode = isStandalone
-    ? entry.mode ?? 'reps'
+  const mode: SetMode = entry.kind === 'movement'
+    ? entry.mode
     : currentLevel?.mode ?? 'reps'
 
   const modeBadgeLabel = mode === 'reps' ? 'Reps' : mode === 'time' ? 'Time' : 'Max'
