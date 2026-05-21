@@ -64,23 +64,17 @@ function useScreenWakeLock(active: boolean) {
 
 export function useWorkoutExecution(programDayIndex?: number) {
   const [state, dispatch] = useReducer(executionReducer, initialState)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const workoutActive =
     state.phase !== 'ready' && state.phase !== 'complete' && !!state.workoutId
   useScreenWakeLock(workoutActive)
 
+  const currentEntry = getCurrentEntry(state)
+  const needsExerciseTick =
+    state.phase === 'exercise' && (state.exerciseTimeRemaining > 0 || currentEntry?.mode === 'max')
+  const needsRestTick = state.phase === 'resting' && state.restRemaining > 0
+
   useEffect(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current)
-      timerRef.current = null
-    }
-
-    const entry = getCurrentEntry(state)
-    const needsExerciseTick =
-      state.phase === 'exercise' && (state.exerciseTimeRemaining > 0 || entry?.mode === 'max')
-    const needsRestTick = state.phase === 'resting' && state.restRemaining > 0
-
     if (!needsExerciseTick && !needsRestTick) return
 
     const tick = () => {
@@ -91,7 +85,18 @@ export function useWorkoutExecution(programDayIndex?: number) {
       }
     }
 
-    timerRef.current = setInterval(tick, 1000)
+    // Self-rescheduling setTimeout aligned to the next wall-clock second avoids
+    // the drift you'd accumulate with setInterval(_, 1000). The reducer is
+    // timestamp-driven so a missed tick just means a one-shot resync.
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    const scheduleNext = () => {
+      const delay = 1000 - (Date.now() % 1000)
+      timeoutId = setTimeout(() => {
+        tick()
+        scheduleNext()
+      }, delay)
+    }
+    scheduleNext()
 
     // When the app becomes visible again, fire an immediate tick so the
     // display catches up (background intervals on iOS/Android are throttled
@@ -104,11 +109,11 @@ export function useWorkoutExecution(programDayIndex?: number) {
     window.addEventListener('focus', tick)
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+      if (timeoutId) clearTimeout(timeoutId)
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', tick)
     }
-  }, [state.phase, state.exerciseTimeRemaining > 0, state.restRemaining > 0, state.currentEntryIndex, state.currentBlockIndex])
+  }, [needsExerciseTick, needsRestTick])
 
   useEffect(() => {
     if (state.phase === 'ready' || state.phase === 'complete' || !state.workoutId) return
@@ -128,12 +133,16 @@ export function useWorkoutExecution(programDayIndex?: number) {
       await inProgressRepository.save(progress)
     }
     save()
+    // The "save" trigger is pointer-advance or new set, not every state mutation.
+    // workoutId/workoutName/startedAt are set once at INIT and never change;
+    // completedSets is referenced via .length to detect new sets without
+    // re-firing on every reducer cycle that returns a new array reference.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentBlockIndex, state.currentRound, state.currentEntryIndex, state.completedSets.length, state.phase, programDayIndex])
 
   const totalSets = computeTotalSets(state.blocks)
   const nonSkippedSets = state.completedSets.filter((s) => !s.skipped).length
   const progress = computeProgress(nonSkippedSets, totalSets, state.cancelledEntries.length)
-  const currentEntry = getCurrentEntry(state)
 
   type InitPayload = Extract<Action, { type: 'INIT' }>['payload']
   const init = useCallback((payload: InitPayload) => {

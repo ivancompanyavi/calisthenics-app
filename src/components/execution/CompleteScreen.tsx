@@ -16,7 +16,9 @@ interface CompleteScreenProps {
 }
 
 export function CompleteScreen({ workoutName, startedAt, setsCompleted, notes, onSetNotes, levelUpCandidates, onLevelUp, onFinish }: CompleteScreenProps) {
-  const duration = Math.round((Date.now() - startedAt) / 60000)
+  // Snapshot duration at first render — the workout has already ended by the
+  // time this screen mounts, so a stable value here matches the displayed UI.
+  const [duration] = useState(() => Math.round((Date.now() - startedAt) / 60000))
   const [leveledUp, setLeveledUp] = useState<Set<string>>(new Set())
 
   const handleLevelUp = (progressionId: string) => {

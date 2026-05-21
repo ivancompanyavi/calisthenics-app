@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   useCreateProgression,
   useUpdateProgression,
@@ -24,29 +24,48 @@ interface ProgressionFormProps {
   onDone: () => void
 }
 
+// Outer loader: when editing, waits for existingLevels before mounting the
+// form. The inner component derives its useState initial values from props in
+// one shot, so we don't need a hydration effect.
 export function ProgressionForm({ progression, onDone }: ProgressionFormProps) {
+  const isEditing = !!progression
+  const { data: existingLevels } = useProgressionLevels(progression?.id)
+
+  if (isEditing && !existingLevels) return null
+
+  const initialLevels: DraftLevel[] = existingLevels?.map((l) => ({
+    movementId: l.movementId,
+    mode: l.mode,
+    defaultTargetReps: l.defaultTargetReps,
+    defaultTargetSeconds: l.defaultTargetSeconds,
+    perSide: l.perSide,
+  })) ?? []
+
+  return (
+    <ProgressionFormInner
+      progression={progression}
+      initialLevels={initialLevels}
+      onDone={onDone}
+    />
+  )
+}
+
+interface ProgressionFormInnerProps {
+  progression?: Progression
+  initialLevels: DraftLevel[]
+  onDone: () => void
+}
+
+function ProgressionFormInner({ progression, initialLevels, onDone }: ProgressionFormInnerProps) {
   const [name, setName] = useState(progression?.name ?? '')
-  const [levels, setLevels] = useState<DraftLevel[]>([])
+  const [levels, setLevels] = useState<DraftLevel[]>(initialLevels)
   const [showPicker, setShowPicker] = useState(false)
   const [pickerSearch, setPickerSearch] = useState('')
 
   const { data: allMovements } = useMovements()
-  const { data: existingLevels } = useProgressionLevels(progression?.id)
   const createProgression = useCreateProgression()
   const updateProgression = useUpdateProgression()
   const isEditing = !!progression
-
-  useEffect(() => {
-    if (existingLevels && isEditing) {
-      setLevels(existingLevels.map((l) => ({
-        movementId: l.movementId,
-        mode: l.mode,
-        defaultTargetReps: l.defaultTargetReps,
-        defaultTargetSeconds: l.defaultTargetSeconds,
-        perSide: l.perSide,
-      })))
-    }
-  }, [existingLevels, isEditing])
 
   const selectedMovementIds = levels.map((l) => l.movementId)
 

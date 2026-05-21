@@ -293,7 +293,7 @@ export const programsRepository = {
       .equals(program.id)
       .sortBy('dayNumber')
     const day = days[slotIndex]
-    let activityName = 'Workout'
+    let activityName: string
     let wasRest = false
     if (!day?.workoutId) {
       activityName = 'Rest day'

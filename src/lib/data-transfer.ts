@@ -64,7 +64,7 @@ export async function importAllData(json: string): Promise<void> {
       await db.activePrograms.clear()
 
       if (data.movements.length > 0) {
-        const movements = data.movements.map(({ hasPhoto: _, ...rest }: Record<string, unknown>) => rest)
+        const movements = data.movements.map(({ hasPhoto: _hasPhoto, ...rest }: Record<string, unknown>) => rest)
         await db.movements.bulkAdd(movements)
       }
       if (data.progressions.length > 0) await db.progressions.bulkAdd(data.progressions)

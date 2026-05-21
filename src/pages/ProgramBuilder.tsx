@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useProgram, useProgramDays, useCreateProgram, useUpdateProgram } from '@/hooks/usePrograms'
 import { useWorkouts } from '@/hooks/useWorkouts'
@@ -15,36 +15,49 @@ interface DraftDay {
   workoutId?: string
 }
 
+interface InitialFormData {
+  name: string
+  totalCycles: number
+  infinite: boolean
+  days: DraftDay[]
+}
+
+// Outer loader: when editing, waits for the program + days to load before
+// mounting the form. The inner component derives all useState initial values
+// from props so we never need a hydration effect.
 export function ProgramBuilder() {
   const { id } = useParams<{ id: string }>()
+  const isEditing = !!id
+  const { data: existingProgram } = useProgram(id)
+  const { data: existingDays } = useProgramDays(id)
+
+  if (isEditing && (!existingProgram || !existingDays)) return null
+
+  const initial: InitialFormData = isEditing && existingProgram && existingDays
+    ? {
+        name: existingProgram.name,
+        totalCycles: existingProgram.totalCycles || 4,
+        infinite: existingProgram.totalCycles === 0,
+        days: existingDays.map((d) => ({ id: d.id, workoutId: d.workoutId })),
+      }
+    : { name: '', totalCycles: 4, infinite: false, days: [] }
+
+  return <ProgramBuilderInner id={id} initial={initial} />
+}
+
+function ProgramBuilderInner({ id, initial }: { id: string | undefined; initial: InitialFormData }) {
   const navigate = useNavigate()
   const isEditing = !!id
 
-  const { data: existingProgram } = useProgram(id)
-  const { data: existingDays } = useProgramDays(id)
   const { data: workouts } = useWorkouts()
   const createProgram = useCreateProgram()
   const updateProgram = useUpdateProgram()
 
-  const [name, setName] = useState('')
-  const [totalCycles, setTotalCycles] = useState(4)
-  const [infinite, setInfinite] = useState(false)
-  const [days, setDays] = useState<DraftDay[]>([])
+  const [name, setName] = useState(initial.name)
+  const [totalCycles, setTotalCycles] = useState(initial.totalCycles)
+  const [infinite, setInfinite] = useState(initial.infinite)
+  const [days, setDays] = useState<DraftDay[]>(initial.days)
   const [showPicker, setShowPicker] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    if (isEditing && existingProgram && existingDays && !loaded) {
-      setName(existingProgram.name)
-      setTotalCycles(existingProgram.totalCycles || 4)
-      setInfinite(existingProgram.totalCycles === 0)
-      setDays(existingDays.map((d) => ({
-        id: d.id,
-        workoutId: d.workoutId,
-      })))
-      setLoaded(true)
-    }
-  }, [isEditing, existingProgram, existingDays, loaded])
 
   const addRestDay = () => {
     setDays((prev) => [...prev, { id: crypto.randomUUID(), workoutId: undefined }])

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useWorkout, useWorkoutBlocks, useAllBlockEntries, useSaveWorkout, type SaveWorkoutData } from '@/hooks/useWorkouts'
 import { PageHeader } from '@/components/ui/page-header'
@@ -9,9 +9,17 @@ import { Plus, Save, ArrowLeft } from 'lucide-react'
 import { generateId } from '@/lib/utils'
 import type { DraftBlock } from '@/models/types'
 
+interface InitialFormData {
+  name: string
+  restBetweenBlocks: number
+  blocks: DraftBlock[]
+}
+
+// Outer loader: when editing, waits for workout + blocks + entries before
+// mounting the form. The inner component derives all useState initial values
+// from props so we never need a hydration effect.
 export function WorkoutBuilder() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const isEditing = !!id
 
   const { data: existingWorkout } = useWorkout(id)
@@ -19,19 +27,13 @@ export function WorkoutBuilder() {
   const blockIds = existingBlocks?.map((b) => b.id) ?? []
   const { data: existingEntries } = useAllBlockEntries(blockIds)
 
-  const saveWorkout = useSaveWorkout()
+  if (isEditing && (!existingWorkout || !existingBlocks || !existingEntries)) return null
 
-  const [name, setName] = useState('')
-  const [restBetweenBlocks, setRestBetweenBlocks] = useState(0)
-  const [blocks, setBlocks] = useState<DraftBlock[]>([])
-  const [loaded, setLoaded] = useState(false)
-
-  useEffect(() => {
-    if (isEditing && existingWorkout && existingBlocks && existingEntries && !loaded) {
-      setName(existingWorkout.name)
-      setRestBetweenBlocks(existingWorkout.restBetweenBlocksSeconds ?? 0)
-      setBlocks(
-        existingBlocks.map((block) => ({
+  const initial: InitialFormData = isEditing && existingWorkout && existingBlocks && existingEntries
+    ? {
+        name: existingWorkout.name,
+        restBetweenBlocks: existingWorkout.restBetweenBlocksSeconds ?? 0,
+        blocks: existingBlocks.map((block) => ({
           id: block.id,
           type: block.type,
           rounds: block.rounds,
@@ -48,11 +50,22 @@ export function WorkoutBuilder() {
               perSide: e.perSide,
               restSeconds: e.restSeconds,
             })),
-        }))
-      )
-      setLoaded(true)
-    }
-  }, [isEditing, existingWorkout, existingBlocks, existingEntries, loaded])
+        })),
+      }
+    : { name: '', restBetweenBlocks: 0, blocks: [] }
+
+  return <WorkoutBuilderInner id={id} initial={initial} />
+}
+
+function WorkoutBuilderInner({ id, initial }: { id: string | undefined; initial: InitialFormData }) {
+  const navigate = useNavigate()
+  const isEditing = !!id
+
+  const saveWorkout = useSaveWorkout()
+
+  const [name, setName] = useState(initial.name)
+  const [restBetweenBlocks, setRestBetweenBlocks] = useState(initial.restBetweenBlocks)
+  const [blocks, setBlocks] = useState<DraftBlock[]>(initial.blocks)
 
   const addBlock = (type: 'set' | 'superset') => {
     setBlocks((prev) => [
