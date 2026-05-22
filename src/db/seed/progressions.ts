@@ -92,6 +92,16 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
         mode: "reps",
         defaultTargetReps: 8,
       },
+      // Deficit work trains the end-range strength needed for freestanding
+      // HSPU. Progress by increasing the deficit (3in → 6in → paralettes).
+      {
+        movement: "Deficit Wall Handstand Push-Ups",
+        mode: "reps",
+        defaultTargetReps: 6,
+      },
+      // Balance is the gating skill before pressing freestanding — without
+      // a stable hold there's no platform to press from.
+      { movement: "Freestanding Handstand Hold", mode: "max" },
       {
         movement: "Freestanding Handstand Push-Ups",
         mode: "reps",
@@ -164,10 +174,16 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   },
   {
     name: "Front Lever Progression",
+    // Skin the Cat removed from the ladder — it's a mobility/inversion drill,
+    // not a strength rung. Stays available as a movement for warm-up
+    // programming. New rungs (Adv Tuck, Straddle, One-Leg) bridge what was
+    // previously a single huge jump from Tuck Hold → Full Front Lever.
     levels: [
       { movement: "Active Hang", mode: "time", defaultTargetSeconds: 30 },
-      { movement: "Skin the Cat", mode: "reps", defaultTargetReps: 8 },
       { movement: "Front Lever Tuck Hold", mode: "max" },
+      { movement: "Advanced Tuck Front Lever", mode: "max" },
+      { movement: "Straddle Front Lever", mode: "max" },
+      { movement: "One-Leg Front Lever", mode: "max" },
       { movement: "Front Lever", mode: "max" },
     ],
   },

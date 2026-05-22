@@ -125,6 +125,20 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     description: "Handstand push-ups against a wall.",
   },
   {
+    name: "Deficit Wall Handstand Push-Ups",
+    description:
+      "Wall handstand push-ups with hands elevated on blocks or paralettes, deeper range of motion.",
+    coachingCues:
+      "Hands on raised surface (3-6 inches initially), lower head below hand level. Increase deficit gradually. Trains end-range strength needed for freestanding HSPU.",
+  },
+  {
+    name: "Freestanding Handstand Hold",
+    description:
+      "Hold a freestanding handstand without wall support — pre-requisite for freestanding HSPU.",
+    coachingCues:
+      "Balance is the limiter, not strength. Build toward 30s+ before attempting freestanding HSPU. Fingertip pressure adjustments steer balance.",
+  },
+  {
     name: "Freestanding Handstand Push-Ups",
     description: "Handstand push-ups without wall support.",
   },
@@ -271,6 +285,29 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
   {
     name: "Front Lever Tuck Hold",
     description: "Inverted horizontal hold with knees tucked.",
+    coachingCues:
+      "Hang from bar/rings, pull shoulder blades down and back, lift knees to chest, lean back until body is parallel to floor. Knees stay tight to chest.",
+  },
+  {
+    name: "Advanced Tuck Front Lever",
+    description:
+      "Front lever tuck hold with knees moved slightly forward of the chest (less compact, more leverage).",
+    coachingCues:
+      "From tuck hold, push knees forward of the chest 3-6 inches. Hips stay open at ~90° (don't extend yet). Same horizontal body line.",
+  },
+  {
+    name: "Straddle Front Lever",
+    description:
+      "Front lever with legs extended out wide to the sides for reduced lever arm.",
+    coachingCues:
+      "From advanced tuck, extend legs out into a wide straddle. The wider the straddle, the easier. Hips fully open, body parallel to floor.",
+  },
+  {
+    name: "One-Leg Front Lever",
+    description:
+      "Front lever with one leg extended and the other tucked, an asymmetric bridge to full lever.",
+    coachingCues:
+      "From straddle, bring one leg in to a tuck while the other extends. Train both sides equally. The extended leg is the load-bearing variable.",
   },
   {
     name: "Front Lever",
