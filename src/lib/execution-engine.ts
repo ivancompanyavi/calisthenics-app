@@ -5,6 +5,11 @@ export type ExecutionPhase = 'ready' | 'exercise' | 'adjust' | 'resting' | 'comp
 
 export interface ResolvedEntry {
   progressionId?: string
+  // Populated alongside progressionId so display layers can show "via X
+  // Progression · Lvl N/M" without needing to re-fetch the progression row.
+  progressionName?: string
+  progressionCurrentLevel?: number
+  progressionLevelCount?: number
   movementId: string
   movementName: string
   movementPhoto?: Blob

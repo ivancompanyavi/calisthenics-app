@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
-import { ArrowLeft, Pencil, Play } from 'lucide-react'
+import { ArrowLeft, Pencil, Play, TrendingUp } from 'lucide-react'
 import { formatTime } from '@/lib/utils'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 
@@ -129,6 +129,14 @@ export function WorkoutDetail() {
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{entry.movementName}</p>
+                      {entry.progressionId && entry.progressionName && (
+                        <p className="text-[10px] text-primary flex items-center gap-1 mt-0.5">
+                          <TrendingUp className="h-3 w-3 shrink-0" />
+                          <span className="truncate">
+                            {entry.progressionName} · Lvl {entry.progressionCurrentLevel}/{entry.progressionLevelCount}
+                          </span>
+                        </p>
+                      )}
                       {entry.movementCoachingCues && (
                         <p className="text-xs text-muted-foreground truncate italic">
                           {entry.movementCoachingCues}

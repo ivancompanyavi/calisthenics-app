@@ -171,6 +171,9 @@ export const workoutsRepository = {
 
       return {
         progressionId: entry.progressionId,
+        progressionName: progression?.name,
+        progressionCurrentLevel: currentLevel + 1, // 1-indexed for display
+        progressionLevelCount: levels.length,
         movementId: movement?.id ?? '',
         movementName: movement?.name ?? 'Unknown',
         movementPhoto: movement?.photo,

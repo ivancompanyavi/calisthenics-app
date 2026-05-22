@@ -15,6 +15,14 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
         defaultTargetReps: 8,
         perSide: true,
       },
+      // Bridge between archer and floor PPU. Reduces shoulder load via
+      // elevation; progress by lowering the surface (chair → bench → low
+      // paralettes → floor).
+      {
+        movement: "Incline Pseudo Planche Push-Ups",
+        mode: "reps",
+        defaultTargetReps: 6,
+      },
       {
         movement: "Pseudo Planche Push-Ups",
         mode: "reps",

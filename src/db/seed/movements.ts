@@ -30,6 +30,13 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
       "Hands ~1.5x shoulder width. Elbows out at ~60°, lower until chest is 2-3 inches off floor. Maintain plank line — no hip sag.",
   },
   {
+    name: "Incline Pseudo Planche Push-Ups",
+    description:
+      "Pseudo planche push-ups performed with hands elevated on a chair, bench, or paralettes to reduce shoulder load.",
+    coachingCues:
+      "Same form as floor PPU — hands turned back, near hips, body leaned forward. The elevation reduces percentage of bodyweight on the arms. Lower the surface over time to progress toward floor PPU.",
+  },
+  {
     name: "Pseudo Planche Push-Ups",
     description: "Push-ups with hands turned back near the waist.",
     coachingCues:
