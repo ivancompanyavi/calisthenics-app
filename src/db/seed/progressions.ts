@@ -119,6 +119,9 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   },
   {
     name: "Squat Progression",
+    // Pistol before Shrimp: pistols are a strength + ankle-mobility test;
+    // shrimps add a hip-flexor flexibility challenge on top. Most users
+    // bottleneck on shrimp's flexibility long after they can rep pistols.
     levels: [
       { movement: "Assisted Squats", mode: "reps", defaultTargetReps: 15 },
       { movement: "Bodyweight Squats", mode: "reps", defaultTargetReps: 15 },
@@ -129,15 +132,15 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
         perSide: true,
       },
       {
-        movement: "Shrimp Squats",
-        mode: "reps",
-        defaultTargetReps: 8,
-        perSide: true,
-      },
-      {
         movement: "Pistol Squats",
         mode: "reps",
         defaultTargetReps: 5,
+        perSide: true,
+      },
+      {
+        movement: "Shrimp Squats",
+        mode: "reps",
+        defaultTargetReps: 8,
         perSide: true,
       },
     ],
