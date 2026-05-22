@@ -118,16 +118,18 @@ describe('seedDatabase progression sync', () => {
     const levels = await db.progressionLevels
       .where('progressionId').equals('p-planche').sortBy('order')
 
-    // The new seed has 7 levels for Planche Progression.
-    expect(levels.length).toBe(7)
+    // New seed shape: 6 levels (Frog Stand, Tuck Negs, Tuck, Adv Tuck, Straddle, Full).
+    // PPP was dropped because it's a push-up family exercise, not a planche
+    // skill rung — it lives on the Push-Up Progression ladder instead.
+    expect(levels.length).toBe(6)
 
-    // Tuck Planche should now be at index 3 (after PPP, Frog Stand, Tuck Planche Negatives).
+    // Tuck Planche should now be at index 2 (after Frog Stand, Tuck Planche Negatives).
     const tuckLevel = levels.find((l) => l.movementId === 'mv-tuck')
     expect(tuckLevel).toBeDefined()
-    expect(tuckLevel?.order).toBe(3)
+    expect(tuckLevel?.order).toBe(2)
 
-    // currentLevel should have been remapped from 1 → 3 to keep pointing at Tuck Planche.
-    expect(planche?.currentLevel).toBe(3)
+    // currentLevel should have been remapped from 1 → 2 to keep pointing at Tuck Planche.
+    expect(planche?.currentLevel).toBe(2)
   })
 
   it('does not rewrite when fingerprint matches', async () => {

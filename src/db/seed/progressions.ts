@@ -156,12 +156,12 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   },
   {
     name: "Planche Progression",
+    // Pseudo Planche Push-Ups removed from this ladder — they're a push-up
+    // family strength exercise (already at level 7 of Push-Up Progression),
+    // not a planche skill rung. The canonical planche ladder starts at Frog
+    // Stand. Workouts that reference Planche Progression will now resolve to
+    // Frog Stand for a beginner — true to the standard canon.
     levels: [
-      {
-        movement: "Pseudo Planche Push-Ups",
-        mode: "reps",
-        defaultTargetReps: 10,
-      },
       // Frog stand is the canonical prerequisite for tuck planche — trains
       // scap protraction + hand balance + forward weight shift simultaneously.
       // Benchmark: 30-45s clean hold before attempting tuck planche.
