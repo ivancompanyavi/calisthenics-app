@@ -33,14 +33,14 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         restSeconds: 75,
         entries: [
           { movement: "Pseudo Push-Up Hold", mode: "time", targetSeconds: 15 },
+          // Push-Up Progression at current level (Archer Push-Ups for Ivan)
+          // covers the asymmetric/strength side of pushing.
           { progression: "Push-Up Progression", targetReps: 8 },
-          {
-            movement: "Archer Push-Ups",
-            mode: "reps",
-            targetReps: 6,
-            perSide: true,
-          },
-          { movement: "Slow Motion Push-Ups", mode: "reps", targetReps: 1 },
+          // Wide push-ups for pec stretch + chest-day theme. Distinct fiber
+          // loading from archer's narrow asymmetric base.
+          { movement: "Wide Push-Ups", mode: "reps", targetReps: 12 },
+          // Tempo work: ~30s per rep (see coaching cues on the movement).
+          { movement: "Slow Motion Push-Ups", mode: "time", targetSeconds: 30 },
         ],
       },
     ],

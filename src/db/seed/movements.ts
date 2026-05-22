@@ -24,6 +24,12 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     description: "Wide push-ups shifting weight to one arm.",
   },
   {
+    name: "Wide Push-Ups",
+    description: "Push-ups with hands placed wider than shoulders for pec emphasis.",
+    coachingCues:
+      "Hands ~1.5x shoulder width. Elbows out at ~60°, lower until chest is 2-3 inches off floor. Maintain plank line — no hip sag.",
+  },
+  {
     name: "Pseudo Planche Push-Ups",
     description: "Push-ups with hands turned back near the waist.",
     coachingCues:
@@ -194,6 +200,20 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
       "Bar at hip height, heels on floor, body straight. Lower bar = harder. Squeeze shoulder blades at top.",
   },
   {
+    name: "Frog Stand",
+    description:
+      "Crow pose: bent-arm balance with knees resting on triceps near the elbows.",
+    coachingCues:
+      "Hands shoulder-width, fingers spread and gripping floor. Knees press into triceps near the elbows (not upper arm). Shift weight forward until feet float. Look slightly forward, not straight down. Wrist warm-up first — non-negotiable.",
+  },
+  {
+    name: "Tuck Planche Negatives",
+    description:
+      "Kick or push up to a brief tuck planche position, then lower with control.",
+    coachingCues:
+      "From frog stand or floor, transition to tuck planche briefly. Hold what you can (even 1s). Lower under control — the eccentric is the work. 3-5 reps.",
+  },
+  {
     name: "Tuck Planche",
     description: "Planche position with knees tucked to chest.",
   },
@@ -230,6 +250,8 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     name: "Slow Motion Push-Ups",
     description:
       "Push-ups performed at an extremely slow tempo for time under tension.",
+    coachingCues:
+      "Target ~30s per rep: 20-25s descent (slowest in the bottom third where you're weakest), 1-2s pause at the bottom, 5-10s push. Hold the plank line — if hips sag, cut the descent short rather than break form.",
   },
   {
     name: "Skin the Cat",

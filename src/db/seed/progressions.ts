@@ -141,6 +141,13 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
         mode: "reps",
         defaultTargetReps: 10,
       },
+      // Frog stand is the canonical prerequisite for tuck planche — trains
+      // scap protraction + hand balance + forward weight shift simultaneously.
+      // Benchmark: 30-45s clean hold before attempting tuck planche.
+      { movement: "Frog Stand", mode: "max" },
+      // Bridge from frog stand to a full tuck hold: brief tuck planche entry,
+      // controlled lower. The eccentric is where the strength gets built.
+      { movement: "Tuck Planche Negatives", mode: "reps", defaultTargetReps: 3 },
       { movement: "Tuck Planche", mode: "max" },
       { movement: "Advanced Tuck Planche", mode: "max" },
       { movement: "Straddle Planche", mode: "max" },

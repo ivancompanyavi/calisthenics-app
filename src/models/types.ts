@@ -13,6 +13,9 @@ export interface Progression {
   name: string
   currentLevel: number
   createdAt: number
+  // See Workout.seedFingerprint — same idea for progressions. Lets the seed
+  // loop skip the levels rewrite when nothing changed.
+  seedFingerprint?: string
 }
 
 export interface ProgressionLevel {

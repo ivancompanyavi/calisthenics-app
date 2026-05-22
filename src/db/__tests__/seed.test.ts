@@ -1,0 +1,155 @@
+import '../../repositories/__tests__/setup'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { db } from '@/db'
+import { remapCurrentLevel, seedDatabase } from '@/db/seed'
+import { clearAllTables } from '../../repositories/__tests__/setup'
+import type { ProgressionLevel } from '@/models/types'
+
+function makeLevel(
+  id: string,
+  progressionId: string,
+  movementId: string,
+  order: number,
+): ProgressionLevel {
+  return { id, progressionId, movementId, order, mode: 'reps' }
+}
+
+describe('remapCurrentLevel', () => {
+  it('preserves the movement when its index shifts due to inserted earlier levels', () => {
+    // User was at index 1 = mv-tuck. New seed inserts mv-frog at index 1,
+    // pushing mv-tuck to index 3. currentLevel should follow the movement.
+    const oldLevels = [
+      makeLevel('o0', 'p', 'mv-ppp', 0),
+      makeLevel('o1', 'p', 'mv-tuck', 1),
+    ]
+    const newLevels = [
+      makeLevel('n0', 'p', 'mv-ppp', 0),
+      makeLevel('n1', 'p', 'mv-frog', 1),
+      makeLevel('n2', 'p', 'mv-negs', 2),
+      makeLevel('n3', 'p', 'mv-tuck', 3),
+    ]
+    expect(remapCurrentLevel(1, oldLevels, newLevels)).toBe(3)
+  })
+
+  it('clamps when the user-current movement is no longer in the new seed', () => {
+    const oldLevels = [
+      makeLevel('o0', 'p', 'mv-removed', 0),
+      makeLevel('o1', 'p', 'mv-old', 1),
+    ]
+    const newLevels = [
+      makeLevel('n0', 'p', 'mv-a', 0),
+      makeLevel('n1', 'p', 'mv-b', 1),
+      makeLevel('n2', 'p', 'mv-c', 2),
+    ]
+    // mv-old isn't in new levels → clamp to min(oldIndex, newLength-1) = min(1, 2) = 1.
+    expect(remapCurrentLevel(1, oldLevels, newLevels)).toBe(1)
+  })
+
+  it('clamps to last index when new seed has fewer levels and movement is missing', () => {
+    const oldLevels = [
+      makeLevel('o0', 'p', 'mv-removed', 0),
+      makeLevel('o1', 'p', 'mv-also-removed', 1),
+      makeLevel('o2', 'p', 'mv-third', 2),
+    ]
+    const newLevels = [makeLevel('n0', 'p', 'mv-a', 0)]
+    expect(remapCurrentLevel(2, oldLevels, newLevels)).toBe(0)
+  })
+
+  it('returns 0 when new levels is empty', () => {
+    const oldLevels = [makeLevel('o0', 'p', 'mv-x', 0)]
+    expect(remapCurrentLevel(0, oldLevels, [])).toBe(0)
+  })
+
+  it('keeps the same index when movement at that index is unchanged', () => {
+    const oldLevels = [
+      makeLevel('o0', 'p', 'mv-a', 0),
+      makeLevel('o1', 'p', 'mv-b', 1),
+    ]
+    const newLevels = [
+      makeLevel('n0', 'p', 'mv-a', 0),
+      makeLevel('n1', 'p', 'mv-b', 1),
+      makeLevel('n2', 'p', 'mv-c', 2),
+    ]
+    expect(remapCurrentLevel(1, oldLevels, newLevels)).toBe(1)
+  })
+})
+
+describe('seedDatabase progression sync', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+  })
+
+  it('rewrites stale progression levels and remaps currentLevel to the same movement', async () => {
+    // Simulate a pre-fingerprint database state: Planche Progression exists
+    // with the old 5-level shape, user has currentLevel=1 (Tuck Planche).
+    // After seedDatabase() runs against the current 7-level seed, the rows
+    // should be rewritten and currentLevel remapped to the new Tuck Planche
+    // index (3).
+    const movements = [
+      { id: 'mv-ppp', name: 'Pseudo Planche Push-Ups', createdAt: 0 },
+      { id: 'mv-tuck', name: 'Tuck Planche', createdAt: 0 },
+      { id: 'mv-adv-tuck', name: 'Advanced Tuck Planche', createdAt: 0 },
+      { id: 'mv-straddle', name: 'Straddle Planche', createdAt: 0 },
+      { id: 'mv-full', name: 'Full Planche', createdAt: 0 },
+    ]
+    await db.movements.bulkAdd(movements)
+
+    // No seedFingerprint → triggers rewrite branch.
+    await db.progressions.add({
+      id: 'p-planche',
+      name: 'Planche Progression',
+      currentLevel: 1, // pointing at Tuck Planche in the old shape
+      createdAt: 0,
+    })
+    await db.progressionLevels.bulkAdd([
+      { id: 'lvl-0', progressionId: 'p-planche', movementId: 'mv-ppp', order: 0, mode: 'reps', defaultTargetReps: 10 },
+      { id: 'lvl-1', progressionId: 'p-planche', movementId: 'mv-tuck', order: 1, mode: 'max' },
+      { id: 'lvl-2', progressionId: 'p-planche', movementId: 'mv-adv-tuck', order: 2, mode: 'max' },
+      { id: 'lvl-3', progressionId: 'p-planche', movementId: 'mv-straddle', order: 3, mode: 'max' },
+      { id: 'lvl-4', progressionId: 'p-planche', movementId: 'mv-full', order: 4, mode: 'max' },
+    ])
+
+    await seedDatabase()
+
+    const planche = await db.progressions.get('p-planche')
+    expect(planche).toBeDefined()
+    expect(planche?.seedFingerprint).toBeDefined()
+
+    const levels = await db.progressionLevels
+      .where('progressionId').equals('p-planche').sortBy('order')
+
+    // The new seed has 7 levels for Planche Progression.
+    expect(levels.length).toBe(7)
+
+    // Tuck Planche should now be at index 3 (after PPP, Frog Stand, Tuck Planche Negatives).
+    const tuckLevel = levels.find((l) => l.movementId === 'mv-tuck')
+    expect(tuckLevel).toBeDefined()
+    expect(tuckLevel?.order).toBe(3)
+
+    // currentLevel should have been remapped from 1 → 3 to keep pointing at Tuck Planche.
+    expect(planche?.currentLevel).toBe(3)
+  })
+
+  it('does not rewrite when fingerprint matches', async () => {
+    // First seed run.
+    await seedDatabase()
+    const before = await db.progressions.where('name').equals('Planche Progression').first()
+    expect(before).toBeDefined()
+    const beforeLevels = await db.progressionLevels.where('progressionId').equals(before!.id).toArray()
+    const beforeLevelIds = beforeLevels.map((l) => l.id).sort()
+
+    // Simulate user advancing.
+    await db.progressions.update(before!.id, { currentLevel: 2 })
+
+    // Second seed run — fingerprint matches, no rewrite should happen.
+    await seedDatabase()
+    const after = await db.progressions.get(before!.id)
+    const afterLevels = await db.progressionLevels.where('progressionId').equals(before!.id).toArray()
+    const afterLevelIds = afterLevels.map((l) => l.id).sort()
+
+    // Level row ids should be identical — proves we didn't delete-and-recreate.
+    expect(afterLevelIds).toEqual(beforeLevelIds)
+    // currentLevel preserved.
+    expect(after?.currentLevel).toBe(2)
+  })
+})

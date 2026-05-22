@@ -14,7 +14,12 @@ import { SEED_MOVEMENTS } from "./seed/movements";
 import { SEED_PROGRESSIONS } from "./seed/progressions";
 import { SEED_WORKOUTS } from "./seed/workouts";
 import { SEED_PROGRAMS } from "./seed/programs";
-import type { SeedBlockDef, SeedWorkout, SeedProgram } from "./seed/types";
+import type {
+  SeedBlockDef,
+  SeedWorkout,
+  SeedProgram,
+  SeedProgression,
+} from "./seed/types";
 
 // Deterministic JSON encoding: sorts object keys at every level so the
 // resulting string is stable across runs regardless of property iteration
@@ -48,6 +53,13 @@ function programFingerprint(sp: SeedProgram): string {
     name: sp.name,
     totalCycles: sp.totalCycles,
     days: sp.days,
+  });
+}
+
+function progressionFingerprint(sp: SeedProgression): string {
+  return stableStringify({
+    name: sp.name,
+    levels: sp.levels,
   });
 }
 
@@ -167,50 +179,132 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
   return movementMap;
 }
 
+// Build the level rows that belong to a progression given a seed definition.
+// Movements that aren't in the movement map (typo, missing seed) are silently
+// skipped — matches the original behavior.
+function buildProgressionLevels(
+  progressionId: string,
+  sp: SeedProgression,
+  movementMap: Map<string, string>,
+): ProgressionLevel[] {
+  const levels: ProgressionLevel[] = [];
+  for (let i = 0; i < sp.levels.length; i++) {
+    const lvl = sp.levels[i];
+    const movementId = movementMap.get(lvl.movement);
+    if (!movementId) continue;
+    levels.push({
+      id: generateId(),
+      progressionId,
+      movementId,
+      order: i,
+      mode: lvl.mode,
+      defaultTargetReps: lvl.defaultTargetReps,
+      defaultTargetSeconds: lvl.defaultTargetSeconds,
+      perSide: lvl.perSide,
+    });
+  }
+  return levels;
+}
+
+// When we rewrite a progression's levels (seed changed), we need to remap
+// the user's stored currentLevel index so they keep pointing at the same
+// exercise they were working on. If that exercise was removed from the new
+// seed, fall back to clamping the index.
+export function remapCurrentLevel(
+  oldCurrentLevel: number,
+  oldLevels: ProgressionLevel[],
+  newLevels: ProgressionLevel[],
+): number {
+  const currentMovementId = oldLevels[oldCurrentLevel]?.movementId;
+  if (currentMovementId) {
+    const idx = newLevels.findIndex((l) => l.movementId === currentMovementId);
+    if (idx >= 0) return idx;
+  }
+  return Math.max(0, Math.min(oldCurrentLevel, newLevels.length - 1));
+}
+
 async function ensureProgressionsExist(
   movementMap: Map<string, string>,
 ): Promise<Map<string, string>> {
   const progressionMap = new Map<string, string>();
   const existing = await db.progressions.toArray();
+  const existingByName = new Map<string, Progression>();
   for (const p of existing) {
     progressionMap.set(p.name, p.id);
+    existingByName.set(p.name, p);
   }
 
-  const newProgressions: Progression[] = [];
-  const newLevels: ProgressionLevel[] = [];
-
   for (const sp of SEED_PROGRESSIONS) {
-    if (progressionMap.has(sp.name)) continue;
+    const fingerprint = progressionFingerprint(sp);
+    const existingProg = existingByName.get(sp.name);
+
+    if (existingProg && existingProg.seedFingerprint === fingerprint) {
+      continue;
+    }
+
+    if (existingProg) {
+      // Stale fingerprint — rewrite levels while preserving the progression's
+      // id (so blockEntries/logs still resolve) and remap currentLevel so the
+      // user stays on the same exercise they were working on.
+      const oldLevels = await db.progressionLevels
+        .where("progressionId")
+        .equals(existingProg.id)
+        .sortBy("order");
+
+      const newLevels = buildProgressionLevels(
+        existingProg.id,
+        sp,
+        movementMap,
+      );
+      const newCurrentLevel = remapCurrentLevel(
+        existingProg.currentLevel,
+        oldLevels,
+        newLevels,
+      );
+
+      await db.transaction(
+        "rw",
+        [db.progressions, db.progressionLevels],
+        async () => {
+          await db.progressions.update(existingProg.id, {
+            seedFingerprint: fingerprint,
+            currentLevel: newCurrentLevel,
+          });
+          await db.progressionLevels
+            .where("progressionId")
+            .equals(existingProg.id)
+            .delete();
+          if (newLevels.length > 0) {
+            await db.progressionLevels.bulkAdd(newLevels);
+          }
+        },
+      );
+      continue;
+    }
+
+    // Fresh insert.
     const progId = generateId();
     progressionMap.set(sp.name, progId);
-    newProgressions.push({
+    const newProgression: Progression = {
       id: progId,
       name: sp.name,
       currentLevel: 0,
       createdAt: Date.now(),
-    });
-
-    for (let i = 0; i < sp.levels.length; i++) {
-      const lvl = sp.levels[i];
-      const movementId = movementMap.get(lvl.movement);
-      if (!movementId) continue;
-      newLevels.push({
-        id: generateId(),
-        progressionId: progId,
-        movementId,
-        order: i,
-        mode: lvl.mode,
-        defaultTargetReps: lvl.defaultTargetReps,
-        defaultTargetSeconds: lvl.defaultTargetSeconds,
-        perSide: lvl.perSide,
-      });
-    }
+      seedFingerprint: fingerprint,
+    };
+    const newLevels = buildProgressionLevels(progId, sp, movementMap);
+    await db.transaction(
+      "rw",
+      [db.progressions, db.progressionLevels],
+      async () => {
+        await db.progressions.add(newProgression);
+        if (newLevels.length > 0) {
+          await db.progressionLevels.bulkAdd(newLevels);
+        }
+      },
+    );
   }
 
-  if (newProgressions.length > 0) {
-    await db.progressions.bulkAdd(newProgressions);
-    await db.progressionLevels.bulkAdd(newLevels);
-  }
   return progressionMap;
 }
 
