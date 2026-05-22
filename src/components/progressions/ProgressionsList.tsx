@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { ProgressionForm } from './ProgressionForm'
 import { ProgressionDetail } from './ProgressionDetail'
 import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
@@ -12,6 +13,7 @@ import type { Progression } from '@/models/types'
 export function ProgressionsList() {
   const { data: progressions, isLoading } = useProgressions()
   const deleteProgression = useDeleteProgression()
+  const confirm = useConfirm()
   const [editingProgression, setEditingProgression] = useState<Progression | null>(null)
   const [viewingProgression, setViewingProgression] = useState<Progression | null>(null)
   const [creating, setCreating] = useState(false)
@@ -71,8 +73,12 @@ export function ProgressionsList() {
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 text-destructive"
-                onClick={() => {
-                  if (confirm(`Delete "${progression.name}"?`)) {
+                onClick={async () => {
+                  if (await confirm({
+                    title: `Delete "${progression.name}"?`,
+                    confirmLabel: 'Delete',
+                    destructive: true,
+                  })) {
                     deleteProgression.mutate(progression.id)
                   }
                 }}

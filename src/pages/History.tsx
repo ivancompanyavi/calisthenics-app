@@ -3,6 +3,7 @@ import { useWorkoutLogs, useDeleteWorkoutLog } from '@/hooks/useHistory'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { InsightsPanel } from '@/components/history/InsightsPanel'
 import { Clock, ChevronRight, Trash2 } from 'lucide-react'
 
@@ -10,6 +11,7 @@ export function History() {
   const navigate = useNavigate()
   const { data: logs, isLoading } = useWorkoutLogs()
   const deleteLog = useDeleteWorkoutLog()
+  const confirm = useConfirm()
 
   const groupedByDate = logs?.reduce<Record<string, typeof logs>>((acc, log) => {
     const date = new Date(log.completedAt).toLocaleDateString('en-US', {
@@ -78,9 +80,13 @@ export function History() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation()
-                              if (confirm('Delete this workout log?')) {
+                              if (await confirm({
+                                title: 'Delete this workout log?',
+                                confirmLabel: 'Delete',
+                                destructive: true,
+                              })) {
                                 deleteLog.mutate(log.id)
                               }
                             }}

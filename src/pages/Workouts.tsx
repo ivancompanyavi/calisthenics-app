@@ -3,12 +3,14 @@ import { useWorkouts, useDeleteWorkout, checkWorkoutProgramUsage } from '@/hooks
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { Plus, Pencil, Trash2, Play } from 'lucide-react'
 
 export function Workouts() {
   const navigate = useNavigate()
   const { data: workouts, isLoading } = useWorkouts()
   const deleteWorkout = useDeleteWorkout()
+  const confirm = useConfirm()
 
   return (
     <div>
@@ -65,10 +67,15 @@ export function Workouts() {
                   className="h-9 w-9 text-destructive"
                   onClick={async () => {
                     const usedIn = await checkWorkoutProgramUsage(workout.id)
-                    const warning = usedIn.length > 0
-                      ? `\n\nWarning: This workout is used in: ${usedIn.join(', ')}`
-                      : ''
-                    if (confirm(`Delete "${workout.name}"?${warning}`)) {
+                    const description = usedIn.length > 0
+                      ? `This workout is used in: ${usedIn.join(', ')}.`
+                      : undefined
+                    if (await confirm({
+                      title: `Delete "${workout.name}"?`,
+                      description,
+                      confirmLabel: 'Delete',
+                      destructive: true,
+                    })) {
                       deleteWorkout.mutate(workout.id)
                     }
                   }}

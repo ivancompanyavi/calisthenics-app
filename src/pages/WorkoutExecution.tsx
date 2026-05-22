@@ -14,6 +14,7 @@ import { RestScreen } from '@/components/execution/RestScreen'
 import { AdjustScreen } from '@/components/execution/AdjustScreen'
 import { CompleteScreen } from '@/components/execution/CompleteScreen'
 import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { Play, X, Flag } from 'lucide-react'
 
 export function WorkoutExecution() {
@@ -31,6 +32,7 @@ export function WorkoutExecution() {
   const { data: entries } = useAllBlockEntries(blockIds)
   const saveLog = useSaveWorkoutLog()
   const markSlotDone = useMarkSlotDone()
+  const confirm = useConfirm()
 
   const { data: inProgress } = useInProgressWorkout()
   const updateLevel = useUpdateCurrentLevel()
@@ -101,7 +103,13 @@ export function WorkoutExecution() {
   }
 
   const handleQuit = async () => {
-    if (!confirm('Cancel this workout? Progress will be lost.')) return
+    if (!(await confirm({
+      title: 'Cancel this workout?',
+      description: 'Progress will be lost.',
+      confirmLabel: 'Cancel workout',
+      cancelLabel: 'Keep going',
+      destructive: true,
+    }))) return
     await inProgressRepository.clear()
     queryClient.invalidateQueries({ queryKey: queryKeys.inProgress })
     navigate('/')
@@ -133,8 +141,12 @@ export function WorkoutExecution() {
             variant="ghost"
             size="sm"
             className="h-8 text-xs text-muted-foreground"
-            onClick={() => {
-              if (!confirm('Finish workout early? Remaining exercises will not be logged.')) return
+            onClick={async () => {
+              if (!(await confirm({
+                title: 'Finish workout early?',
+                description: 'Remaining exercises will not be logged.',
+                confirmLabel: 'Finish',
+              }))) return
               dispatch({ type: 'FINISH_WORKOUT' })
             }}
           >

@@ -12,6 +12,7 @@ import { useWorkouts } from '@/hooks/useWorkouts'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { ArrowLeft, Pencil, Play, Square, Moon, Dumbbell, AlertTriangle, Check, X as XIcon, ArrowRight } from 'lucide-react'
 
 export function ProgramDetail() {
@@ -25,6 +26,7 @@ export function ProgramDetail() {
   const { data: history } = useProgramHistory(id)
   const activateProgram = useActivateProgram()
   const deactivateProgram = useDeactivateProgram()
+  const confirm = useConfirm()
 
   const isActive = activeProgram?.programId === id
   const workoutMap = new Map(workouts?.map((w) => [w.id, w.name]) ?? [])
@@ -86,8 +88,11 @@ export function ProgramDetail() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  if (confirm('Stop this program?')) {
+                onClick={async () => {
+                  if (await confirm({
+                    title: 'Stop this program?',
+                    confirmLabel: 'Stop',
+                  })) {
                     deactivateProgram.mutate(activeProgram!.id)
                   }
                 }}

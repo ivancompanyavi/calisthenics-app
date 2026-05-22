@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { MovementForm } from './MovementForm'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import type { Movement } from '@/models/types'
@@ -12,6 +13,7 @@ import { MovementPhoto } from './MovementPhoto'
 export function MovementsList() {
   const { data: movements, isLoading } = useMovements()
   const deleteMovement = useDeleteMovement()
+  const confirm = useConfirm()
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null)
   const [creating, setCreating] = useState(false)
   const [search, setSearch] = useState('')
@@ -73,8 +75,12 @@ export function MovementsList() {
                 variant="ghost"
                 size="icon"
                 className="h-9 w-9 text-destructive"
-                onClick={() => {
-                  if (confirm(`Delete "${movement.name}"?`)) {
+                onClick={async () => {
+                  if (await confirm({
+                    title: `Delete "${movement.name}"?`,
+                    confirmLabel: 'Delete',
+                    destructive: true,
+                  })) {
                     deleteMovement.mutate(movement.id)
                   }
                 }}

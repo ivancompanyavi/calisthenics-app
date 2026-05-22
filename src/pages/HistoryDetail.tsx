@@ -3,6 +3,7 @@ import { useWorkoutLog, useSetLogs, useDeleteWorkoutLog } from '@/hooks/useHisto
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { ArrowLeft, Clock, Target, Check, Trash2 } from 'lucide-react'
 
 export function HistoryDetail() {
@@ -11,6 +12,7 @@ export function HistoryDetail() {
   const { data: log } = useWorkoutLog(id)
   const { data: sets } = useSetLogs(id)
   const deleteLog = useDeleteWorkoutLog()
+  const confirm = useConfirm()
 
   if (!log) {
     return (
@@ -69,8 +71,12 @@ export function HistoryDetail() {
           variant="destructive"
           size="sm"
           className="w-full"
-          onClick={() => {
-            if (confirm('Delete this workout log?')) {
+          onClick={async () => {
+            if (await confirm({
+              title: 'Delete this workout log?',
+              confirmLabel: 'Delete',
+              destructive: true,
+            })) {
               deleteLog.mutate(log.id)
               navigate('/history')
             }

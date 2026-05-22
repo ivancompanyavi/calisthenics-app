@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { TabLayout } from '@/components/layout/TabLayout'
 import { Toaster } from '@/components/ui/toast'
+import { ConfirmProvider } from '@/components/ui/confirm'
 import { UpdatePrompt } from '@/components/UpdatePrompt'
 import { showToast } from '@/lib/toast'
 
@@ -57,6 +58,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <ConfirmProvider>
         <BrowserRouter>
           <Routes>
             <Route element={<TabLayout />}>
@@ -78,6 +80,7 @@ export default function App() {
         </BrowserRouter>
         <Toaster />
         <UpdatePrompt />
+        </ConfirmProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   )

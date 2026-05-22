@@ -3,6 +3,7 @@ import { usePrograms, useDeleteProgram, useActiveProgram, useActivateProgram, us
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useConfirm } from '@/components/ui/confirm-context'
 import { Plus, Pencil, Trash2, Play, Square, ChevronRight } from 'lucide-react'
 
 export function Programs() {
@@ -12,6 +13,7 @@ export function Programs() {
   const deleteProgram = useDeleteProgram()
   const activateProgram = useActivateProgram()
   const deactivateProgram = useDeactivateProgram()
+  const confirm = useConfirm()
 
   const isActive = (programId: string) => activeProgram?.programId === programId
 
@@ -76,8 +78,12 @@ export function Programs() {
                   variant="ghost"
                   size="icon"
                   className="h-9 w-9 text-destructive"
-                  onClick={() => {
-                    if (confirm(`Delete "${program.name}"?`)) {
+                  onClick={async () => {
+                    if (await confirm({
+                      title: `Delete "${program.name}"?`,
+                      confirmLabel: 'Delete',
+                      destructive: true,
+                    })) {
                       deleteProgram.mutate(program.id)
                     }
                   }}
@@ -89,8 +95,11 @@ export function Programs() {
                     variant="ghost"
                     size="icon"
                     className="h-9 w-9"
-                    onClick={() => {
-                      if (confirm('Stop this program?')) {
+                    onClick={async () => {
+                      if (await confirm({
+                        title: 'Stop this program?',
+                        confirmLabel: 'Stop',
+                      })) {
                         deactivateProgram.mutate(activeProgram!.id)
                       }
                     }}
