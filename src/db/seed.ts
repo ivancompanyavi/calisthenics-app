@@ -14,7 +14,42 @@ import { SEED_MOVEMENTS } from "./seed/movements";
 import { SEED_PROGRESSIONS } from "./seed/progressions";
 import { SEED_WORKOUTS } from "./seed/workouts";
 import { SEED_PROGRAMS } from "./seed/programs";
-import type { SeedBlockDef } from "./seed/types";
+import type { SeedBlockDef, SeedWorkout, SeedProgram } from "./seed/types";
+
+// Deterministic JSON encoding: sorts object keys at every level so the
+// resulting string is stable across runs regardless of property iteration
+// order. Used as a content fingerprint for seed definitions.
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return "[" + value.map(stableStringify).join(",") + "]";
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return (
+    "{" +
+    keys
+      .map((k) => JSON.stringify(k) + ":" + stableStringify(obj[k]))
+      .join(",") +
+    "}"
+  );
+}
+
+function workoutFingerprint(sw: SeedWorkout): string {
+  return stableStringify({
+    name: sw.name,
+    restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds ?? 0,
+    blocks: sw.blocks,
+  });
+}
+
+function programFingerprint(sp: SeedProgram): string {
+  return stableStringify({
+    name: sp.name,
+    totalCycles: sp.totalCycles,
+    days: sp.days,
+  });
+}
 
 function movementSlug(name: string): string {
   return name
@@ -260,7 +295,16 @@ async function ensureWorkoutsExist(
       }
     }
 
+    const fingerprint = workoutFingerprint(sw);
+
     if (existing) {
+      // Skip the rewrite entirely when the seed hasn't changed. Preserves any
+      // user edits to a seeded workout — and avoids wasted writes on every
+      // app launch.
+      if (existing.seedFingerprint === fingerprint) {
+        continue;
+      }
+
       // Re-seed blocks/entries while preserving workout ID so logs stay linked.
       const oldBlocks = await db.workoutBlocks
         .where("workoutId")
@@ -279,11 +323,10 @@ async function ensureWorkoutsExist(
         "rw",
         [db.workouts, db.workoutBlocks, db.blockEntries],
         async () => {
-          if (existing.restBetweenBlocksSeconds !== sw.restBetweenBlocksSeconds) {
-            await db.workouts.update(existing.id, {
-              restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds,
-            });
-          }
+          await db.workouts.update(existing.id, {
+            restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds,
+            seedFingerprint: fingerprint,
+          });
           if (oldBlockIds.length > 0) {
             await db.blockEntries
               .where("blockId")
@@ -309,6 +352,7 @@ async function ensureWorkoutsExist(
       name: sw.name,
       restBetweenBlocksSeconds: sw.restBetweenBlocksSeconds,
       createdAt: Date.now(),
+      seedFingerprint: fingerprint,
     };
     const { blocks, entries } = buildBlocks(
       workoutId,
@@ -361,21 +405,22 @@ async function ensureProgramsExist() {
         workoutId: day ? workoutByName.get(day.workout) : undefined,
       }));
 
+    const fingerprint = programFingerprint(sp);
+
     if (existing) {
+      if (existing.seedFingerprint === fingerprint) {
+        continue;
+      }
       const newDays = buildDays(existing.id);
       await db.transaction(
         "rw",
         [db.programs, db.programDays],
         async () => {
-          if (
-            existing.cycleLengthDays !== sp.days.length ||
-            existing.totalCycles !== sp.totalCycles
-          ) {
-            await db.programs.update(existing.id, {
-              cycleLengthDays: sp.days.length,
-              totalCycles: sp.totalCycles,
-            });
-          }
+          await db.programs.update(existing.id, {
+            cycleLengthDays: sp.days.length,
+            totalCycles: sp.totalCycles,
+            seedFingerprint: fingerprint,
+          });
           await db.programDays
             .where("programId")
             .equals(existing.id)
@@ -393,6 +438,7 @@ async function ensureProgramsExist() {
       cycleLengthDays: sp.days.length,
       totalCycles: sp.totalCycles,
       createdAt: Date.now(),
+      seedFingerprint: fingerprint,
     };
     const newDays = buildDays(programId);
     await db.transaction("rw", [db.programs, db.programDays], async () => {

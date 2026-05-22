@@ -35,6 +35,10 @@ export interface Workout {
   name: string
   restBetweenBlocksSeconds?: number
   createdAt: number
+  // Hash of the seed definition the row was last reconciled against. Lets the
+  // seed-on-startup loop skip the expensive blocks/entries rewrite when the
+  // seed hasn't changed since the last run. Absent on user-created workouts.
+  seedFingerprint?: string
 }
 
 export interface WorkoutBlock {
@@ -128,6 +132,8 @@ export interface Program {
   cycleLengthDays: number
   totalCycles: number
   createdAt: number
+  // See Workout.seedFingerprint — same idea for programs.
+  seedFingerprint?: string
 }
 
 export interface ProgramDay {

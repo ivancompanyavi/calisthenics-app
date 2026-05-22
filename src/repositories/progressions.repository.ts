@@ -1,6 +1,16 @@
 import { db } from '@/db'
-import type { Progression, ProgressionLevel, SetLog, SetMode, LevelUpCandidate } from '@/models/types'
+import type { Movement, Progression, ProgressionLevel, SetLog, SetMode, LevelUpCandidate, WorkoutLog } from '@/models/types'
 import { generateId } from '@/lib/utils'
+
+// "Hit target" predicate, shared between the current-workout check and the
+// prior-workout check. Returns true only if a definite target was met — a
+// set with neither targetReps/actualReps nor targetSeconds/actualSeconds
+// counts as a miss (which matches the old behavior).
+function hitsTarget(s: SetLog): boolean {
+  if (s.actualReps != null && s.targetReps != null) return s.actualReps >= s.targetReps
+  if (s.actualSeconds != null && s.targetSeconds != null) return s.actualSeconds >= s.targetSeconds
+  return false
+}
 
 export interface LevelInput {
   movementId: string
@@ -92,65 +102,134 @@ export const progressionsRepository = {
     await db.progressions.update(id, { currentLevel })
   },
 
+  // Returns the progressions where the user just hit every target in the
+  // current workout AND hit every target in the most recent PRIOR workout
+  // that touched that movement.
+  //
+  // Algorithm:
+  //   1. Pre-fetch all progressions, their levels, current+next movements,
+  //      and historical setLogs for the relevant movements — bounded by N+1
+  //      where N is constant in the number of progressions, not entries.
+  //   2. For each progression, check current-workout pass.
+  //   3. For passing progressions, find the most recent prior workoutLog
+  //      that contains sets for the current-level movement (sorted by
+  //      completedAt — not by setLog insertion order, which was the old bug).
+  //   4. Return candidates where both checks pass.
   checkReadiness: async (progressionIds: string[], currentSets: SetLog[]): Promise<LevelUpCandidate[]> => {
+    if (progressionIds.length === 0) return []
+
+    const progressions = (await db.progressions.bulkGet(progressionIds)).filter(
+      (p): p is Progression => !!p,
+    )
+    if (progressions.length === 0) return []
+
+    const validIds = progressions.map((p) => p.id)
+    const allLevels = await db.progressionLevels
+      .where('progressionId')
+      .anyOf(validIds)
+      .sortBy('order')
+
+    const levelsByProgression = new Map<string, ProgressionLevel[]>()
+    for (const lvl of allLevels) {
+      const arr = levelsByProgression.get(lvl.progressionId) ?? []
+      arr.push(lvl)
+      levelsByProgression.set(lvl.progressionId, arr)
+    }
+
+    // For each progression, identify the current movement we'd need to pass
+    // and the next movement we'd promote to. Skip progressions already at
+    // the top of the ladder.
+    const checks = progressions
+      .map((progression) => {
+        const levels = levelsByProgression.get(progression.id) ?? []
+        if (progression.currentLevel >= levels.length - 1) return null
+        const currentLevel = levels[progression.currentLevel]
+        if (!currentLevel) return null
+        const nextLevel = levels[progression.currentLevel + 1]
+        return {
+          progression,
+          currentMovementId: currentLevel.movementId,
+          nextMovementId: nextLevel?.movementId,
+        }
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null)
+
+    if (checks.length === 0) return []
+
+    const movementIds = [
+      ...new Set(
+        checks.flatMap((c) => [c.currentMovementId, c.nextMovementId].filter(Boolean) as string[]),
+      ),
+    ]
+    const movementsArr = await db.movements.bulkGet(movementIds)
+    const movementById = new Map<string, Movement>()
+    for (const m of movementsArr) {
+      if (m) movementById.set(m.id, m)
+    }
+
+    // Pull all historical setLogs for the relevant movements in one query.
+    // We then group by movementId so the per-progression loop below is
+    // pure-functional over already-loaded data.
+    const currentMovementIds = checks.map((c) => c.currentMovementId)
+    const allHistorical = currentMovementIds.length > 0
+      ? await db.setLogs.where('movementId').anyOf(currentMovementIds).toArray()
+      : []
+    const historicalByMovement = new Map<string, SetLog[]>()
+    for (const s of allHistorical) {
+      const arr = historicalByMovement.get(s.movementId) ?? []
+      arr.push(s)
+      historicalByMovement.set(s.movementId, arr)
+    }
+
+    // Bulk-fetch every workoutLog referenced by the historical sets so we can
+    // order prior workouts by completedAt, not by setLog insertion order.
+    const allLogIds = [...new Set(allHistorical.map((s) => s.workoutLogId))]
+    const workoutLogs = allLogIds.length > 0 ? await db.workoutLogs.bulkGet(allLogIds) : []
+    const workoutLogById = new Map<string, WorkoutLog>()
+    for (const w of workoutLogs) {
+      if (w) workoutLogById.set(w.id, w)
+    }
+
     const candidates: LevelUpCandidate[] = []
 
-    for (const progressionId of progressionIds) {
-      const progression = await db.progressions.get(progressionId)
-      if (!progression) continue
-
-      const levels = await db.progressionLevels
-        .where('progressionId')
-        .equals(progressionId)
-        .sortBy('order')
-
-      const currentLevel = progression.currentLevel
-      if (currentLevel >= levels.length - 1) continue
-
-      const level = levels[currentLevel]
-      if (!level) continue
-
-      const movement = await db.movements.get(level.movementId)
+    for (const { progression, currentMovementId, nextMovementId } of checks) {
+      const movement = movementById.get(currentMovementId)
       if (!movement) continue
 
-      const setsForMovement = currentSets.filter((s) => s.movementId === movement.id)
-      const allHitTargetCurrent = setsForMovement.length > 0 && setsForMovement.every((s) => {
-        if (s.actualReps != null && s.targetReps != null) return s.actualReps >= s.targetReps
-        if (s.actualSeconds != null && s.targetSeconds != null) return s.actualSeconds >= s.targetSeconds
-        return false
-      })
+      // Check 1: every set for this movement in the current workout hit its
+      // target. Empty (movement wasn't trained this workout) → not a candidate.
+      const currentSetsForMovement = currentSets.filter((s) => s.movementId === movement.id)
+      if (currentSetsForMovement.length === 0) continue
+      if (!currentSetsForMovement.every(hitsTarget)) continue
 
-      if (!allHitTargetCurrent) continue
-
-      const prevSetLogs = await db.setLogs
-        .where('movementId')
-        .equals(movement.id)
-        .reverse()
-        .limit(20)
-        .toArray()
-
-      const prevWorkoutLogIds = [...new Set(prevSetLogs.map((s) => s.workoutLogId))]
-      let hitTargetPrevious = false
-      for (const logId of prevWorkoutLogIds) {
-        const prevSets = prevSetLogs.filter((s) => s.workoutLogId === logId)
-        const allHit = prevSets.every((s) => {
-          if (s.actualReps != null && s.targetReps != null) return s.actualReps >= s.targetReps
-          if (s.actualSeconds != null && s.targetSeconds != null) return s.actualSeconds >= s.targetSeconds
-          return false
-        })
-        if (allHit) {
-          hitTargetPrevious = true
-          break
-        }
+      // Check 2: find the most recent prior workout that contained any sets
+      // for this movement, and verify all of its sets for that movement also
+      // hit target. "Most recent" is by workoutLog.completedAt — not by
+      // setLog id or index order.
+      const historical = historicalByMovement.get(movement.id) ?? []
+      const setsByLog = new Map<string, SetLog[]>()
+      for (const s of historical) {
+        const arr = setsByLog.get(s.workoutLogId) ?? []
+        arr.push(s)
+        setsByLog.set(s.workoutLogId, arr)
       }
 
-      if (!hitTargetPrevious) continue
+      let mostRecentLog: WorkoutLog | undefined
+      for (const logId of setsByLog.keys()) {
+        const log = workoutLogById.get(logId)
+        if (!log) continue
+        if (!mostRecentLog || log.completedAt > mostRecentLog.completedAt) {
+          mostRecentLog = log
+        }
+      }
+      if (!mostRecentLog) continue
 
-      const nextLevel = levels[currentLevel + 1]
-      const nextMovement = nextLevel ? await db.movements.get(nextLevel.movementId) : undefined
+      const priorSets = setsByLog.get(mostRecentLog.id) ?? []
+      if (priorSets.length === 0 || !priorSets.every(hitsTarget)) continue
 
+      const nextMovement = nextMovementId ? movementById.get(nextMovementId) : undefined
       candidates.push({
-        progressionId,
+        progressionId: progression.id,
         progressionName: progression.name,
         nextMovementName: nextMovement?.name ?? 'Next level',
       })
