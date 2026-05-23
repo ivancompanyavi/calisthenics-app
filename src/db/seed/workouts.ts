@@ -89,7 +89,7 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         type: "set",
         rounds: 3,
         restSeconds: 90,
-        entries: [{ movement: "Dips", mode: "reps", targetReps: 7 }],
+        entries: [{ progression: "Dip Progression", targetReps: 7 }],
       },
       {
         type: "set",
@@ -102,12 +102,7 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         rounds: 3,
         restSeconds: 90,
         entries: [
-          {
-            movement: "Archer Push-Ups",
-            mode: "reps",
-            targetReps: 6,
-            perSide: true,
-          },
+          { progression: "Push-Up Progression", targetReps: 6 },
         ],
       },
     ],
@@ -133,14 +128,14 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         rounds: 4,
         restSeconds: 120,
         entries: [
-          { movement: "Front Lever Tuck Hold", mode: "max" },
+          { progression: "Front Lever Progression" },
         ],
       },
       {
         type: "set",
         rounds: 5,
         restSeconds: 180,
-        entries: [{ movement: "Pull-Ups", mode: "reps", targetReps: 2 }],
+        entries: [{ progression: "Pull-Up Progression", targetReps: 2 }],
       },
       {
         type: "set",
@@ -174,14 +169,14 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         rounds: 4,
         restSeconds: 120,
         entries: [
-          { movement: "Front Lever Tuck Hold", mode: "max" },
+          { progression: "Front Lever Progression" },
         ],
       },
       {
         type: "set",
         rounds: 3,
         restSeconds: 150,
-        entries: [{ movement: "Pull-Ups", mode: "reps", targetReps: 3 }],
+        entries: [{ progression: "Pull-Up Progression", targetReps: 3 }],
       },
       {
         type: "set",
@@ -273,7 +268,7 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
         type: "set",
         rounds: 3,
         restSeconds: 45,
-        entries: [{ movement: "Leg Raises", mode: "reps", targetReps: 10 }],
+        entries: [{ progression: "Leg Raise Progression", targetReps: 10 }],
       },
       {
         type: "set",
