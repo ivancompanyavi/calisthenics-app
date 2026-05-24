@@ -32,3 +32,19 @@ Tests live in `src/**/__tests__/*.test.ts`. The state machine in `src/lib/execut
 When advancing a progression's `currentLevel`, audit workouts that _also_ name-reference the next-rung movement directly — they may now duplicate the same exercise.
 
 **Workout-edit hygiene.** When adding/removing block entries, check for cross-day duplication. Recurring drift pattern: leg/calf accessory work creeping onto pull/push days. Pull A is the heavy-CNS pull day — never put eccentrics (e.g. Nordic Hamstring Curl) there.
+
+## Exercise images
+
+Every movement renders an image from `public/exercises/<slug>.webp` where slug is the movement name lowercased + kebab-cased (`movementSlug` in `src/db/seed.ts`). `MovementPhoto` falls back to a `Dumbbell` icon when the file is missing, so missing images don't break anything — they just look inconsistent.
+
+**Whenever you add a new movement to seed:**
+
+1. Add a pose description for it to `scripts/exercise-descriptions.mjs` in the matching family section (slug must match `movementSlug(name)`).
+2. Generate the `.webp` via the script:
+   ```bash
+   node scripts/generate-exercise-images.mjs <slug-1> <slug-2> ...
+   # or with no args to fill every missing image
+   ```
+3. Style is white line-art on dark navy `#0a0a14`, athletic male figure. The script uses OpenAI `gpt-image-1` (needs `OPENAI_API_KEY` in `.env`) and converts PNG → WebP via `cwebp` on `PATH`. Costs API credits per call, so prefer passing the specific slug(s) rather than running on all.
+
+**Costs money** — don't run this autonomously without telling the user. Confirm before each batch.

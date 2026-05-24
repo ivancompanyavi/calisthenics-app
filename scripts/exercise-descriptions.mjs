@@ -77,6 +77,18 @@ export const EXERCISES = [
     slug: "chin-up-hold",
     pose: "performing an isometric chin-up hold at the 90-degree position, hands gripping a horizontal bar with palms facing toward the face (supinated), elbows bent at exactly 90 degrees holding the body steady halfway up, legs straight below, front view",
   },
+  {
+    slug: "negative-chin-ups",
+    pose: "performing the eccentric phase of a chin-up, hands gripping a horizontal bar with palms facing toward the face (supinated grip), at the mid-point of a slow controlled descent with elbows bent at roughly 90 degrees, body vertical and straight, side profile view",
+  },
+  {
+    slug: "band-assisted-chin-ups",
+    pose: "performing a band-assisted chin-up at the top position, hands gripping a horizontal bar with palms facing toward the face (supinated grip), one foot tucked inside a loop resistance band that hangs from the center of the bar, chin clearing the bar, body vertical, side profile view",
+  },
+  {
+    slug: "chin-ups",
+    pose: "performing a chin-up at the top position, hands gripping a horizontal bar with palms facing toward the face (supinated grip) at about shoulder width, chin over the bar, elbows bent and pulled down toward the ribs, body vertical and straight, side profile view",
+  },
 
   // ───── Dip family ─────
   {
@@ -336,5 +348,30 @@ export const EXERCISES = [
   {
     slug: "nordic-hamstring-curl",
     pose: "performing the lowering phase of a Nordic hamstring curl, kneeling on a soft pad with feet anchored under a fixed support, body lowering forward toward the floor in one straight line from knees to head, arms held in front of the chest ready to catch on the floor, side profile view",
+  },
+
+  // ───── Gym equipment (cable, machine, dumbbell) ─────
+  {
+    slug: "lat-pulldown",
+    pose: "performing a cable lat pulldown at a gym machine, seated on the bench with knees secured under the thigh pads, both hands gripping a straight bar attachment at slightly wider than shoulder width with palms facing forward (pronated), the bar pulled down to the upper chest with elbows bent and driven down toward the ribs, torso upright with a slight backward lean, side profile view",
+  },
+  {
+    slug: "assisted-pull-up-machine",
+    pose: "performing an assisted pull-up on a counterweighted gym machine, kneeling on the lower counterweighted platform pads with one knee on each pad, both hands gripping the overhead handles with palms facing forward, body at the top of the pull-up with chin near the handles, side profile view",
+  },
+  {
+    slug: "dumbbell-row",
+    pose: "performing a single-arm dumbbell row, one knee and one hand resting flat on a horizontal bench for support, opposite foot planted on the floor, free arm holding a dumbbell pulled up toward the hip with the elbow drawn back close to the body, back held flat and parallel to the floor, side profile view",
+  },
+  {
+    slug: "dumbbell-biceps-curl",
+    pose: "performing a standing dumbbell biceps curl, standing upright with feet shoulder-width apart and both arms holding dumbbells, one arm at the top of the curl with the elbow pinned to the side and the dumbbell raised near the shoulder with palm facing up, other arm extended straight down at the side holding the other dumbbell, front view",
+  },
+  {
+    slug: "face-pull",
+    // Phrase carefully — "face pull" + "pulled to forehead" trips OpenAI's
+    // moderation safety filter. Use anatomical language (rear-delt, head
+    // height, draw apart) and avoid words that read as violent in isolation.
+    pose: "performing a cable rear-deltoid drill at a gym cable machine, athletic figure standing upright facing the cable pulley set at head height, both hands gripping the two ends of a long rope attachment, drawing the rope ends apart and rearward so the elbows finish high and wide at shoulder level with the hands beside the temples, the rope splitting into a wide V shape around the head, slight backward lean for stability, front three-quarter view",
   },
 ];
