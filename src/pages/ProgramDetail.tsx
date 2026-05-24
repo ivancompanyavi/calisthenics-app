@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   useProgram,
   useProgramDays,
@@ -131,23 +131,14 @@ export function ProgramDetail() {
                         const index = start + slotIdx
                         const isPointer = index === pointerIndex
                         const Icon = slot.workoutId ? Dumbbell : Moon
+                        const isRemoved = !!slot.workoutId && !slot.workoutName
                         const label = slot.workoutId
                           ? slot.workoutName ?? 'Removed workout'
                           : 'Rest day'
+                        const linkable = !!slot.workoutId && !isRemoved
 
-                        return (
-                          <li
-                            key={index}
-                            className={[
-                              'flex items-center gap-3 rounded-lg border p-2.5 text-sm',
-                              isPointer && 'border-primary bg-primary/10',
-                              !isPointer && slot.status === 'pending' && 'border-border bg-card',
-                              slot.status === 'done' && 'border-border bg-secondary/30 opacity-70',
-                              slot.status === 'skipped' && 'border-border bg-secondary/30 opacity-50',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')}
-                          >
+                        const rowContent = (
+                          <>
                             <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">
                               D{slot.dayNumber}
                             </span>
@@ -166,6 +157,34 @@ export function ProgramDetail() {
                             {isPointer && slot.status === 'pending' && (
                               <ArrowRight className="h-4 w-4 text-primary shrink-0" />
                             )}
+                          </>
+                        )
+
+                        return (
+                          <li
+                            key={index}
+                            className={[
+                              'rounded-lg border text-sm overflow-hidden',
+                              isPointer && 'border-primary bg-primary/10',
+                              !isPointer && slot.status === 'pending' && 'border-border bg-card',
+                              slot.status === 'done' && 'border-border bg-secondary/30 opacity-70',
+                              slot.status === 'skipped' && 'border-border bg-secondary/30 opacity-50',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                          >
+                            {linkable ? (
+                              <Link
+                                to={`/workouts/${slot.workoutId}`}
+                                className="flex items-center gap-3 p-2.5 w-full transition-colors hover:bg-foreground/5"
+                              >
+                                {rowContent}
+                              </Link>
+                            ) : (
+                              <div className="flex items-center gap-3 p-2.5 w-full">
+                                {rowContent}
+                              </div>
+                            )}
                           </li>
                         )
                       })}
@@ -183,12 +202,10 @@ export function ProgramDetail() {
             {days?.map((day) => {
               const workoutName = day.workoutId ? workoutMap.get(day.workoutId) : undefined
               const isRemoved = day.workoutId && !workoutName
+              const linkable = !!day.workoutId && !isRemoved
 
-              return (
-                <div
-                  key={day.id}
-                  className="rounded-lg p-1.5 text-center min-h-[60px] flex flex-col items-center justify-center bg-secondary/50"
-                >
+              const cellBody = (
+                <>
                   <span className="text-[10px] font-medium text-muted-foreground">
                     D{day.dayNumber}
                   </span>
@@ -204,6 +221,23 @@ export function ProgramDetail() {
                   ) : (
                     <Moon className="h-3 w-3 text-muted-foreground mt-0.5" />
                   )}
+                </>
+              )
+
+              const cellClass =
+                'rounded-lg p-1.5 text-center min-h-[60px] flex flex-col items-center justify-center bg-secondary/50'
+
+              return linkable ? (
+                <Link
+                  key={day.id}
+                  to={`/workouts/${day.workoutId}`}
+                  className={`${cellClass} transition-colors hover:bg-secondary`}
+                >
+                  {cellBody}
+                </Link>
+              ) : (
+                <div key={day.id} className={cellClass}>
+                  {cellBody}
                 </div>
               )
             })}
