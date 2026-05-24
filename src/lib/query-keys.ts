@@ -37,4 +37,5 @@ export const queryKeys = {
   prs: ['movementPRs'] as const,
   bodyweight: ['bodyweight'] as const,
   goals: ['goals'] as const,
+  settings: ['settings'] as const,
 } as const

@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Scale, Check, X } from 'lucide-react'
 import { useMostRecentBodyweight, useLogBodyweight } from '@/hooks/useBodyweight'
+import { useWeightUnit } from '@/hooks/useSettings'
+import { fromKg, toKg, formatWeight } from '@/lib/units'
 
 // Saturday weigh-in card. The program prescribes weekly weigh-ins to decode
 // pull-up regressions (mass-vs-recovery-vs-programming). Surfaces:
@@ -14,6 +16,7 @@ import { useMostRecentBodyweight, useLogBodyweight } from '@/hooks/useBodyweight
 export function BodyweightCard() {
   const { data: recent } = useMostRecentBodyweight()
   const logBw = useLogBodyweight()
+  const unit = useWeightUnit()
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState(false)
 
@@ -32,7 +35,9 @@ export function BodyweightCard() {
   const submit = async () => {
     const value = Number(draft)
     if (!Number.isFinite(value) || value <= 0) return
-    await logBw.mutateAsync({ kg: value })
+    // User types in their preferred unit; storage is always kg.
+    const kg = toKg(value, unit)
+    await logBw.mutateAsync({ kg })
     setDraft('')
     setEditing(false)
   }
@@ -63,10 +68,10 @@ export function BodyweightCard() {
               <Input
                 type="number"
                 inputMode="decimal"
-                step="0.1"
+                step={unit === 'lb' ? '1' : '0.1'}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                placeholder="kg"
+                placeholder={unit}
                 className="h-8 text-sm w-24"
                 autoFocus
               />
@@ -90,14 +95,14 @@ export function BodyweightCard() {
               type="button"
               className="w-full text-left"
               onClick={() => {
-                setDraft(recent?.kg ? String(recent.kg) : '')
+                setDraft(recent?.kg != null ? String(fromKg(recent.kg, unit)) : '')
                 setEditing(true)
               }}
             >
               {recent ? (
                 <>
                   <p className="text-sm">
-                    <span className="font-semibold tabular-nums">{recent.kg.toFixed(1)} kg</span>
+                    <span className="font-semibold tabular-nums">{formatWeight(recent.kg, unit)}</span>
                     <span className="text-muted-foreground text-xs ml-2">
                       {formatRelative(recent.date, now)}
                     </span>

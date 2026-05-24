@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
+import { Settings as SettingsIcon } from 'lucide-react'
 import { useWorkouts } from '@/hooks/useWorkouts'
 import { useWorkoutLogs } from '@/hooks/useHistory'
 import { useInProgressWorkout, useDiscardInProgress } from '@/hooks/useInProgressWorkout'
@@ -33,7 +34,15 @@ export function Home() {
 
   return (
     <div>
-      <PageHeader title="Calisthenics" />
+      <PageHeader title="Calisthenics">
+        <Link
+          to="/settings"
+          aria-label="Settings"
+          className="p-2 -mr-2 rounded-md text-muted-foreground hover:text-foreground touch-manipulation"
+        >
+          <SettingsIcon className="h-5 w-5" />
+        </Link>
+      </PageHeader>
 
       <div className="px-4 space-y-6 pb-8">
         {inProgress && (

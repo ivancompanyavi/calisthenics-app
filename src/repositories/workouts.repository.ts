@@ -9,6 +9,8 @@ interface SaveEntryShared {
   targetSeconds?: number
   perSide?: boolean
   restSeconds?: number
+  targetWeightKg?: number
+  targetBandLevel?: number
 }
 
 export type SaveEntry =
@@ -90,6 +92,8 @@ export const workoutsRepository = {
             targetSeconds: entryData.targetSeconds,
             perSide: entryData.perSide,
             restSeconds: entryData.restSeconds,
+            targetWeightKg: entryData.targetWeightKg,
+            targetBandLevel: entryData.targetBandLevel,
           }
           const entry: BlockEntry = entryData.kind === 'progression'
             ? { ...shared, kind: 'progression', progressionId: entryData.progressionId }
@@ -178,6 +182,8 @@ export const workoutsRepository = {
           gate: entry.gate,
           suggestedReps: suggestion?.suggestedReps,
           suggestedRepsReason: suggestion?.reason,
+          targetWeightKg: entry.targetWeightKg,
+          targetBandLevel: entry.targetBandLevel,
         }
       }
 
@@ -210,6 +216,8 @@ export const workoutsRepository = {
         gate: entry.gate,
         suggestedReps: suggestion?.suggestedReps,
         suggestedRepsReason: suggestion?.reason,
+        targetWeightKg: entry.targetWeightKg,
+        targetBandLevel: entry.targetBandLevel,
       }
     }
 

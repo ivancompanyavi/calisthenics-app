@@ -257,6 +257,40 @@ describe('executionReducer', () => {
       expect(result.phase).toBe('exercise')
       expect(result.currentEntryIndex).toBe(1)
     })
+
+    it('persists weight and band level from adjust state into SetLog', () => {
+      const state = makeInitializedState({
+        phase: 'adjust',
+        adjustReps: 8,
+        adjustWeightKg: 15,
+        adjustBandLevel: 3,
+        blocks: [makeBlock({
+          rounds: 1, restSeconds: 60,
+          entries: [makeEntry({ targetWeightKg: 12, targetBandLevel: 2 })],
+        })],
+        currentRound: 0,
+      })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
+      const set = result.completedSets[0]
+      expect(set.actualWeightKg).toBe(15)
+      expect(set.actualBandLevel).toBe(3)
+      expect(set.targetWeightKg).toBe(12)
+      expect(set.targetBandLevel).toBe(2)
+    })
+
+    it('resets adjust weight/band fields after confirming a set', () => {
+      const state = makeInitializedState({
+        phase: 'adjust',
+        adjustReps: 8,
+        adjustWeightKg: 15,
+        adjustBandLevel: 3,
+        blocks: [makeBlock({ rounds: 3, restSeconds: 60 })],
+        currentRound: 0,
+      })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
+      expect(result.adjustWeightKg).toBeUndefined()
+      expect(result.adjustBandLevel).toBeUndefined()
+    })
   })
 
   describe('DELAY_EXERCISE', () => {

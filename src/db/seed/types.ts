@@ -39,6 +39,13 @@ export interface SeedEntryDef {
   // Per-entry rest override. Seed-time convenience; copies through to
   // BlockEntry.restSeconds.
   restSeconds?: number;
+  // Prescription weight in POUNDS — matches the default UI unit. Converted
+  // to kg at seed-time for canonical storage. Use for machine/dumbbell/cable
+  // exercises. Omit for pure bodyweight.
+  targetWeight?: number;
+  // Numeric band level (1=thinnest, 5=thickest, user-defined mapping). Use
+  // for band-resistance / band-assistance exercises instead of targetWeight.
+  targetBandLevel?: number;
 }
 
 export interface SeedBlockDef {

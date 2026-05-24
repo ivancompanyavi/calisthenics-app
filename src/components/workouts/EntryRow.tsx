@@ -2,9 +2,11 @@ import { useState } from 'react'
 import type { DraftEntry, SetMode } from '@/models/types'
 import { useProgression, useProgressionLevels } from '@/hooks/useProgressions'
 import { useMovement } from '@/hooks/useMovements'
+import { useWeightUnit } from '@/hooks/useSettings'
+import { fromKg, toKg } from '@/lib/units'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { X, Timer, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, Timer, ChevronUp, ChevronDown, Dumbbell } from 'lucide-react'
 
 // The row can mutate any of the per-entry knobs but not the discriminator
 // itself — switching kind would require picking a different exercise, which
@@ -15,6 +17,8 @@ export interface EntryRowUpdate {
   perSide?: boolean
   restSeconds?: number
   mode?: SetMode
+  targetWeightKg?: number
+  targetBandLevel?: number
 }
 
 interface EntryRowProps {
@@ -32,6 +36,10 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
   const { data: levels } = useProgressionLevels(entry.kind === 'progression' ? entry.progressionId : undefined)
   const { data: standaloneMovement } = useMovement(entry.kind === 'movement' ? entry.movementId : undefined)
   const [showRest, setShowRest] = useState(!!entry.restSeconds)
+  const [showLoad, setShowLoad] = useState(
+    entry.targetWeightKg != null || entry.targetBandLevel != null,
+  )
+  const unit = useWeightUnit()
 
   const currentLevelIndex = progression?.currentLevel ?? 0
   const currentLevel = levels?.[currentLevelIndex]
@@ -144,6 +152,26 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
           <Timer className="h-3 w-3" />
         </button>
 
+        <button
+          type="button"
+          onClick={() => {
+            if (showLoad) {
+              onUpdate({ targetWeightKg: undefined, targetBandLevel: undefined })
+              setShowLoad(false)
+            } else {
+              setShowLoad(true)
+            }
+          }}
+          className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+            showLoad
+              ? 'bg-primary/20 border-primary text-primary'
+              : 'border-input text-muted-foreground'
+          }`}
+          title="Weight / band level"
+        >
+          <Dumbbell className="h-3 w-3" />
+        </button>
+
         {totalEntries > 1 && (
           <div className="flex flex-col">
             <Button
@@ -190,6 +218,52 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
             className="h-7 w-16 text-center text-xs"
           />
           <span>sec</span>
+        </div>
+      )}
+
+      {showLoad && (
+        <div className="flex flex-wrap items-center gap-2 pl-2 text-xs text-muted-foreground">
+          <Dumbbell className="h-3 w-3" />
+          <span>Weight:</span>
+          <Input
+            type="number"
+            min={0}
+            step={unit === 'lb' ? 1 : 0.5}
+            value={entry.targetWeightKg != null ? fromKg(entry.targetWeightKg, unit) : ''}
+            onChange={(e) => {
+              const raw = e.target.value
+              if (raw === '') {
+                onUpdate({ targetWeightKg: undefined })
+                return
+              }
+              const num = parseFloat(raw)
+              onUpdate({ targetWeightKg: Number.isFinite(num) ? toKg(num, unit) : undefined })
+            }}
+            placeholder="—"
+            className="h-7 w-20 text-center text-xs"
+          />
+          <span>{unit}</span>
+          <span className="mx-1 opacity-50">·</span>
+          <span>Band:</span>
+          <Input
+            type="number"
+            min={1}
+            max={5}
+            step={1}
+            value={entry.targetBandLevel ?? ''}
+            onChange={(e) => {
+              const raw = e.target.value
+              if (raw === '') {
+                onUpdate({ targetBandLevel: undefined })
+                return
+              }
+              const num = parseInt(raw, 10)
+              onUpdate({ targetBandLevel: Number.isFinite(num) ? num : undefined })
+            }}
+            placeholder="—"
+            className="h-7 w-14 text-center text-xs"
+          />
+          <span>level</span>
         </div>
       )}
     </div>

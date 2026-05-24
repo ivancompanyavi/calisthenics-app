@@ -37,6 +37,8 @@ export function WorkoutBuilder() {
       targetSeconds: e.targetSeconds,
       perSide: e.perSide,
       restSeconds: e.restSeconds,
+      targetWeightKg: e.targetWeightKg,
+      targetBandLevel: e.targetBandLevel,
     }
     return e.kind === 'progression'
       ? { ...shared, kind: 'progression', progressionId: e.progressionId }
@@ -114,6 +116,8 @@ function WorkoutBuilderInner({ id, initial }: { id: string | undefined; initial:
         targetSeconds: e.targetSeconds,
         perSide: e.perSide || undefined,
         restSeconds: e.restSeconds,
+        targetWeightKg: e.targetWeightKg,
+        targetBandLevel: e.targetBandLevel,
       }
       return e.kind === 'progression'
         ? { ...shared, kind: 'progression', progressionId: e.progressionId }

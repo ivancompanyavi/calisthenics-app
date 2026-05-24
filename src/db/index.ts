@@ -14,6 +14,7 @@ import type {
   ActiveProgram,
   BodyweightLog,
   Goal,
+  Settings,
 } from '@/models/types'
 
 const db = new Dexie('CalisthenicsTracker') as Dexie & {
@@ -31,6 +32,7 @@ const db = new Dexie('CalisthenicsTracker') as Dexie & {
   activePrograms: EntityTable<ActiveProgram, 'id'>
   bodyweightLogs: EntityTable<BodyweightLog, 'id'>
   goals: EntityTable<Goal, 'id'>
+  settings: EntityTable<Settings, 'id'>
 }
 
 db.version(1).stores({
@@ -212,6 +214,27 @@ db.version(8).stores({
   activePrograms: 'id, programId, status',
   bodyweightLogs: 'id, date',
   goals: 'id, movementId, createdAt',
+})
+
+// v9: settings singleton + additive weight fields on BlockEntry and SetLog.
+// The weight/band fields are non-indexed (we never query by them) so adding
+// them needs no schema change beyond declaring the new `settings` table.
+db.version(9).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, kind, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, progressionId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
+  bodyweightLogs: 'id, date',
+  goals: 'id, movementId, createdAt',
+  settings: 'id',
 })
 
 export { db }

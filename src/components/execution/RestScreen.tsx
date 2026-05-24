@@ -3,6 +3,9 @@ import { formatTime } from '@/lib/utils'
 import { SkipForward } from 'lucide-react'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import type { ResolvedEntry } from '@/lib/execution-engine'
+import { useWeightUnit } from '@/hooks/useSettings'
+import { formatWeight } from '@/lib/units'
+import type { WeightUnit } from '@/models/types'
 
 interface RestScreenProps {
   remaining: number
@@ -11,19 +14,24 @@ interface RestScreenProps {
   onSkip: () => void
 }
 
-function formatTarget(entry: ResolvedEntry): string {
+function formatTarget(entry: ResolvedEntry, unit: WeightUnit): string {
   const sideLabel = entry.perSide ? ' /side' : ''
+  const parts: string[] = []
   if (entry.mode === 'time') {
-    return entry.targetSeconds ? `${formatTime(entry.targetSeconds)}` : 'Hold'
+    parts.push(entry.targetSeconds ? formatTime(entry.targetSeconds) : 'Hold')
+  } else if (entry.mode === 'max') {
+    parts.push('Max hold')
+  } else {
+    parts.push(entry.targetReps != null ? `${entry.targetReps} reps${sideLabel}` : 'reps')
   }
-  if (entry.mode === 'max') {
-    return 'Max hold'
-  }
-  return entry.targetReps != null ? `${entry.targetReps} reps${sideLabel}` : 'reps'
+  if (entry.targetWeightKg != null) parts.push(formatWeight(entry.targetWeightKg, unit))
+  if (entry.targetBandLevel != null) parts.push(`band ${entry.targetBandLevel}`)
+  return parts.join(' · ')
 }
 
 export function RestScreen({ remaining, total, nextEntry, onSkip }: RestScreenProps) {
   const elapsed = total - remaining
+  const unit = useWeightUnit()
   const circumference = 2 * Math.PI * 72
   const strokeDashoffset = circumference * (1 - elapsed / total)
 
@@ -76,7 +84,7 @@ export function RestScreen({ remaining, total, nextEntry, onSkip }: RestScreenPr
             />
             <div className="flex-1 min-w-0">
               <p className="font-semibold truncate">{nextEntry.movementName}</p>
-              <p className="text-sm text-muted-foreground">{formatTarget(nextEntry)}</p>
+              <p className="text-sm text-muted-foreground">{formatTarget(nextEntry, unit)}</p>
             </div>
           </div>
         </div>

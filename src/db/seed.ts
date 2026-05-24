@@ -20,6 +20,7 @@ import type {
   SeedProgram,
   SeedProgression,
 } from "./seed/types";
+import { lbToKg } from "@/lib/units";
 
 // Deterministic JSON encoding: sorts object keys at every level so the
 // resulting string is stable across runs regardless of property iteration
@@ -364,6 +365,11 @@ function buildBlocks(
         tempo: entryDef.tempo,
         gate: entryDef.gate,
         restSeconds: entryDef.restSeconds,
+        // entryDef.targetWeight is in lb (seed-author convenience, matches
+        // the default UI unit). Convert to canonical kg for storage.
+        targetWeightKg:
+          entryDef.targetWeight != null ? lbToKg(entryDef.targetWeight) : undefined,
+        targetBandLevel: entryDef.targetBandLevel,
       };
 
       if (entryDef.movement) {

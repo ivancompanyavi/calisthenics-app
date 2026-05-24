@@ -5,6 +5,13 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { ArrowLeft, Clock, Target, Check, Trash2 } from 'lucide-react'
+import { useWeightUnit } from '@/hooks/useSettings'
+import { formatWeight } from '@/lib/units'
+
+function SetWeight({ kg }: { kg: number }) {
+  const unit = useWeightUnit()
+  return <>{formatWeight(kg, unit)}</>
+}
 
 export function HistoryDetail() {
   const { id } = useParams<{ id: string }>()
@@ -126,6 +133,13 @@ export function HistoryDetail() {
                     )}
                   </div>
                 </div>
+                {(set.actualWeightKg != null || set.actualBandLevel != null) && (
+                  <p className="text-xs text-muted-foreground mt-1 ml-9 tabular-nums">
+                    {set.actualWeightKg != null && <SetWeight kg={set.actualWeightKg} />}
+                    {set.actualWeightKg != null && set.actualBandLevel != null && ' · '}
+                    {set.actualBandLevel != null && `band ${set.actualBandLevel}`}
+                  </p>
+                )}
                 {set.notes && (
                   <p className="text-xs italic text-muted-foreground mt-1 ml-9">{set.notes}</p>
                 )}

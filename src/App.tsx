@@ -23,6 +23,7 @@ const ProgramDetail = lazy(() => import('@/pages/ProgramDetail').then((m) => ({ 
 const WorkoutExecution = lazy(() =>
   import('@/pages/WorkoutExecution').then((m) => ({ default: m.WorkoutExecution })),
 )
+const SettingsPage = lazy(() => import('@/pages/Settings').then((m) => ({ default: m.Settings })))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,6 +75,7 @@ export default function App() {
               <Route path="/programs/:id" element={<RouteBoundary><ProgramDetail /></RouteBoundary>} />
               <Route path="/programs/:id/edit" element={<RouteBoundary><ProgramBuilder /></RouteBoundary>} />
               <Route path="/library" element={<RouteBoundary><LibraryPage /></RouteBoundary>} />
+              <Route path="/settings" element={<RouteBoundary><SettingsPage /></RouteBoundary>} />
             </Route>
             <Route path="/execute/:id" element={<RouteBoundary><WorkoutExecution /></RouteBoundary>} />
           </Routes>

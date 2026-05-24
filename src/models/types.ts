@@ -86,6 +86,14 @@ interface BlockEntryShared {
   restSeconds?: number
   tempo?: TempoSpec
   gate?: GateSpec
+  // Loadable-exercise prescription. Stored canonically in kg; UI converts to
+  // lb based on the user's Settings preference. Absent means "no weight" —
+  // most calisthenics exercises (push-ups, pull-ups, holds) don't carry it.
+  targetWeightKg?: number
+  // Independent band-resistance prescription for band exercises. Numeric so
+  // a future progression can compare across sessions. Convention: 1 = thinnest,
+  // 5 = thickest, but the exact mapping is user-defined.
+  targetBandLevel?: number
 }
 
 // Discriminated union: an entry is either driven by a progression (movement +
@@ -137,6 +145,12 @@ export interface SetLog {
   // Reps-in-reserve at the end of the set. 0 = went to failure, 3 = could have
   // done 3 more clean reps. Optional — pre-RIR logs leave this undefined.
   rir?: number
+  // Weight / band-level prescription and actual performance. Stored canonical
+  // in kg; UI converts based on Settings. See BlockEntryShared for semantics.
+  targetWeightKg?: number
+  actualWeightKg?: number
+  targetBandLevel?: number
+  actualBandLevel?: number
 }
 
 // Bodyweight reading. The weekly Saturday prompt drives most rows; ad-hoc
@@ -146,6 +160,16 @@ export interface BodyweightLog {
   date: number
   kg: number
   notes?: string
+}
+
+export type WeightUnit = 'kg' | 'lb'
+
+// App-level user preferences. Singleton row (id always 'singleton'). Storage
+// of weight values everywhere is canonical kg; this just controls display +
+// input conversion at the UI layer.
+export interface Settings {
+  id: 'singleton'
+  weightUnit: WeightUnit
 }
 
 // A self-set training goal pinned to a specific movement. Progress is
@@ -233,6 +257,8 @@ interface DraftEntryShared {
   restSeconds?: number
   tempo?: TempoSpec
   gate?: GateSpec
+  targetWeightKg?: number
+  targetBandLevel?: number
 }
 
 export type DraftEntry =

@@ -3,6 +3,8 @@ import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { Button } from '@/components/ui/button'
 import { formatTime, formatTempo } from '@/lib/utils'
 import { Check, Clock, X, Video } from 'lucide-react'
+import { useWeightUnit } from '@/hooks/useSettings'
+import { formatWeight } from '@/lib/units'
 
 interface ExerciseDisplayProps {
   entry: ResolvedEntry
@@ -17,6 +19,7 @@ interface ExerciseDisplayProps {
 
 export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone, onDelay, onSkip }: ExerciseDisplayProps) {
   const sideLabel = entry.perSide ? ' /side' : ''
+  const unit = useWeightUnit()
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
@@ -40,6 +43,22 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
             <span className="text-muted-foreground">Tempo</span>
             <span className="font-semibold tabular-nums">
               {formatTempo(entry.tempo)}
+            </span>
+          </div>
+        )}
+        {entry.targetWeightKg != null && (
+          <div className="mt-2 ml-1 inline-flex items-center gap-1.5 rounded-full bg-secondary/50 px-3 py-1 text-xs font-mono">
+            <span className="text-muted-foreground">Weight</span>
+            <span className="font-semibold tabular-nums">
+              {formatWeight(entry.targetWeightKg, unit)}
+            </span>
+          </div>
+        )}
+        {entry.targetBandLevel != null && (
+          <div className="mt-2 ml-1 inline-flex items-center gap-1.5 rounded-full bg-secondary/50 px-3 py-1 text-xs font-mono">
+            <span className="text-muted-foreground">Band</span>
+            <span className="font-semibold tabular-nums">
+              Level {entry.targetBandLevel}
             </span>
           </div>
         )}
