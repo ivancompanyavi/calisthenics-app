@@ -1,6 +1,7 @@
 import { db } from '@/db'
 import type { Movement, Progression, ProgressionLevel, Workout, WorkoutBlock, BlockEntry } from '@/models/types'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
+import { workoutLogsRepository, type RepsSuggestion } from './workout-logs.repository'
 import { generateId } from '@/lib/utils'
 
 interface SaveEntryShared {
@@ -118,6 +119,7 @@ export const workoutsRepository = {
     // first (the levels tell us which extra movements we need), then bulk-fetch
     // every movement referenced by either a direct entry or a progression level.
     const progressionIds = [...new Set(entries.map((e) => e.progressionId).filter(Boolean) as string[])]
+    const workoutId = blocks[0]?.workoutId
     const [progressions, allLevels] = await Promise.all([
       progressionIds.length > 0 ? db.progressions.bulkGet(progressionIds) : Promise.resolve([] as (Progression | undefined)[]),
       progressionIds.length > 0
@@ -145,16 +147,28 @@ export const workoutsRepository = {
       if (m) movementMap.set(m.id, m)
     }
 
+    // Auto-progression suggestions. Scoped per-workout — see
+    // workoutLogsRepository.getRepsSuggestions for the rule. Empty when no
+    // workoutId yet (draft preview before the workout exists).
+    const suggestions = workoutId
+      ? await workoutLogsRepository.getRepsSuggestions(workoutId, movementIds)
+      : new Map<string, RepsSuggestion>()
+
     const resolveEntry = (entry: BlockEntry): ResolvedEntry => {
       if (entry.kind === 'movement') {
         const movement = movementMap.get(entry.movementId)
+        const movementId = movement?.id ?? entry.movementId
+        // Only surface a suggestion when the prescribed mode is reps — for
+        // time/max mode auto-progression doesn't have a defined rule yet.
+        const suggestion = entry.mode === 'reps' ? suggestions.get(movementId) : undefined
         return {
           progressionId: undefined,
-          movementId: movement?.id ?? entry.movementId,
+          movementId,
           movementName: movement?.name ?? 'Unknown',
           movementPhoto: movement?.photo,
           movementSeedImagePath: movement?.seedImagePath,
           movementCoachingCues: movement?.coachingCues,
+          movementReferenceUrl: movement?.referenceUrl,
           mode: entry.mode,
           targetReps: entry.targetReps,
           targetSeconds: entry.targetSeconds,
@@ -162,6 +176,8 @@ export const workoutsRepository = {
           restSeconds: entry.restSeconds,
           tempo: entry.tempo,
           gate: entry.gate,
+          suggestedReps: suggestion?.suggestedReps,
+          suggestedRepsReason: suggestion?.reason,
         }
       }
 
@@ -170,24 +186,30 @@ export const workoutsRepository = {
       const currentLevel = progression?.currentLevel ?? 0
       const level = levels[currentLevel] ?? levels[0]
       const movement = level ? movementMap.get(level.movementId) : undefined
+      const movementId = movement?.id ?? ''
+      const mode = level?.mode ?? 'reps'
+      const suggestion = mode === 'reps' ? suggestions.get(movementId) : undefined
 
       return {
         progressionId: entry.progressionId,
         progressionName: progression?.name,
         progressionCurrentLevel: currentLevel + 1, // 1-indexed for display
         progressionLevelCount: levels.length,
-        movementId: movement?.id ?? '',
+        movementId,
         movementName: movement?.name ?? 'Unknown',
         movementPhoto: movement?.photo,
         movementSeedImagePath: movement?.seedImagePath,
         movementCoachingCues: movement?.coachingCues,
-        mode: level?.mode ?? 'reps',
+        movementReferenceUrl: movement?.referenceUrl,
+        mode,
         targetReps: entry.targetReps ?? level?.defaultTargetReps,
         targetSeconds: entry.targetSeconds ?? level?.defaultTargetSeconds,
         perSide: entry.perSide ?? level?.perSide,
         restSeconds: entry.restSeconds,
         tempo: entry.tempo,
         gate: entry.gate,
+        suggestedReps: suggestion?.suggestedReps,
+        suggestedRepsReason: suggestion?.reason,
       }
     }
 

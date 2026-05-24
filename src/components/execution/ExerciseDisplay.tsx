@@ -2,7 +2,7 @@ import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { Button } from '@/components/ui/button'
 import { formatTime, formatTempo } from '@/lib/utils'
-import { Check, Clock, X } from 'lucide-react'
+import { Check, Clock, X, Video } from 'lucide-react'
 
 interface ExerciseDisplayProps {
   entry: ResolvedEntry
@@ -48,6 +48,17 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
             {entry.movementCoachingCues}
           </p>
         )}
+        {entry.movementReferenceUrl && (
+          <a
+            href={entry.movementReferenceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary mt-2 inline-flex items-center gap-1 hover:underline"
+          >
+            <Video className="h-3 w-3" />
+            Form check
+          </a>
+        )}
       </div>
 
       {entry.mode === 'max' ? (
@@ -69,9 +80,14 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
       ) : (
         <div className="text-center">
           <p className="text-6xl font-bold font-mono tabular-nums">
-            {entry.targetReps}
+            {entry.suggestedReps ?? entry.targetReps}
           </p>
           <p className="text-sm text-muted-foreground mt-2">reps{sideLabel}</p>
+          {entry.suggestedReps != null && entry.suggestedReps !== entry.targetReps && (
+            <p className="text-[11px] text-primary mt-1">
+              ↑ bumped from {entry.targetReps} · clean hit last session
+            </p>
+          )}
         </div>
       )}
 

@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { MovementForm } from './MovementForm'
-import { Plus, Pencil, Trash2, Trophy } from 'lucide-react'
+import { Plus, Pencil, Trash2, Trophy, Video } from 'lucide-react'
 import type { Movement } from '@/models/types'
 import { MovementPhoto } from './MovementPhoto'
 
@@ -75,6 +75,18 @@ export function MovementsList() {
                     {pr.bestSeconds != null && ` ${pr.bestSeconds}s`}
                   </span>
                 </p>
+              )}
+              {movement.referenceUrl && (
+                <a
+                  href={movement.referenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] mt-1 inline-flex items-center gap-1 text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Video className="h-3 w-3 shrink-0" />
+                  Form check
+                </a>
               )}
             </div>
             <div className="flex gap-1">

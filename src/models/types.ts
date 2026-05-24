@@ -5,6 +5,9 @@ export interface Movement {
   seedImagePath?: string
   description?: string
   coachingCues?: string
+  // External URL for a form-check reference (YouTube, Instagram, blog post).
+  // Stored as a plain string — we don't embed video to keep IndexedDB lean.
+  referenceUrl?: string
   createdAt: number
 }
 

@@ -90,7 +90,14 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
   const toUpdate: Array<{
     id: string;
     changes: Partial<
-      Pick<Movement, "name" | "seedImagePath" | "coachingCues" | "description">
+      Pick<
+        Movement,
+        | "name"
+        | "seedImagePath"
+        | "coachingCues"
+        | "description"
+        | "referenceUrl"
+      >
     >;
   }> = [];
 
@@ -129,6 +136,7 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
         name: m.name,
         description: m.description,
         coachingCues: m.coachingCues,
+        referenceUrl: m.referenceUrl,
         seedImagePath,
         createdAt: Date.now(),
       });
@@ -136,13 +144,23 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
     }
 
     const changes: Partial<
-      Pick<Movement, "seedImagePath" | "coachingCues" | "description">
+      Pick<
+        Movement,
+        "seedImagePath" | "coachingCues" | "description" | "referenceUrl"
+      >
     > = {};
     if (existingMovement.seedImagePath !== seedImagePath) {
       changes.seedImagePath = seedImagePath;
     }
     if (m.coachingCues && !existingMovement.coachingCues) {
       changes.coachingCues = m.coachingCues;
+    }
+    // Mirror coachingCues policy: seed fills in only when the user hasn't
+    // set one. Preserves user-customized form references on subsequent seed
+    // syncs. To force a seed-side update, the user can clear the field via
+    // MovementForm and re-seed.
+    if (m.referenceUrl && !existingMovement.referenceUrl) {
+      changes.referenceUrl = m.referenceUrl;
     }
     if (Object.keys(changes).length > 0) {
       toUpdate.push({ id: existingMovement.id, changes });
@@ -153,13 +171,17 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
   for (const m of existing) {
     if (!seedNames.has(m.name)) continue;
     const seed = seedByName.get(m.name);
-    const changes: Partial<Pick<Movement, "seedImagePath" | "coachingCues">> =
-      {};
+    const changes: Partial<
+      Pick<Movement, "seedImagePath" | "coachingCues" | "referenceUrl">
+    > = {};
     if (!m.seedImagePath) {
       changes.seedImagePath = seedImagePathFor(m.name);
     }
     if (seed?.coachingCues && !m.coachingCues) {
       changes.coachingCues = seed.coachingCues;
+    }
+    if (seed?.referenceUrl && !m.referenceUrl) {
+      changes.referenceUrl = seed.referenceUrl;
     }
     if (Object.keys(changes).length > 0) {
       toUpdate.push({ id: m.id, changes });

@@ -1,106 +1,116 @@
 # App Improvements
 
-Updated 2026-05-24 after the v2 build pass. Items marked **DONE** were shipped this pass; **DEFERRED** items wait for a second pass.
+Updated 2026-05-24 after the second build pass. **DONE** items shipped; **DEFERRED** items wait for a third pass.
 
 ---
 
-## Shipped this pass
+## Shipped (Pass 1 — v2 program enablement)
 
-### A1 — Personal Records (PR) per movement ✅ DONE
-Best `actualReps` and best `actualSeconds` per movement, computed from non-skipped SetLogs. Rendered as a Trophy chip on the movements list in Library.
-- `workoutLogsRepository.getAllPRs()` (new)
-- `useMovementPRs()` hook
-- Trophy badge on `MovementsList`
-- PR query invalidates on `useSaveWorkoutLog` success
+### A1 — Personal Records ✅
+Best `actualReps` and best `actualSeconds` per movement. Trophy chip on Library movement cards.
 
-### A3 — Bodyweight tracking ✅ DONE
-Saturday prompt + ad-hoc log surface on Home. Same-day entries overwrite (no clutter from multiple morning weigh-ins).
-- `BodyweightLog` entity + Dexie table (schema v7)
-- `bodyweightRepository`
-- `useBodyweightLogs`, `useMostRecentBodyweight`, `useLogBodyweight`, `useDeleteBodyweight`
-- `BodyweightCard` on Home, prompts on Saturdays or when last entry is >7 days old
+### A3 — Bodyweight tracking ✅
+`BodyweightLog` entity + Saturday-aware Home card.
 
-### A4 — RIR per set ✅ DONE
-Optional `rir?: number` on `SetLog`. RIR chip row 0–4 on `AdjustScreen` (reps-mode only — RIR is a reps concept). Tap-to-toggle; second tap clears.
+### A4 — RIR per set ✅
+0–4 chip row on `AdjustScreen` (reps mode only).
 
-### N1 — Tempo as first-class field on BlockEntry ✅ DONE
-`TempoSpec { eccentric, bottomPause, concentric, topPause }` on `BlockEntry`, `DraftEntry`, `SeedEntryDef`. Format helper `formatTempo()` in `lib/utils`. Tempo chip rendered:
-- on `ExerciseDisplay` during execution
-- on `WorkoutDetail` entry rows for pre-workout preview
+### N1 — Tempo as first-class field ✅
+`TempoSpec` on `BlockEntry`. Chip on `ExerciseDisplay` + `WorkoutDetail`.
 
-### N2 — Active autoregulation gates ✅ DONE
-`GateSpec { question, skipOnNo }` on `BlockEntry`. UI-layer interception:
-- `GatePrompt` component renders before `ExerciseDisplay` when entry has a gate and the current (block,round,entry) tuple isn't acknowledged yet
-- "No" answers with `skipOnNo: true` auto-dispatch `SKIP_EXERCISE` with a reason note that lands in the SetLog
-- New engine action `RESYNC_EXERCISE_TIMER` so max/time-mode timers don't accumulate while the user is reading the gate question
+### N2 — Active autoregulation gates ✅
+`GateSpec` on `BlockEntry`. `GatePrompt` component + `RESYNC_EXERCISE_TIMER` action.
+
+---
+
+## Shipped (Pass 2 — auto-progression + form reference)
+
+### N3 — Auto-suggest next-session reps target ✅
+- `workoutLogsRepository.getRepsSuggestions(workoutId, movementIds)` reads the most recent session for each movement scoped to the workout (so Pull A and Pull B keep independent histories) and suggests `max(actualReps) + 1` on clean hit
+- "Clean hit" = all sets met target AND all logged RIR ≥ 2 (RIR undefined doesn't veto — RIR is optional)
+- `ResolvedEntry.suggestedReps` + `suggestedRepsReason` populated at resolve time
+- Execution engine pre-fills `adjustReps` from suggestion + saves SetLog.targetReps = suggestion (so the bump rolls forward)
+- Visual indicators: `ExerciseDisplay` shows "↑ bumped from X · clean hit last session"; `WorkoutDetail` and `AdjustScreen` show the suggestion next to the original prescription
+- 9 new unit tests in `workout-logs.repository.test.ts` cover hit/miss/RIR/skip/cross-workout edge cases
+
+### A2 — Reference URL on movements ✅
+- `Movement.referenceUrl?: string` + `SeedMovement.referenceUrl?: string`
+- Editable in `MovementForm` (URL input below description)
+- "Form check" link rendered on `MovementsList` cards (target=_blank)
+- Same link exposed during execution on `ExerciseDisplay`
+- Seed reconciliation policy: seed fills in when user hasn't set one, never overwrites — mirrors `coachingCues` policy
 
 ---
 
 ## Superseded
 
-### A6 — Deload multiplier (SUPERSEDED)
-Original proposal: multiply targets by 0.6× during deload week. The v2 plan uses explicit deload workouts in week 6, which gives finer control (different rest periods, different exercise selection) than a flat multiplier. Will be replaced by N4 (phases) when built.
+### A6 — Deload multiplier
+v2 uses explicit deload workouts in week 6. Will be replaced by N4 (phases) when built.
 
 ---
 
 ## Deferred (next pass)
 
-### N3 — Auto-suggest next-session targets
-Read history → suggest +1 rep on the lowest set if last session hit target cleanly. Closes the M8 gap from the pro audit. Next-pass priority #1.
-
 ### N4 — 6-week macrocycle / phases support
-`ProgramPhase[]` concept where weeks 1–5 use one workout-day map and week 6 uses another. Currently the 6-week cycle is manual: Ivan runs Personal Calisthenics 5 weeks then manually swaps to the opt-in `Test Day (Week 6)` workout. Next-pass priority #2.
-
-### N5 — Skill snack tracking
-Sat/Sun frog stand + planche lean + wrist mob logged as a 4th "session type". Light feature. Defer.
+`cycleLengthDays: 42` with week-6 deload day variants, OR a new `ProgramPhase[]` concept. Currently the 6-week cycle is manual: Ivan runs Personal Calisthenics 5 weeks then swaps to the opt-in `Test Day (Week 6)` workout. **Next-pass priority #1.**
 
 ### N6 — Test-day flag on ProgramDay
-Mark week-6 Thu as a special PR-scoring session. Depends on N4 (phases). Defer.
+Mark week-6 Thu as a special PR-scoring session. Depends on N4 (phases). The PR algorithm already auto-detects best-ever from any session, so this is mostly cosmetic — a "PR achieved on a Test Day" badge would be the differential. Defer with N4.
 
-### A2 — Reference URL on movements
-Form-check via video URL. Cheap, but not gating program execution. Defer.
+### N5 — Skill snack tracking
+Sat/Sun frog stand + planche lean + wrist mob as a logged 4th session type. Currently the seed has no surface for these. Defer.
 
 ### A5 — Goal tracking
-"30s tuck planche by Aug 1." PRs make this nearly automatic — once A1 is in, a Goals layer is a small additional step. Defer.
+"30s tuck planche by Aug 1." Now that A1 (PRs) is in, a Goal layer is small additional work. Defer.
 
 ### A7 — Heatmap calendar
 Visualization improvement. Defer.
 
 ### A8 — Volume balance auditor
-The v2 plan locks in adequate volume balance per muscle group; auditor would be a safety net. Defer.
+Safety net. Defer.
 
 ### A9 — Rest timer ±30s
 UX polish. Defer.
 
 ### A10 — Notes search
-Cross-history search. Now slightly more valuable since RIR + gate-skip notes are also searchable signal. Still defer.
+Cross-history search. RIR + gate-skip notes are now also signal — slightly more valuable than before. Still defer.
 
 ### A11 — Workout preview before Start
-UX polish. Tempo + gate chips on `WorkoutDetail` already provide a partial preview path. Defer.
+UX polish. Tempo + gate + suggestion chips on `WorkoutDetail` already cover the preview need at the list level. Defer.
 
 ### A12 — Stuck-on-level diagnostic
-Related to but distinct from N3 (auto-suggest). Defer with N3.
+Compute "days since last level-up vs days since first set on current rung." Useful complement to N3. Defer.
 
 ---
 
-## Data model snapshot (post-v7)
+## Data model snapshot (post-Pass 2)
 
-New since v6:
+Cumulative changes since v6:
+- `Movement.referenceUrl?: string` (new)
 - `BlockEntry.tempo?: TempoSpec`
 - `BlockEntry.gate?: GateSpec`
 - `DraftEntry.tempo?`, `DraftEntry.gate?` (mirrors)
 - `SetLog.rir?: number`
-- `BodyweightLog { id, date, kg, notes? }` table
+- `BodyweightLog { id, date, kg, notes? }` table (Dexie v7)
+- `ResolvedEntry.suggestedReps?`, `suggestedRepsReason?`, `movementReferenceUrl?` (computed-only, not persisted)
 
-New action: `RESYNC_EXERCISE_TIMER`
-Modified action: `SKIP_EXERCISE` now carries optional `reason: string` that lands on the skipped SetLog's notes.
+Actions:
+- `RESYNC_EXERCISE_TIMER` (new) — gate-prompt flow uses it to restart timers after acknowledgement
+- `SKIP_EXERCISE` carries optional `reason: string` that lands on SetLog.notes
+- `SET_ADJUST_RIR` (new) — sets the RIR for the current adjust phase
+
+Repository additions:
+- `workoutLogsRepository.getAllPRs()` → Map<movementId, MovementPR>
+- `workoutLogsRepository.getRepsSuggestions(workoutId, movementIds)` → Map<movementId, RepsSuggestion>
+- `bodyweightRepository` — full CRUD on `BodyweightLog`
 
 ---
 
 ## Top of "deferred" list to revisit next
 
-After 1–2 cycles of running the new program, the highest-leverage next items remain:
+After 1–2 cycles of running the new program with auto-suggest in play:
 
-1. **N3 (auto-suggest targets)** — removes prescription guesswork session-to-session.
-2. **N4 + N6 (phases + test-day)** — makes the 6-week cycle a first-class concept.
-3. **A2 (reference URL)** — cheapest form-check unlock.
+1. **N4 + N6 (phases + test-day flag)** — makes the 6-week cycle a first-class concept. Eliminates the "manually swap to Test Day" step.
+2. **A12 (stuck-on-level diagnostic)** — pairs naturally with N3 to surface "you've been bumping reps for 8 sessions, time to level up the progression."
+3. **A5 (goal tracking)** — cheap given A1.
+4. **N5 (skill snack tracking)** — once the main program is dialed.

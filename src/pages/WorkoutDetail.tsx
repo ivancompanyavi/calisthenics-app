@@ -18,7 +18,10 @@ function formatTarget(entry: ResolvedEntry): string {
   if (entry.mode === 'max') {
     return 'Max hold'
   }
-  return entry.targetReps != null ? `${entry.targetReps} reps${sideLabel}` : 'reps'
+  // Prefer the auto-suggested target when present so the preview matches
+  // what the execution UI will show.
+  const reps = entry.suggestedReps ?? entry.targetReps
+  return reps != null ? `${reps} reps${sideLabel}` : 'reps'
 }
 
 function formatBlockMeta(block: ResolvedBlock): string {
@@ -142,7 +145,7 @@ export function WorkoutDetail() {
                           {entry.movementCoachingCues}
                         </p>
                       )}
-                      <div className="flex gap-2 mt-0.5">
+                      <div className="flex gap-2 mt-0.5 flex-wrap">
                         {entry.tempo && (
                           <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
                             Tempo {formatTempo(entry.tempo)}
@@ -151,6 +154,11 @@ export function WorkoutDetail() {
                         {entry.gate && (
                           <span className="text-[10px] text-amber-500/90">
                             ⚠ gated
+                          </span>
+                        )}
+                        {entry.suggestedReps != null && entry.suggestedReps !== entry.targetReps && (
+                          <span className="text-[10px] text-primary">
+                            ↑ from {entry.targetReps}
                           </span>
                         )}
                       </div>

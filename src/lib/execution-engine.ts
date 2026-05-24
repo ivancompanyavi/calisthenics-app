@@ -15,6 +15,7 @@ export interface ResolvedEntry {
   movementPhoto?: Blob
   movementSeedImagePath?: string
   movementCoachingCues?: string
+  movementReferenceUrl?: string
   mode: 'reps' | 'time' | 'max'
   targetReps?: number
   targetSeconds?: number
@@ -22,6 +23,11 @@ export interface ResolvedEntry {
   restSeconds?: number
   tempo?: TempoSpec
   gate?: GateSpec
+  // Auto-progression suggestion. Set when last clean hit warrants a bump.
+  // Display layers show it alongside targetReps; the execution engine pre-
+  // fills the adjust screen with this value when present.
+  suggestedReps?: number
+  suggestedRepsReason?: string
 }
 
 export interface ResolvedBlock {
@@ -257,7 +263,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             exerciseTimeRemaining: 0,
             exerciseEndsAt: 0,
             adjustSeconds: entry?.targetSeconds ?? 0,
-            adjustReps: entry?.targetReps ?? 0,
+            adjustReps: entry?.suggestedReps ?? entry?.targetReps ?? 0,
           }
         }
         const remaining = endsAt
@@ -279,7 +285,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         exerciseTimeElapsed: elapsed,
         exerciseStartedAt: 0,
         exerciseEndsAt: 0,
-        adjustReps: entry?.targetReps ?? 0,
+        adjustReps: entry?.suggestedReps ?? entry?.targetReps ?? 0,
         adjustSeconds: entry?.mode === 'max' ? elapsed : (entry?.targetSeconds ?? 0),
       }
     }
@@ -471,7 +477,10 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         movementId: entry.movementId,
         movementName: entry.movementName,
         progressionId: entry.progressionId,
-        targetReps: entry.targetReps,
+        // Save the actually-attempted target (suggestion when present, else
+        // the entry's prescription). Future auto-suggestions key off this
+        // value so the bump rolls forward across sessions.
+        targetReps: entry.suggestedReps ?? entry.targetReps,
         actualReps: entry.mode === 'reps' ? state.adjustReps : undefined,
         targetSeconds: entry.targetSeconds,
         actualSeconds: (entry.mode === 'time' || entry.mode === 'max') ? state.adjustSeconds : undefined,

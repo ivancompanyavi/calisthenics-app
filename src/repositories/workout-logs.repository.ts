@@ -11,6 +11,32 @@ export interface MovementPR {
   bestSecondsAt?: number
 }
 
+// Auto-progression suggestion for one (workoutId, movementId) tuple. Carries
+// the bump direction and a human-readable reason ("clean hit — bump", "missed
+// last set", "no history"). Scoped per-workout so Pull A and Pull B don't
+// cross-contaminate even though they share Pull-Up Progression at the same
+// rung.
+export interface RepsSuggestion {
+  suggestedReps: number
+  reason: string
+}
+
+// Decide if last session was "clean" enough to bump: all non-skipped sets met
+// their target AND, where RIR was logged, came in at >=2. RIR is optional; the
+// absence of RIR is treated as a non-veto (we don't punish users for not
+// logging it). A single sub-RIR-2 set vetoes the bump.
+function wasCleanHit(sets: SetLog[]): boolean {
+  let anyHit = false
+  for (const s of sets) {
+    if (s.skipped) continue
+    if (s.targetReps == null) continue
+    if ((s.actualReps ?? 0) < s.targetReps) return false
+    if (s.rir != null && s.rir < 2) return false
+    anyHit = true
+  }
+  return anyHit
+}
+
 export const workoutLogsRepository = {
   getAll: () => db.workoutLogs.orderBy('completedAt').reverse().toArray(),
 
@@ -20,6 +46,64 @@ export const workoutLogsRepository = {
     db.setLogs.where('workoutLogId').equals(workoutLogId).sortBy('order'),
 
   getAllSetLogs: () => db.setLogs.toArray(),
+
+  // For a given workout, return a per-movement next-session reps suggestion
+  // based on that workout's last completed run. Rule: if last session was a
+  // clean hit (all sets met target, all logged RIR >= 2), suggest max
+  // actualReps + 1. Otherwise no suggestion (caller falls back to the entry's
+  // prescribed target). Scoped to workoutId so Pull A's history doesn't leak
+  // into Pull B even though they share the same movement.
+  getRepsSuggestions: async (
+    workoutId: string,
+    movementIds: string[],
+  ): Promise<Map<string, RepsSuggestion>> => {
+    if (movementIds.length === 0) return new Map()
+    // Most-recent first. Dexie's sortBy returns ascending; reverse in-array
+    // since chaining .reverse() before sortBy() doesn't reorder the sort key.
+    const logs = await db.workoutLogs
+      .where('workoutId')
+      .equals(workoutId)
+      .sortBy('completedAt')
+    if (logs.length === 0) return new Map()
+    logs.reverse()
+
+    const logIds = logs.map((l) => l.id)
+    const allSets = await db.setLogs
+      .where('workoutLogId')
+      .anyOf(logIds)
+      .toArray()
+
+    // Group sets by (logId, movementId).
+    const byLogMovement = new Map<string, SetLog[]>()
+    for (const s of allSets) {
+      const k = `${s.workoutLogId}::${s.movementId}`
+      const arr = byLogMovement.get(k) ?? []
+      arr.push(s)
+      byLogMovement.set(k, arr)
+    }
+
+    const suggestions = new Map<string, RepsSuggestion>()
+    for (const movementId of movementIds) {
+      for (const log of logs) {
+        const sets = byLogMovement.get(`${log.id}::${movementId}`)
+        if (!sets || sets.length === 0) continue
+        // Found the most recent session that included this movement.
+        const repsSets = sets.filter((s) => !s.skipped && s.actualReps != null)
+        if (repsSets.length === 0) break // movement was only logged as max/time mode — no rep suggestion
+
+        if (wasCleanHit(repsSets)) {
+          const max = Math.max(...repsSets.map((s) => s.actualReps ?? 0))
+          suggestions.set(movementId, {
+            suggestedReps: max + 1,
+            reason: `Last session: clean hit — bump from ${max}`,
+          })
+        }
+        // No suggestion on miss/non-clean — UI falls back to entry.targetReps.
+        break
+      }
+    }
+    return suggestions
+  },
 
   // Compute personal records (best reps and best hold time) per movement.
   // Skipped sets and zero-value rows are ignored — a zero-rep "logged" set is

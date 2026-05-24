@@ -4,6 +4,9 @@ export interface SeedMovement {
   name: string;
   description?: string;
   coachingCues?: string;
+  // Optional form-check URL (YouTube, etc). Surfaces as a "Form check" link on
+  // the movement card. Not required.
+  referenceUrl?: string;
   previousNames?: string[];
 }
 

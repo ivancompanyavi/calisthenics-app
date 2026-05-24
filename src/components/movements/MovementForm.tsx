@@ -16,6 +16,7 @@ interface MovementFormProps {
 export function MovementForm({ movement, onDone }: MovementFormProps) {
   const [name, setName] = useState(movement?.name ?? '')
   const [description, setDescription] = useState(movement?.description ?? '')
+  const [referenceUrl, setReferenceUrl] = useState(movement?.referenceUrl ?? '')
   const [photo, setPhoto] = useState<Blob | undefined>(movement?.photo)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -34,17 +35,20 @@ export function MovementForm({ movement, onDone }: MovementFormProps) {
     e.preventDefault()
     if (!name.trim()) return
 
+    const trimmedUrl = referenceUrl.trim()
     if (isEditing) {
       await updateMovement.mutateAsync({
         id: movement.id,
         name: name.trim(),
         description: description.trim() || undefined,
+        referenceUrl: trimmedUrl || undefined,
         photo,
       })
     } else {
       await createMovement.mutateAsync({
         name: name.trim(),
         description: description.trim() || undefined,
+        referenceUrl: trimmedUrl || undefined,
         photo,
       })
     }
@@ -97,6 +101,17 @@ export function MovementForm({ movement, onDone }: MovementFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Optional description..."
           rows={3}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Form reference URL</label>
+        <Input
+          type="url"
+          inputMode="url"
+          value={referenceUrl}
+          onChange={(e) => setReferenceUrl(e.target.value)}
+          placeholder="https://youtube.com/..."
         />
       </div>
 

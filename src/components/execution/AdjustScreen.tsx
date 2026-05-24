@@ -110,7 +110,12 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, ad
         </div>
 
         <p className="text-xs text-muted-foreground">
-          Target: {entry.targetReps} reps{sideLabel}
+          Target: {entry.suggestedReps ?? entry.targetReps} reps{sideLabel}
+          {entry.suggestedReps != null && entry.suggestedReps !== entry.targetReps && (
+            <span className="text-primary ml-1">
+              (↑ from {entry.targetReps})
+            </span>
+          )}
         </p>
 
         {rirRow}
