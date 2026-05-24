@@ -14,6 +14,7 @@ export interface ResolvedEntry {
   movementName: string
   movementPhoto?: Blob
   movementSeedImagePath?: string
+  movementDescription?: string
   movementCoachingCues?: string
   movementReferenceUrl?: string
   mode: 'reps' | 'time' | 'max'

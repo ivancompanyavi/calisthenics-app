@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
+import { ExerciseDetailDialog } from '@/components/workouts/ExerciseDetailDialog'
 import { ArrowLeft, Pencil, Play, TrendingUp } from 'lucide-react'
 import { formatTime, formatTempo } from '@/lib/utils'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
@@ -42,6 +43,11 @@ export function WorkoutDetail() {
   const { data: entries } = useAllBlockEntries(blockIds)
 
   const [resolved, setResolved] = useState<ResolvedBlock[] | null>(null)
+  const [detail, setDetail] = useState<{
+    entry: ResolvedEntry
+    block: ResolvedBlock
+    blockIndex: number
+  } | null>(null)
 
   useEffect(() => {
     if (!blocks || !entries) return
@@ -106,6 +112,14 @@ export function WorkoutDetail() {
           </div>
         </div>
 
+        <ExerciseDetailDialog
+          open={detail != null}
+          onClose={() => setDetail(null)}
+          entry={detail?.entry ?? null}
+          block={detail?.block ?? null}
+          blockIndex={detail?.blockIndex ?? null}
+        />
+
         {resolved?.map((block, blockIdx) => (
           <section key={blockIdx} className="space-y-2">
             <div className="flex items-baseline justify-between">
@@ -120,52 +134,55 @@ export function WorkoutDetail() {
             <Card className="p-2">
               <ul className="divide-y divide-border">
                 {block.entries.map((entry, entryIdx) => (
-                  <li
-                    key={entryIdx}
-                    className="flex items-center gap-3 py-2 px-1"
-                  >
-                    <MovementPhoto
-                      photo={entry.movementPhoto}
-                      seedImagePath={entry.movementSeedImagePath}
-                      name={entry.movementName}
-                      size="sm"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{entry.movementName}</p>
-                      {entry.progressionId && entry.progressionName && (
-                        <p className="text-[10px] text-primary flex items-center gap-1 mt-0.5">
-                          <TrendingUp className="h-3 w-3 shrink-0" />
-                          <span className="truncate">
-                            {entry.progressionName} · Lvl {entry.progressionCurrentLevel}/{entry.progressionLevelCount}
-                          </span>
-                        </p>
-                      )}
-                      {entry.movementCoachingCues && (
-                        <p className="text-xs text-muted-foreground truncate italic">
-                          {entry.movementCoachingCues}
-                        </p>
-                      )}
-                      <div className="flex gap-2 mt-0.5 flex-wrap">
-                        {entry.tempo && (
-                          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
-                            Tempo {formatTempo(entry.tempo)}
-                          </span>
+                  <li key={entryIdx}>
+                    <button
+                      type="button"
+                      onClick={() => setDetail({ entry, block, blockIndex: blockIdx })}
+                      className="flex items-center gap-3 py-2 px-1 w-full text-left rounded-md transition-colors hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                    >
+                      <MovementPhoto
+                        photo={entry.movementPhoto}
+                        seedImagePath={entry.movementSeedImagePath}
+                        name={entry.movementName}
+                        size="sm"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{entry.movementName}</p>
+                        {entry.progressionId && entry.progressionName && (
+                          <p className="text-[10px] text-primary flex items-center gap-1 mt-0.5">
+                            <TrendingUp className="h-3 w-3 shrink-0" />
+                            <span className="truncate">
+                              {entry.progressionName} · Lvl {entry.progressionCurrentLevel}/{entry.progressionLevelCount}
+                            </span>
+                          </p>
                         )}
-                        {entry.gate && (
-                          <span className="text-[10px] text-amber-500/90">
-                            ⚠ gated
-                          </span>
+                        {entry.movementCoachingCues && (
+                          <p className="text-xs text-muted-foreground truncate italic">
+                            {entry.movementCoachingCues}
+                          </p>
                         )}
-                        {entry.suggestedReps != null && entry.suggestedReps !== entry.targetReps && (
-                          <span className="text-[10px] text-primary">
-                            ↑ from {entry.targetReps}
-                          </span>
-                        )}
+                        <div className="flex gap-2 mt-0.5 flex-wrap">
+                          {entry.tempo && (
+                            <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+                              Tempo {formatTempo(entry.tempo)}
+                            </span>
+                          )}
+                          {entry.gate && (
+                            <span className="text-[10px] text-amber-500/90">
+                              ⚠ gated
+                            </span>
+                          )}
+                          {entry.suggestedReps != null && entry.suggestedReps !== entry.targetReps && (
+                            <span className="text-[10px] text-primary">
+                              ↑ from {entry.targetReps}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-sm tabular-nums text-muted-foreground whitespace-nowrap">
-                      {formatTarget(entry)}
-                    </p>
+                      <p className="text-sm tabular-nums text-muted-foreground whitespace-nowrap">
+                        {formatTarget(entry)}
+                      </p>
+                    </button>
                   </li>
                 ))}
               </ul>
