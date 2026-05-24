@@ -33,4 +33,6 @@ export const queryKeys = {
   },
   insights: ['insights'] as const,
   inProgress: ['inProgressWorkout'] as const,
+  prs: ['movementPRs'] as const,
+  bodyweight: ['bodyweight'] as const,
 } as const

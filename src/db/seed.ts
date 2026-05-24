@@ -339,6 +339,9 @@ function buildBlocks(
         targetReps: entryDef.targetReps,
         targetSeconds: entryDef.targetSeconds,
         perSide: entryDef.perSide,
+        tempo: entryDef.tempo,
+        gate: entryDef.gate,
+        restSeconds: entryDef.restSeconds,
       };
 
       if (entryDef.movement) {

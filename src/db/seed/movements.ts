@@ -76,7 +76,7 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     name: "Pull-Ups",
     description: "Standard pull-ups with palms facing away.",
     coachingCues:
-      "Heavy day = straight sets, 2 reps, full rest, clean & explosive. Volume day = cluster (2+2+2, 20s rest between clusters).",
+      "Heavy day (Pull A): pronated grip, 5×2 straight sets, full rest, clean & explosive concentric. Volume day (Pull B): supinated / chin-up grip, 3×3 cluster (2+1 or 2+2+2 with 20s inside), controlled. Grip variation distributes load on the medial vs lateral epicondyle.",
   },
   {
     name: "L-Sit Pull-Ups",
@@ -218,7 +218,7 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     previousNames: ["Australian Pull-Ups"],
     description: "Horizontal body row under a low bar.",
     coachingCues:
-      "Bar at hip height, heels on floor, body straight. Lower bar = harder. Squeeze shoulder blades at top.",
+      "Bar at hip height, heels on floor, body straight. Lower bar = harder. Squeeze shoulder blades at top. Heavy day (Pull A) = pronated. Volume day (Pull B) = supinated grip for biceps + elbow-load variation.",
   },
   {
     name: "Frog Stand",
@@ -396,5 +396,63 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
       "Kneeling eccentric hamstring curl, body lowering forward under control.",
     coachingCues:
       "Anchor feet (couch, partner, band). Lower forward as slow as possible (5–8 sec). Catch with hands. Brutal but bulletproofs hamstrings.",
+  },
+
+  // ---- v2 additions (workout-improvements.md) ----
+  {
+    name: "Wall Slides",
+    description:
+      "Standing posterior-shoulder / scapular activation drill — arms slide up and down a wall maintaining contact with elbows and wrists.",
+    coachingCues:
+      "Back flat against wall, arms in goalpost position. Slide hands up keeping elbows and back of wrists touching the wall. Activates lower traps + posterior delts before forward-loaded push work.",
+  },
+  {
+    name: "Knuckle Push-Up Hold",
+    description:
+      "Isometric push-up hold supported on the knuckles (closed fists) rather than the palms.",
+    coachingCues:
+      "Hold the top of the push-up on knuckles. Wrists straight (forearm-to-hand line). Progressive wrist conditioning that doesn't extend the wrist under load. Build to 60s before adding floor PPP volume.",
+  },
+  {
+    name: "Fingertip Push-Up Hold",
+    description:
+      "Isometric push-up hold supported on the fingertips.",
+    coachingCues:
+      "Hold the top of the push-up balanced on the fingertips. Fingers spread, knuckles slightly bent. Trains forearm flexors and grip — antagonist to the wrist-extension load planche puts on. Start 10–15s, build slowly.",
+  },
+  {
+    name: "Scapular Push-Ups",
+    description:
+      "Plank-position isolation drill — protract and retract the scapulae without bending the elbows.",
+    coachingCues:
+      "Plank position, arms straight throughout. Drop the chest slightly (scapulae retract), then push the floor away (scapulae protract). Slow and deliberate — 2s up, 2s down. Directly trains serratus anterior for planche.",
+  },
+  {
+    name: "Banded Good Morning",
+    description:
+      "Standing hip hinge with a band looped under the feet and over the shoulders — bilateral hip-dominant strength.",
+    coachingCues:
+      "Band under both feet, looped behind neck. Slight knee bend, hinge at the hips with a flat back. Drive hips back, then squeeze glutes to stand. Bilateral hip-dom complement to single-leg work.",
+  },
+  {
+    name: "Hip Thrust",
+    description:
+      "Bilateral hip thrust with shoulders on a bench, hips driven up. Add load via plate, dumbbell, or barbell on the hips.",
+    coachingCues:
+      "Shoulder blades on bench, feet flat shoulder-width, knees at ~90° at top. Drive through heels; squeeze glutes hard at the top. Posterior chain — directly supports planche line and front lever.",
+  },
+  {
+    name: "Banded Biceps Curl",
+    description:
+      "Standing biceps curl using a resistance band anchored under the feet.",
+    coachingCues:
+      "Stand on band, elbows pinned to sides. Curl up, controlled descent. Direct elbow flexor work accelerates pull-up max for novices stuck under 8 reps.",
+  },
+  {
+    name: "Cable Biceps Curl",
+    description:
+      "Gym cable curl — biceps isolation with constant tension throughout the range.",
+    coachingCues:
+      "Standing or seated. Elbows pinned. Full ROM, controlled descent. Use when at the gym — constant cable tension is biceps-superior to free-weight curls.",
   },
 ];

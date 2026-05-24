@@ -12,6 +12,7 @@ import { ProgramSlotCard } from '@/components/home/ProgramSlotCard'
 import { WorkoutsList } from '@/components/home/WorkoutsList'
 import { RecentActivityList } from '@/components/home/RecentActivityList'
 import { DataIOSection } from '@/components/home/DataIOSection'
+import { BodyweightCard } from '@/components/home/BodyweightCard'
 
 export function Home() {
   const navigate = useNavigate()
@@ -78,6 +79,7 @@ export function Home() {
           />
         )}
 
+        <BodyweightCard />
         <WorkoutsList workouts={workouts ?? []} />
         <RecentActivityList logs={recentLogs?.slice(0, 3) ?? []} />
         <DataIOSection />

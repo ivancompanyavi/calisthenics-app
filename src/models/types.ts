@@ -33,6 +33,26 @@ export type BlockType = 'set' | 'superset'
 export type SetMode = 'reps' | 'time' | 'max'
 export type BlockEntryKind = 'progression' | 'movement'
 
+// Tempo notation per rep: eccentric (descent) - bottom pause - concentric
+// (ascent) - top pause, all in seconds. Convention matches Vadnal/Sommer:
+// e.g. 3-1-1-0 = 3s down, 1s bottom, 1s up, 0s top. `X` (max speed) on the
+// concentric is encoded as 0.
+export interface TempoSpec {
+  eccentric: number
+  bottomPause: number
+  concentric: number
+  topPause: number
+}
+
+// Pre-flight autoregulation gate. When present on a BlockEntry the execution
+// engine shows the question before entering the exercise phase; on a No
+// answer with `skipOnNo: true` the entry is auto-skipped and logged with the
+// gate's reason in SetLog.notes.
+export interface GateSpec {
+  question: string
+  skipOnNo: boolean
+}
+
 export interface Workout {
   id: string
   name: string
@@ -61,6 +81,8 @@ interface BlockEntryShared {
   targetSeconds?: number
   perSide?: boolean
   restSeconds?: number
+  tempo?: TempoSpec
+  gate?: GateSpec
 }
 
 // Discriminated union: an entry is either driven by a progression (movement +
@@ -109,6 +131,18 @@ export interface SetLog {
   notes?: string
   round: number
   order: number
+  // Reps-in-reserve at the end of the set. 0 = went to failure, 3 = could have
+  // done 3 more clean reps. Optional — pre-RIR logs leave this undefined.
+  rir?: number
+}
+
+// Bodyweight reading. The weekly Saturday prompt drives most rows; ad-hoc
+// readings are also allowed. `kg` is stored — the UI does the unit display.
+export interface BodyweightLog {
+  id: string
+  date: number
+  kg: number
+  notes?: string
 }
 
 export interface InProgressWorkout {
@@ -179,6 +213,8 @@ interface DraftEntryShared {
   targetSeconds?: number
   perSide?: boolean
   restSeconds?: number
+  tempo?: TempoSpec
+  gate?: GateSpec
 }
 
 export type DraftEntry =

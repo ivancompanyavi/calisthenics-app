@@ -44,6 +44,16 @@ export function useSaveWorkoutLog() {
       workoutLogsRepository.save(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.workoutLogs.all })
+      // PRs are derived from set logs; a finished workout may have set a new
+      // best, so invalidate so any PR-aware UI re-fetches.
+      qc.invalidateQueries({ queryKey: queryKeys.prs })
     },
+  })
+}
+
+export function useMovementPRs() {
+  return useQuery({
+    queryKey: queryKeys.prs,
+    queryFn: () => workoutLogsRepository.getAllPRs(),
   })
 }

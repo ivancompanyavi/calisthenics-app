@@ -12,6 +12,7 @@ import type {
   Program,
   ProgramDay,
   ActiveProgram,
+  BodyweightLog,
 } from '@/models/types'
 
 const db = new Dexie('CalisthenicsTracker') as Dexie & {
@@ -27,6 +28,7 @@ const db = new Dexie('CalisthenicsTracker') as Dexie & {
   programs: EntityTable<Program, 'id'>
   programDays: EntityTable<ProgramDay, 'id'>
   activePrograms: EntityTable<ActiveProgram, 'id'>
+  bodyweightLogs: EntityTable<BodyweightLog, 'id'>
 }
 
 db.version(1).stores({
@@ -169,6 +171,26 @@ db.version(6).stores({
   }
   // SetLog.progressionId is optional; existing rows simply have it absent.
   // No backfill needed — the field defaults to undefined.
+})
+
+// v7: BlockEntry gains optional tempo + gate fields (non-indexed, no schema
+// change needed there — additive). SetLog gains optional rir (also non-indexed).
+// New `bodyweightLogs` table for the weekly Saturday weigh-in. Non-destructive
+// — no clear, no upgrade transform required for additive properties.
+db.version(7).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, kind, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, progressionId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
+  bodyweightLogs: 'id, date',
 })
 
 export { db }

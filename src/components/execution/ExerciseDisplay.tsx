@@ -1,7 +1,7 @@
 import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { Button } from '@/components/ui/button'
-import { formatTime } from '@/lib/utils'
+import { formatTime, formatTempo } from '@/lib/utils'
 import { Check, Clock, X } from 'lucide-react'
 
 interface ExerciseDisplayProps {
@@ -34,6 +34,14 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
           <p className="text-sm text-muted-foreground mt-1">
             Round {round} of {totalRounds}
           </p>
+        )}
+        {entry.tempo && (
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-secondary/50 px-3 py-1 text-xs font-mono">
+            <span className="text-muted-foreground">Tempo</span>
+            <span className="font-semibold tabular-nums">
+              {formatTempo(entry.tempo)}
+            </span>
+          </div>
         )}
         {entry.movementCoachingCues && (
           <p className="text-sm text-muted-foreground mt-2 italic">

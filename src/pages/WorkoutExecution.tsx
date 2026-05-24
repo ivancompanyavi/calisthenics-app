@@ -13,6 +13,7 @@ import { ExerciseDisplay } from '@/components/execution/ExerciseDisplay'
 import { RestScreen } from '@/components/execution/RestScreen'
 import { AdjustScreen } from '@/components/execution/AdjustScreen'
 import { CompleteScreen } from '@/components/execution/CompleteScreen'
+import { GatePrompt } from '@/components/execution/GatePrompt'
 import { Button } from '@/components/ui/button'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { Play, X, Flag } from 'lucide-react'
@@ -43,6 +44,23 @@ export function WorkoutExecution() {
   const { state, dispatch, currentEntry, progress, init } = useWorkoutExecution(slotFromUrl)
   const [initialized, setInitialized] = useState(false)
   const [workoutNotes, setWorkoutNotes] = useState('')
+  // Track which (blockIndex, round, entryIndex) tuples have already had their
+  // gate answered Yes. Each new round re-asks because joint state can change
+  // mid-workout. Reset when the workoutId changes — using the React-blessed
+  // "store info from previous renders" pattern (setState during render is
+  // explicitly OK when conditional and updating a sibling state).
+  const [gateAcknowledged, setGateAcknowledged] = useState<Set<string>>(new Set())
+  const [previousWorkoutId, setPreviousWorkoutId] = useState(state.workoutId)
+  if (previousWorkoutId !== state.workoutId) {
+    setPreviousWorkoutId(state.workoutId)
+    setGateAcknowledged(new Set())
+  }
+
+  const gateKey = `${state.currentBlockIndex}-${state.currentRound}-${state.currentEntryIndex}`
+  const showGate =
+    state.phase === 'exercise' &&
+    !!currentEntry?.gate &&
+    !gateAcknowledged.has(gateKey)
 
   // SetLog now carries progressionId directly, so we can collect the set of
   // progressions this workout exercised without searching block structure.
@@ -167,7 +185,34 @@ export function WorkoutExecution() {
       </div>
 
       <div className="flex-1 flex flex-col">
-        {state.phase === 'exercise' && currentEntry && (
+        {showGate && currentEntry?.gate && (
+          <GatePrompt
+            entry={currentEntry}
+            onYes={() => {
+              setGateAcknowledged((prev) => new Set(prev).add(gateKey))
+              // The exercise timer started ticking at entry-transition time,
+              // before the user saw the gate. Resync so the user gets the
+              // full target window from the moment they tap Yes.
+              dispatch({ type: 'RESYNC_EXERCISE_TIMER', now: Date.now() })
+            }}
+            onNo={() => {
+              if (currentEntry.gate?.skipOnNo) {
+                dispatch({
+                  type: 'SKIP_EXERCISE',
+                  now: Date.now(),
+                  reason: `Skipped — gate: "${currentEntry.gate.question}" answered No`,
+                })
+              } else {
+                // Non-skip gates just acknowledge and proceed; the warning is
+                // its own value (log shows nothing extra).
+                setGateAcknowledged((prev) => new Set(prev).add(gateKey))
+                dispatch({ type: 'RESYNC_EXERCISE_TIMER', now: Date.now() })
+              }
+            }}
+          />
+        )}
+
+        {state.phase === 'exercise' && currentEntry && !showGate && (
           <ExerciseDisplay
             entry={currentEntry}
             timeRemaining={state.exerciseTimeRemaining}
@@ -186,9 +231,11 @@ export function WorkoutExecution() {
             adjustReps={state.adjustReps}
             adjustSeconds={state.adjustSeconds}
             adjustNotes={state.adjustNotes}
+            adjustRir={state.adjustRir}
             onSetReps={(v) => dispatch({ type: 'SET_ADJUST_REPS', value: v })}
             onSetSeconds={(v) => dispatch({ type: 'SET_ADJUST_SECONDS', value: v })}
             onSetNotes={(v) => dispatch({ type: 'SET_ADJUST_NOTES', value: v })}
+            onSetRir={(v) => dispatch({ type: 'SET_ADJUST_RIR', value: v })}
             onConfirm={() => dispatch({ type: 'CONFIRM_ADJUST', now: Date.now() })}
           />
         )}

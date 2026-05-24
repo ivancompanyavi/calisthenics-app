@@ -160,6 +160,8 @@ export const workoutsRepository = {
           targetSeconds: entry.targetSeconds,
           perSide: entry.perSide,
           restSeconds: entry.restSeconds,
+          tempo: entry.tempo,
+          gate: entry.gate,
         }
       }
 
@@ -184,6 +186,8 @@ export const workoutsRepository = {
         targetSeconds: entry.targetSeconds ?? level?.defaultTargetSeconds,
         perSide: entry.perSide ?? level?.perSide,
         restSeconds: entry.restSeconds,
+        tempo: entry.tempo,
+        gate: entry.gate,
       }
     }
 

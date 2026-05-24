@@ -1,4 +1,4 @@
-import type { SetLog } from '@/models/types'
+import type { SetLog, TempoSpec, GateSpec } from '@/models/types'
 import { generateId } from '@/lib/utils'
 
 export type ExecutionPhase = 'ready' | 'exercise' | 'adjust' | 'resting' | 'complete'
@@ -20,6 +20,8 @@ export interface ResolvedEntry {
   targetSeconds?: number
   perSide?: boolean
   restSeconds?: number
+  tempo?: TempoSpec
+  gate?: GateSpec
 }
 
 export interface ResolvedBlock {
@@ -51,6 +53,8 @@ export interface ExecutionState {
   adjustReps: number
   adjustSeconds: number
   adjustNotes: string
+  // Optional RIR for this set. `undefined` = user didn't log RIR. 0–4 range.
+  adjustRir?: number
   // Display values, derived from timestamps below on each tick.
   restRemaining: number
   restTotal: number
@@ -79,12 +83,18 @@ export type Action =
   | { type: 'START'; now: number }
   | { type: 'TICK_EXERCISE'; now: number }
   | { type: 'DONE_EXERCISE'; now: number }
+  // RESYNC restarts the exercise timer at `now` (max-mode: zero the
+  // elapsed counter; time-mode: re-arm the countdown from the target).
+  // Used by the gate-prompt flow so timers don't accumulate while the user
+  // is answering a readiness question.
+  | { type: 'RESYNC_EXERCISE_TIMER'; now: number }
   | { type: 'SET_ADJUST_REPS'; value: number }
   | { type: 'SET_ADJUST_SECONDS'; value: number }
   | { type: 'SET_ADJUST_NOTES'; value: string }
+  | { type: 'SET_ADJUST_RIR'; value: number | undefined }
   | { type: 'CONFIRM_ADJUST'; now: number }
   | { type: 'DELAY_EXERCISE'; now: number }
-  | { type: 'SKIP_EXERCISE'; now: number }
+  | { type: 'SKIP_EXERCISE'; now: number; reason?: string }
   | { type: 'FINISH_WORKOUT' }
   | { type: 'TICK_REST'; now: number }
   | { type: 'SKIP_REST'; now: number }
@@ -149,6 +159,7 @@ export const initialState: ExecutionState = {
   adjustReps: 0,
   adjustSeconds: 0,
   adjustNotes: '',
+  adjustRir: undefined,
   restRemaining: 0,
   restTotal: 0,
   exerciseTimeRemaining: 0,
@@ -208,6 +219,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         adjustReps: 0,
         adjustSeconds: 0,
         adjustNotes: '',
+        adjustRir: undefined,
         restRemaining: 0,
         restTotal: 0,
         exerciseTimeRemaining: 0,
@@ -280,6 +292,15 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
 
     case 'SET_ADJUST_NOTES':
       return { ...state, adjustNotes: action.value }
+
+    case 'SET_ADJUST_RIR':
+      return { ...state, adjustRir: action.value }
+
+    case 'RESYNC_EXERCISE_TIMER': {
+      if (state.phase !== 'exercise') return state
+      const entry = getCurrentEntry(state)
+      return { ...state, ...startExerciseFields(entry, action.now) }
+    }
 
     case 'DELAY_EXERCISE': {
       const block = state.blocks[state.currentBlockIndex]
@@ -372,6 +393,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         skipped: true,
         round: state.currentRound,
         order: state.completedSets.length,
+        notes: action.reason,
       }
       const newCompletedSets = [...state.completedSets, skippedLog]
 
@@ -457,6 +479,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         notes: state.adjustNotes || undefined,
         round: state.currentRound,
         order: state.completedSets.length,
+        rir: state.adjustRir,
       }
 
       const newCompletedSets = [...state.completedSets, setLog]
@@ -484,6 +507,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             completedSets: newCompletedSets,
             skippedEntries: newSkipped,
             adjustNotes: '',
+            adjustRir: undefined,
             ...startRestFields(restDuration, action.now),
             currentBlockIndex: next.blockIndex,
             currentRound: next.round,
@@ -498,6 +522,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           completedSets: newCompletedSets,
           skippedEntries: newSkipped,
           adjustNotes: '',
+          adjustRir: undefined,
           currentBlockIndex: next.blockIndex,
           currentRound: next.round,
           currentEntryIndex: next.entryIndex,
@@ -513,6 +538,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         completedSets: newCompletedSets,
         skippedEntries: newSkipped,
         adjustNotes: '',
+        adjustRir: undefined,
         currentEntryIndex: nextEntryIndex,
         ...startExerciseFields(nextEntry, action.now),
       }

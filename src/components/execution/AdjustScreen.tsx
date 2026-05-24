@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import { Minus, Plus, Check, StickyNote } from 'lucide-react'
 
 interface AdjustScreenProps {
@@ -9,15 +10,52 @@ interface AdjustScreenProps {
   adjustReps: number
   adjustSeconds: number
   adjustNotes: string
+  adjustRir?: number
   onSetReps: (v: number) => void
   onSetSeconds: (v: number) => void
   onSetNotes: (v: string) => void
+  onSetRir: (v: number | undefined) => void
   onConfirm: () => void
 }
 
-export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, onSetReps, onSetSeconds, onSetNotes, onConfirm }: AdjustScreenProps) {
+// RIR captures reps-in-reserve at end of set. The program targets RIR 2-3
+// (conservative) so we render those values prominently in the middle of the
+// scale; 0 (failure) and 4+ (very easy) are de-emphasized.
+const RIR_OPTIONS: number[] = [0, 1, 2, 3, 4]
+
+export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, adjustRir, onSetReps, onSetSeconds, onSetNotes, onSetRir, onConfirm }: AdjustScreenProps) {
   const sideLabel = entry.perSide ? ' /side' : ''
   const [showNotes, setShowNotes] = useState(!!adjustNotes)
+  // Hold/max-mode sets don't get an RIR — RIR is a reps concept. Skip rendering.
+  const showRir = entry.mode === 'reps'
+
+  const rirRow = showRir ? (
+    <div className="w-full max-w-xs">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1 text-center">
+        RIR (reps in reserve)
+      </p>
+      <div className="flex justify-center gap-1.5">
+        {RIR_OPTIONS.map((value) => {
+          const active = adjustRir === value
+          return (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onSetRir(active ? undefined : value)}
+              className={cn(
+                'h-8 w-8 rounded-full text-sm font-mono tabular-nums border transition-colors',
+                active
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:bg-secondary/50',
+              )}
+            >
+              {value}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  ) : null
 
   const notesSection = (
     <div className="w-full max-w-xs">
@@ -75,6 +113,7 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, on
           Target: {entry.targetReps} reps{sideLabel}
         </p>
 
+        {rirRow}
         {notesSection}
 
         <Button size="lg" className="text-lg px-12 mt-4" onClick={onConfirm}>

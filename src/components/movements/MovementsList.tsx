@@ -1,17 +1,19 @@
 import { useState } from 'react'
 import { useMovements, useDeleteMovement } from '@/hooks/useMovements'
+import { useMovementPRs } from '@/hooks/useHistory'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Dialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { MovementForm } from './MovementForm'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Trophy } from 'lucide-react'
 import type { Movement } from '@/models/types'
 import { MovementPhoto } from './MovementPhoto'
 
 export function MovementsList() {
   const { data: movements, isLoading } = useMovements()
+  const { data: prs } = useMovementPRs()
   const deleteMovement = useDeleteMovement()
   const confirm = useConfirm()
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null)
@@ -47,7 +49,9 @@ export function MovementsList() {
         </div>
       )}
 
-      {filtered?.map((movement) => (
+      {filtered?.map((movement) => {
+        const pr = prs?.get(movement.id)
+        return (
         <Card key={movement.id} className="p-3">
           <div className="flex items-center gap-3">
             <MovementPhoto
@@ -60,6 +64,17 @@ export function MovementsList() {
               <p className="font-medium truncate">{movement.name}</p>
               {movement.description && (
                 <p className="text-xs text-muted-foreground truncate">{movement.description}</p>
+              )}
+              {(pr?.bestReps != null || pr?.bestSeconds != null) && (
+                <p className="text-[11px] mt-1 flex items-center gap-1 text-amber-400/90">
+                  <Trophy className="h-3 w-3 shrink-0" />
+                  <span className="font-mono tabular-nums">
+                    PR
+                    {pr.bestReps != null && ` ${pr.bestReps} reps`}
+                    {pr.bestReps != null && pr.bestSeconds != null && ' ·'}
+                    {pr.bestSeconds != null && ` ${pr.bestSeconds}s`}
+                  </span>
+                </p>
               )}
             </div>
             <div className="flex gap-1">
@@ -90,7 +105,8 @@ export function MovementsList() {
             </div>
           </div>
         </Card>
-      ))}
+        )
+      })}
 
       <Dialog open={creating} onClose={() => setCreating(false)}>
         <MovementForm onDone={() => setCreating(false)} />

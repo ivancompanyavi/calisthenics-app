@@ -1,4 +1,4 @@
-import type { SetMode } from "@/models/types";
+import type { SetMode, TempoSpec, GateSpec } from "@/models/types";
 
 export interface SeedMovement {
   name: string;
@@ -27,6 +27,15 @@ export interface SeedEntryDef {
   targetReps?: number;
   targetSeconds?: number;
   perSide?: boolean;
+  // Tempo notation (3-1-1-0 etc.). Optional. When omitted, the execution UI
+  // shows no tempo guidance.
+  tempo?: TempoSpec;
+  // Pre-flight gate question (e.g. "Wrists feel good today?"). When the user
+  // answers No and skipOnNo is true the entry is auto-skipped.
+  gate?: GateSpec;
+  // Per-entry rest override. Seed-time convenience; copies through to
+  // BlockEntry.restSeconds.
+  restSeconds?: number;
 }
 
 export interface SeedBlockDef {

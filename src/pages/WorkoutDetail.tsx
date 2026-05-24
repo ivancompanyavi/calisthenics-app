@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { ArrowLeft, Pencil, Play, TrendingUp } from 'lucide-react'
-import { formatTime } from '@/lib/utils'
+import { formatTime, formatTempo } from '@/lib/utils'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 
 function formatTarget(entry: ResolvedEntry): string {
@@ -142,6 +142,18 @@ export function WorkoutDetail() {
                           {entry.movementCoachingCues}
                         </p>
                       )}
+                      <div className="flex gap-2 mt-0.5">
+                        {entry.tempo && (
+                          <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
+                            Tempo {formatTempo(entry.tempo)}
+                          </span>
+                        )}
+                        {entry.gate && (
+                          <span className="text-[10px] text-amber-500/90">
+                            ⚠ gated
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <p className="text-sm tabular-nums text-muted-foreground whitespace-nowrap">
                       {formatTarget(entry)}
