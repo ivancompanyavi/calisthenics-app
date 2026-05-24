@@ -61,7 +61,7 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     description:
       "Hang from the bar and pull shoulder blades down and together.",
     coachingCues:
-      "Dead hang → depress scapulae to lift body slightly. Arms stay straight.",
+      "Dead hang → depress scapulae to lift body slightly. Arms stay straight. Tempo: 2s pull-down, 2s lower. Slow is the work.",
   },
   {
     name: "Negative Pull-Ups",
@@ -286,7 +286,7 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     name: "Front Lever Tuck Hold",
     description: "Inverted horizontal hold with knees tucked.",
     coachingCues:
-      "Hang from bar/rings, pull shoulder blades down and back, lift knees to chest, lean back until body is parallel to floor. Knees stay tight to chest.",
+      "Hang from bar/rings, pull shoulder blades down and back, lift knees to chest, lean back until body is parallel to floor. Knees stay tight to chest. Dosing: strength day (Pull A) ~80% of best hold, volume day (Pull B) ~60–70% of best — never max out unless on Test Day.",
   },
   {
     name: "Advanced Tuck Front Lever",
@@ -454,5 +454,72 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
       "Gym cable curl — biceps isolation with constant tension throughout the range.",
     coachingCues:
       "Standing or seated. Elbows pinned. Full ROM, controlled descent. Use when at the gym — constant cable tension is biceps-superior to free-weight curls.",
+  },
+
+  // ---- Chin-up family (supinated grip — bridges Inverted Rows → Pull-Ups
+  // in the Pull-Up Progression). Biceps contribute more on supinated grip,
+  // so most lifters hit a chin-up weeks before their first pronated pull-up.
+  {
+    name: "Negative Chin-Ups",
+    description:
+      "Eccentric-only chin-up: jump or step to the top, lower slowly under control.",
+    coachingCues:
+      "Supinated grip (palms toward you). Start at the top with chin over the bar, lower over 4–5 seconds. Full dead hang at the bottom, reset, then jump back up. The slow descent IS the load — don't drop the last inches.",
+  },
+  {
+    name: "Band-Assisted Chin-Ups",
+    description:
+      "Full-ROM chin-ups with a loop band around the bar, foot or knee in the band for assistance.",
+    coachingCues:
+      "Supinated grip. Use the thinnest band that lets you complete clean reps — too much assistance and you're not loading the pull. Drive elbows down and back, chin over bar at the top, full extension at the bottom. Tempo: 2–3s descent, controlled concentric.",
+  },
+  {
+    name: "Chin-Ups",
+    description: "Pull-ups with palms facing you (supinated grip).",
+    coachingCues:
+      "Palms toward you, hands ~shoulder-width. Drive elbows straight down, squeeze biceps and lats. Chin over the bar at the top. Tempo: 2–3s descent, dead hang at the bottom between reps.",
+  },
+
+  // ---- Gym pulling equipment (Isa's program leans on the lat pulldown +
+  // assisted machine for dose-controlled concentric load that bodyweight-only
+  // training can't replicate at her level).
+  {
+    name: "Lat Pulldown",
+    description:
+      "Cable lat pulldown — seated, pull a bar down to the chest. Loadable concentric pull strength.",
+    coachingCues:
+      "Supinated or neutral grip for chin-up training, pronated when training pull-up. Pin the shoulders down first (lower traps), then pull elbows to the ribs. Bar to upper chest, controlled return. App tracks reps only — track the stack weight yourself.",
+  },
+  {
+    name: "Assisted Pull-Up Machine",
+    description:
+      "Machine-assisted pull-up — kneel or stand on a counterweighted platform that subtracts from your bodyweight.",
+    coachingCues:
+      "Set the assist as light as you can while keeping form clean. Full extension at the bottom, chin over the bar at the top. Reduce assistance gradually over weeks — when you can do 3×6 with the minimum stack, you're ready for unassisted negatives or band-assist.",
+  },
+  {
+    name: "Dumbbell Row",
+    description:
+      "Single-arm bent-over row with a dumbbell, knee and hand on a bench.",
+    coachingCues:
+      "Flat back, free hand and knee on the bench. Neutral grip (palm facing the bench). Pull the dumbbell to the hip — elbow drives back, not flared out. Squeeze the lat at the top, lower under control. Let the curl train biceps; this trains lats.",
+  },
+  {
+    name: "Dumbbell Biceps Curl",
+    description:
+      "Standing biceps curl with dumbbells — free-weight elbow flexor work.",
+    coachingCues:
+      "Elbows pinned to sides, full ROM. Supinate (rotate palm up) on the way up. Controlled descent — the eccentric matters. Direct biceps work accelerates the first pull-up for novices.",
+  },
+
+  // Rear-delt / external-rotation antagonist to heavy lat pulldown work.
+  // Without this, weeks of internal-rotation-dominant pulling create shoulder
+  // imbalance. Standard PT inclusion in any pull-focused program.
+  {
+    name: "Face Pull",
+    description:
+      "Rear-delt + external-rotation pull toward the forehead, elbows high. Done on a cable machine (rope at face height) OR a resistance band anchored at face height (door anchor, pull-up bar, fixed pole).",
+    coachingCues:
+      "Anchor at face height (or slightly above). Pull toward your forehead, elbows high and wide, hands ending at the ears — like drawing a bow split into a V around your face. Squeeze rear delts + lower traps at the end. Light load, slow tempo (2s pull, 2s return). If elbows drop, the load is too heavy — back off. App tracks reps only; mentally track stack weight or band thickness session-to-session.",
   },
 ];

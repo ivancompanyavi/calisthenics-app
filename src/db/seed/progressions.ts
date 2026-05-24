@@ -37,11 +37,24 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
     ],
   },
   {
+    // Chin-up rungs (4-6) inserted between Inverted Rows and Negative Pull-Ups
+    // so a beginner working toward a first pull-up gets a supinated-grip
+    // milestone (first chin-up) before the harder pronated pull-up. Biceps
+    // contribute more on supinated grip — most lifters hit a chin-up several
+    // weeks before a pronated pull-up. remapCurrentLevel preserves anyone
+    // already past the insertion point.
     name: "Pull-Up Progression",
     levels: [
       { movement: "Dead Hang", mode: "time", defaultTargetSeconds: 30 },
       { movement: "Scapular Pulls", mode: "reps", defaultTargetReps: 10 },
       { movement: "Inverted Rows", mode: "reps", defaultTargetReps: 12 },
+      { movement: "Negative Chin-Ups", mode: "reps", defaultTargetReps: 5 },
+      {
+        movement: "Band-Assisted Chin-Ups",
+        mode: "reps",
+        defaultTargetReps: 8,
+      },
+      { movement: "Chin-Ups", mode: "reps", defaultTargetReps: 5 },
       { movement: "Negative Pull-Ups", mode: "reps", defaultTargetReps: 8 },
       {
         movement: "Band-Assisted Pull-Ups",

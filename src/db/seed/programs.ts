@@ -29,9 +29,23 @@ const deloadWeek: SeedProgram["days"] = [
   null,
 ];
 
+// Isa's first-pull-up program. Simple weekly cycle, repeats forever.
+// Mon/Wed/Fri active, weekend rest. Tuned for early novice (~10–20s dead
+// hang baseline). See workouts.ts for tuning notes.
+const isaWeek: SeedProgram["days"] = [
+  { workout: "Isa Pull A (Strength)" },
+  null,
+  { workout: "Isa Balance Day" },
+  null,
+  { workout: "Isa Pull B (Volume)" },
+  null,
+  null,
+];
+
 export const SEED_PROGRAMS: SeedProgram[] = [
   {
-    name: "Personal Calisthenics",
+    name: "Ivan workout",
+    previousNames: ["Personal Calisthenics"],
     totalCycles: 0,
     days: [
       ...normalWeek, // Week 1
@@ -41,5 +55,10 @@ export const SEED_PROGRAMS: SeedProgram[] = [
       ...normalWeek, // Week 5
       ...deloadWeek, // Week 6 (deload + test)
     ],
+  },
+  {
+    name: "Isa pull-up workout",
+    totalCycles: 0,
+    days: isaWeek,
   },
 ];
