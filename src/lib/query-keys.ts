@@ -9,6 +9,7 @@ export const queryKeys = {
     levels: (progressionId: string) => ['progressionLevels', progressionId] as const,
     readiness: (progressionIds: string[], setsCount: number) =>
       ['progressionReadiness', progressionIds, setsCount] as const,
+    diagnostics: ['progressionDiagnostics'] as const,
   },
   workouts: {
     all: ['workouts'] as const,
@@ -35,4 +36,5 @@ export const queryKeys = {
   inProgress: ['inProgressWorkout'] as const,
   prs: ['movementPRs'] as const,
   bodyweight: ['bodyweight'] as const,
+  goals: ['goals'] as const,
 } as const

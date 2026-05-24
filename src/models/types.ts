@@ -148,6 +148,21 @@ export interface BodyweightLog {
   notes?: string
 }
 
+// A self-set training goal pinned to a specific movement. Progress is
+// derived at view time by comparing the movement's PR to targetReps/
+// targetSeconds — no completedAt field, since "done" is a function of PRs
+// that may continue improving past the goal.
+export interface Goal {
+  id: string
+  movementId: string
+  // At least one of these is set. Reps for rep-based goals (e.g., 10 pull-ups),
+  // seconds for hold-based goals (e.g., 30s tuck planche hold).
+  targetReps?: number
+  targetSeconds?: number
+  deadline?: number
+  createdAt: number
+}
+
 export interface InProgressWorkout {
   id: string
   workoutId: string

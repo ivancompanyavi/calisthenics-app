@@ -13,6 +13,7 @@ import type {
   ProgramDay,
   ActiveProgram,
   BodyweightLog,
+  Goal,
 } from '@/models/types'
 
 const db = new Dexie('CalisthenicsTracker') as Dexie & {
@@ -29,6 +30,7 @@ const db = new Dexie('CalisthenicsTracker') as Dexie & {
   programDays: EntityTable<ProgramDay, 'id'>
   activePrograms: EntityTable<ActiveProgram, 'id'>
   bodyweightLogs: EntityTable<BodyweightLog, 'id'>
+  goals: EntityTable<Goal, 'id'>
 }
 
 db.version(1).stores({
@@ -191,6 +193,25 @@ db.version(7).stores({
   programDays: 'id, programId, dayNumber',
   activePrograms: 'id, programId, status',
   bodyweightLogs: 'id, date',
+})
+
+// v8: goals table. Indexed by movementId so the Home widget can look up
+// active goals for a given movement quickly. Additive — no upgrade transform.
+db.version(8).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, kind, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, progressionId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
+  bodyweightLogs: 'id, date',
+  goals: 'id, movementId, createdAt',
 })
 
 export { db }

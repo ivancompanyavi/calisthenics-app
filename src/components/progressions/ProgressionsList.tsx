@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useProgressions, useDeleteProgression } from '@/hooks/useProgressions'
+import { useProgressions, useDeleteProgression, useProgressionDiagnostics } from '@/hooks/useProgressions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -7,11 +7,12 @@ import { Dialog } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { ProgressionForm } from './ProgressionForm'
 import { ProgressionDetail } from './ProgressionDetail'
-import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronRight, Clock } from 'lucide-react'
 import type { Progression } from '@/models/types'
 
 export function ProgressionsList() {
   const { data: progressions, isLoading } = useProgressions()
+  const { data: diagnostics } = useProgressionDiagnostics()
   const deleteProgression = useDeleteProgression()
   const confirm = useConfirm()
   const [editingProgression, setEditingProgression] = useState<Progression | null>(null)
@@ -48,7 +49,9 @@ export function ProgressionsList() {
         </div>
       )}
 
-      {filtered?.map((progression) => (
+      {filtered?.map((progression) => {
+        const diag = diagnostics?.get(progression.id)
+        return (
         <Card key={progression.id} className="p-3">
           <div className="flex items-center gap-3">
             <button
@@ -59,6 +62,12 @@ export function ProgressionsList() {
               <p className="text-xs text-muted-foreground">
                 Level {progression.currentLevel + 1} / {progression.levelCount}
               </p>
+              {diag?.stuck && (
+                <p className="text-[11px] mt-1 inline-flex items-center gap-1 text-amber-500">
+                  <Clock className="h-3 w-3" />
+                  Stuck — {diag.sessionsAtRung} sessions / {diag.daysAtRung}d at this rung
+                </p>
+              )}
             </button>
             <div className="flex gap-1 items-center">
               <Button
@@ -92,7 +101,8 @@ export function ProgressionsList() {
             </div>
           </div>
         </Card>
-      ))}
+        )
+      })}
 
       <Dialog open={creating} onClose={() => setCreating(false)}>
         <ProgressionForm onDone={() => setCreating(false)} />

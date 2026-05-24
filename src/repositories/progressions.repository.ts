@@ -20,6 +20,19 @@ export interface LevelInput {
   perSide?: boolean
 }
 
+// Heuristic: a progression is "stuck" when the user has trained the current
+// rung for >= STUCK_SESSIONS or >= STUCK_DAYS without leveling up. Either
+// trigger fires the diagnostic — sessions catches frequent trainers, days
+// catches sparse trainers who never quite accumulate volume.
+const STUCK_SESSIONS = 8
+const STUCK_DAYS = 28
+
+export interface ProgressionDiagnostic {
+  sessionsAtRung: number
+  daysAtRung: number
+  stuck: boolean
+}
+
 export const progressionsRepository = {
   getAll: async () => {
     const progressions = await db.progressions.orderBy('name').toArray()
@@ -29,6 +42,69 @@ export const progressionsRepository = {
       levelCounts.set(level.progressionId, (levelCounts.get(level.progressionId) ?? 0) + 1)
     }
     return progressions.map((p) => ({ ...p, levelCount: levelCounts.get(p.id) ?? 0 }))
+  },
+
+  // For each progression, compute how many sessions and days have been spent
+  // at the current rung. "At the current rung" = SetLogs where progressionId
+  // matches AND the SetLog's movementId equals the current level's movementId
+  // (so prior-rung work doesn't count even if it carried the same progression
+  // pointer at the time).
+  getDiagnostics: async (): Promise<Map<string, ProgressionDiagnostic>> => {
+    const [progressions, levels, allSetLogs, workoutLogs] = await Promise.all([
+      db.progressions.toArray(),
+      db.progressionLevels.toArray(),
+      db.setLogs.toArray(),
+      db.workoutLogs.toArray(),
+    ])
+    // Filter in memory rather than relying on an indexed range query, which
+    // can behave inconsistently across browsers when the indexed field is
+    // optional and many rows have it unset.
+    const setLogs = allSetLogs.filter((s) => s.progressionId != null)
+
+    const levelsByProgression = new Map<string, ProgressionLevel[]>()
+    for (const lvl of levels) {
+      const arr = levelsByProgression.get(lvl.progressionId) ?? []
+      arr.push(lvl)
+      levelsByProgression.set(lvl.progressionId, arr)
+    }
+    for (const arr of levelsByProgression.values()) arr.sort((a, b) => a.order - b.order)
+
+    const completedAtById = new Map(workoutLogs.map((l) => [l.id, l.completedAt]))
+    const now = Date.now()
+    const dayMs = 24 * 60 * 60 * 1000
+
+    const diagnostics = new Map<string, ProgressionDiagnostic>()
+    for (const prog of progressions) {
+      const progLevels = levelsByProgression.get(prog.id) ?? []
+      const currentMovementId = progLevels[prog.currentLevel]?.movementId
+      if (!currentMovementId) continue
+
+      const relevant = setLogs.filter(
+        (s) =>
+          s.progressionId === prog.id &&
+          s.movementId === currentMovementId &&
+          !s.skipped,
+      )
+      if (relevant.length === 0) {
+        diagnostics.set(prog.id, { sessionsAtRung: 0, daysAtRung: 0, stuck: false })
+        continue
+      }
+
+      const sessionIds = new Set(relevant.map((s) => s.workoutLogId))
+      let earliest = Infinity
+      for (const id of sessionIds) {
+        const at = completedAtById.get(id)
+        if (at != null && at < earliest) earliest = at
+      }
+      const daysAtRung = earliest === Infinity ? 0 : Math.floor((now - earliest) / dayMs)
+      const sessionsAtRung = sessionIds.size
+      diagnostics.set(prog.id, {
+        sessionsAtRung,
+        daysAtRung,
+        stuck: sessionsAtRung >= STUCK_SESSIONS || daysAtRung >= STUCK_DAYS,
+      })
+    }
+    return diagnostics
   },
 
   getById: (id: string) => db.progressions.get(id),

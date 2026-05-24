@@ -177,3 +177,105 @@ describe('progressionsRepository.checkReadiness', () => {
     expect(candidates.map((c) => c.progressionName).sort()).toEqual(['Prog A', 'Prog B'])
   })
 })
+
+describe('progressionsRepository.getDiagnostics', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+  })
+
+  const dayMs = 24 * 60 * 60 * 1000
+
+  it('returns zero stats for progressions with no logged sets at current rung', async () => {
+    await db.movements.add(makeMovement('m1', 'Movement 1'))
+    await db.progressions.add(makeProgression('p1', 'Prog', 0))
+    await db.progressionLevels.add(makeLevel('lvl1', 'p1', 'm1', 0))
+
+    const diag = await progressionsRepository.getDiagnostics()
+    expect(diag.get('p1')).toEqual({ sessionsAtRung: 0, daysAtRung: 0, stuck: false })
+  })
+
+  it('counts distinct sessions at the current rung', async () => {
+    await db.movements.add(makeMovement('m1', 'M1'))
+    await db.progressions.add(makeProgression('p1', 'Prog', 0))
+    await db.progressionLevels.add(makeLevel('lvl1', 'p1', 'm1', 0))
+    const now = Date.now()
+    await db.workoutLogs.bulkAdd([
+      makeWorkoutLog('w1', now - 14 * dayMs),
+      makeWorkoutLog('w2', now - 7 * dayMs),
+    ])
+    await db.setLogs.bulkAdd([
+      makeSetLog({ id: 's1', workoutLogId: 'w1', movementId: 'm1', progressionId: 'p1' }),
+      makeSetLog({ id: 's2', workoutLogId: 'w2', movementId: 'm1', progressionId: 'p1' }),
+      makeSetLog({ id: 's3', workoutLogId: 'w2', movementId: 'm1', progressionId: 'p1', order: 1 }),
+    ])
+
+    const diag = await progressionsRepository.getDiagnostics()
+    const d = diag.get('p1')
+    expect(d?.sessionsAtRung).toBe(2)
+    expect(d?.daysAtRung).toBeGreaterThanOrEqual(13)
+    expect(d?.stuck).toBe(false)
+  })
+
+  it('flags stuck when sessions threshold is hit', async () => {
+    await db.movements.add(makeMovement('m1', 'M1'))
+    await db.progressions.add(makeProgression('p1', 'Prog', 0))
+    await db.progressionLevels.add(makeLevel('lvl1', 'p1', 'm1', 0))
+    const now = Date.now()
+    const sessions = Array.from({ length: 8 }, (_, i) => makeWorkoutLog(`w${i}`, now - i * dayMs))
+    const sets = sessions.map((w, i) =>
+      makeSetLog({ id: `s${i}`, workoutLogId: w.id, movementId: 'm1', progressionId: 'p1' }),
+    )
+    await db.workoutLogs.bulkAdd(sessions)
+    await db.setLogs.bulkAdd(sets)
+
+    const diag = await progressionsRepository.getDiagnostics()
+    expect(diag.get('p1')?.stuck).toBe(true)
+  })
+
+  it('flags stuck when days threshold is hit even with few sessions', async () => {
+    await db.movements.add(makeMovement('m1', 'M1'))
+    await db.progressions.add(makeProgression('p1', 'Prog', 0))
+    await db.progressionLevels.add(makeLevel('lvl1', 'p1', 'm1', 0))
+    const now = Date.now()
+    await db.workoutLogs.add(makeWorkoutLog('w1', now - 30 * dayMs))
+    await db.setLogs.add(
+      makeSetLog({ id: 's1', workoutLogId: 'w1', movementId: 'm1', progressionId: 'p1' }),
+    )
+
+    const diag = await progressionsRepository.getDiagnostics()
+    expect(diag.get('p1')?.stuck).toBe(true)
+  })
+
+  it('ignores sets at prior rungs (different movementId)', async () => {
+    await db.movements.bulkAdd([makeMovement('m1', 'Old'), makeMovement('m2', 'Current')])
+    await db.progressions.add(makeProgression('p1', 'Prog', 1)) // currentLevel = 1 → m2
+    await db.progressionLevels.bulkAdd([
+      makeLevel('lvl1', 'p1', 'm1', 0),
+      makeLevel('lvl2', 'p1', 'm2', 1),
+    ])
+    const now = Date.now()
+    await db.workoutLogs.add(makeWorkoutLog('w1', now - 60 * dayMs))
+    // A log entry against the prior rung shouldn't count.
+    await db.setLogs.add(
+      makeSetLog({ id: 's1', workoutLogId: 'w1', movementId: 'm1', progressionId: 'p1' }),
+    )
+
+    const diag = await progressionsRepository.getDiagnostics()
+    expect(diag.get('p1')?.sessionsAtRung).toBe(0)
+    expect(diag.get('p1')?.stuck).toBe(false)
+  })
+
+  it('ignores skipped sets', async () => {
+    await db.movements.add(makeMovement('m1', 'M1'))
+    await db.progressions.add(makeProgression('p1', 'Prog', 0))
+    await db.progressionLevels.add(makeLevel('lvl1', 'p1', 'm1', 0))
+    const now = Date.now()
+    await db.workoutLogs.add(makeWorkoutLog('w1', now - 5 * dayMs))
+    await db.setLogs.add(
+      makeSetLog({ id: 's1', workoutLogId: 'w1', movementId: 'm1', progressionId: 'p1', skipped: true }),
+    )
+
+    const diag = await progressionsRepository.getDiagnostics()
+    expect(diag.get('p1')?.sessionsAtRung).toBe(0)
+  })
+})

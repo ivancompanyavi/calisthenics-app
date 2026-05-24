@@ -115,49 +115,65 @@ export function ProgramDetail() {
         {isActive && slots && (
           <section>
             <h3 className="text-sm font-semibold mb-2">Current cycle progress</h3>
-            <ul className="space-y-1.5">
-              {slots.map((slot, index) => {
-                const isPointer = index === pointerIndex
-                const Icon = slot.workoutId ? Dumbbell : Moon
-                const label = slot.workoutId
-                  ? slot.workoutName ?? 'Removed workout'
-                  : 'Rest day'
-
+            <div className="space-y-3">
+              {Array.from({ length: Math.ceil(slots.length / 7) }, (_, weekIdx) => {
+                const start = weekIdx * 7
+                const weekSlots = slots.slice(start, start + 7)
                 return (
-                  <li
-                    key={index}
-                    className={[
-                      'flex items-center gap-3 rounded-lg border p-2.5 text-sm',
-                      isPointer && 'border-primary bg-primary/10',
-                      !isPointer && slot.status === 'pending' && 'border-border bg-card',
-                      slot.status === 'done' && 'border-border bg-secondary/30 opacity-70',
-                      slot.status === 'skipped' && 'border-border bg-secondary/30 opacity-50',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
-                    <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">
-                      D{slot.dayNumber}
-                    </span>
-                    <Icon
-                      className={`h-4 w-4 shrink-0 ${
-                        isPointer ? 'text-primary' : 'text-muted-foreground'
-                      }`}
-                    />
-                    <span className="flex-1 font-medium truncate">{label}</span>
-                    {slot.status === 'done' && (
-                      <Check className="h-4 w-4 text-green-500 shrink-0" />
+                  <div key={weekIdx}>
+                    {slots.length > 7 && (
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                        Week {weekIdx + 1}
+                      </p>
                     )}
-                    {slot.status === 'skipped' && (
-                      <XIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                    {isPointer && slot.status === 'pending' && (
-                      <ArrowRight className="h-4 w-4 text-primary shrink-0" />
-                    )}
-                  </li>
+                    <ul className="space-y-1.5">
+                      {weekSlots.map((slot, slotIdx) => {
+                        const index = start + slotIdx
+                        const isPointer = index === pointerIndex
+                        const Icon = slot.workoutId ? Dumbbell : Moon
+                        const label = slot.workoutId
+                          ? slot.workoutName ?? 'Removed workout'
+                          : 'Rest day'
+
+                        return (
+                          <li
+                            key={index}
+                            className={[
+                              'flex items-center gap-3 rounded-lg border p-2.5 text-sm',
+                              isPointer && 'border-primary bg-primary/10',
+                              !isPointer && slot.status === 'pending' && 'border-border bg-card',
+                              slot.status === 'done' && 'border-border bg-secondary/30 opacity-70',
+                              slot.status === 'skipped' && 'border-border bg-secondary/30 opacity-50',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')}
+                          >
+                            <span className="text-xs font-medium text-muted-foreground w-8 shrink-0">
+                              D{slot.dayNumber}
+                            </span>
+                            <Icon
+                              className={`h-4 w-4 shrink-0 ${
+                                isPointer ? 'text-primary' : 'text-muted-foreground'
+                              }`}
+                            />
+                            <span className="flex-1 font-medium truncate">{label}</span>
+                            {slot.status === 'done' && (
+                              <Check className="h-4 w-4 text-green-500 shrink-0" />
+                            )}
+                            {slot.status === 'skipped' && (
+                              <XIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            {isPointer && slot.status === 'pending' && (
+                              <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
                 )
               })}
-            </ul>
+            </div>
           </section>
         )}
 

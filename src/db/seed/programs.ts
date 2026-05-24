@@ -1,21 +1,45 @@
 import type { SeedProgram } from "./types";
 
-// v2 (2026-05-24): Mobility & Recovery removed from the calendar — mobility is
-// now a daily ritual + skill-snack day on Sat. Mobility & Recovery survives
-// as an opt-in workout for travel days. Test Day is also opt-in, run manually
-// every 6 weeks per workout-improvements v2.
+// 6-week macrocycle (42 days):
+//   Weeks 1-5: 5 main workouts Mon-Fri + Sat/Sun rest (mobility is a daily
+//              ritual, weigh-in on Sat — both handled outside the program).
+//   Week 6:    Deload variants Mon/Wed/Fri + light skill Tue + Test Day Thu.
+//
+// After 42 days the cycle restarts. PRs from Week 6 Thu naturally bubble up
+// via the existing PR algorithm — no test-day flag needed yet (deferred N6).
+
+// Build one normal training week. Same pattern repeats weeks 1-5.
+const normalWeek: SeedProgram["days"] = [
+  { workout: "Push + Planche Skill" },
+  { workout: "Pull A (Heavy)" },
+  { workout: "Legs + Core" },
+  { workout: "Chest (Planche)" },
+  { workout: "Pull B (Volume)" },
+  null,
+  null,
+];
+
+const deloadWeek: SeedProgram["days"] = [
+  { workout: "Push + Planche Skill (Deload)" },
+  { workout: "Pull A (Skill Only)" },
+  { workout: "Legs + Core (Deload)" },
+  { workout: "Test Day (Week 6)" },
+  { workout: "Pull B (Deload)" },
+  null,
+  null,
+];
+
 export const SEED_PROGRAMS: SeedProgram[] = [
   {
     name: "Personal Calisthenics",
     totalCycles: 0,
     days: [
-      { workout: "Push + Planche Skill" }, // Mon
-      { workout: "Pull A (Heavy)" }, // Tue
-      { workout: "Legs + Core" }, // Wed
-      { workout: "Chest (Planche)" }, // Thu
-      { workout: "Pull B (Volume)" }, // Fri
-      null, // Sat — skill snacks + weigh-in (handled outside the program)
-      null, // Sun — rest
+      ...normalWeek, // Week 1
+      ...normalWeek, // Week 2
+      ...normalWeek, // Week 3
+      ...normalWeek, // Week 4
+      ...normalWeek, // Week 5
+      ...deloadWeek, // Week 6 (deload + test)
     ],
   },
 ];

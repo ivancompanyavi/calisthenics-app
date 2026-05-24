@@ -47,6 +47,8 @@ export function useSaveWorkoutLog() {
       // PRs are derived from set logs; a finished workout may have set a new
       // best, so invalidate so any PR-aware UI re-fetches.
       qc.invalidateQueries({ queryKey: queryKeys.prs })
+      // Progression diagnostics also depend on set logs (sessions at rung).
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.diagnostics })
     },
   })
 }

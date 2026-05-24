@@ -690,4 +690,307 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       },
     ],
   },
+
+  // ============================================================
+  // WEEK 6 DELOAD VARIANTS
+  // Per workout-improvements v2: "Mon/Wed/Fri at ~60% volume (drop a set
+  // per block, keep target reps). Tue: light pull (skill only, no straight
+  // sets). Thu: TEST DAY." These workouts only appear on days 36-40 of the
+  // program cycle; weeks 1-5 use the non-deload variants above.
+  //
+  // Maintenance rule: when changing a main workout's prescription, mirror
+  // the change here (or accept that deload diverges). Keep target reps the
+  // same as main — only the round count drops.
+  // ============================================================
+
+  // Mon Week 6 — Push + Planche Skill (Deload)
+  {
+    name: "Push + Planche Skill (Deload)",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      {
+        type: "set",
+        rounds: 1,
+        restSeconds: 0,
+        entries: [
+          {
+            movement: "Wrist Mobility Routine",
+            mode: "time",
+            targetSeconds: 300,
+          },
+        ],
+      },
+      // Cut activation in half — body knows the pattern by week 6.
+      {
+        type: "superset",
+        rounds: 1,
+        restSeconds: 30,
+        entries: [
+          { movement: "Wall Slides", mode: "reps", targetReps: 10 },
+          { movement: "Band Pull-Aparts", mode: "reps", targetReps: 15 },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 1,
+        restSeconds: 60,
+        entries: [
+          {
+            movement: "Knuckle Push-Up Hold",
+            mode: "time",
+            targetSeconds: 30,
+          },
+        ],
+      },
+      // Skill stays, slightly trimmed.
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 120,
+        entries: [
+          {
+            progression: "Planche Progression",
+            gate: GATE_WRIST_ELBOW,
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 90,
+        entries: [
+          { movement: "Planche Lean Hold", mode: "time", targetSeconds: 20 },
+        ],
+      },
+      // PPP dropped this week — CNS-heavy skill-strength belongs in
+      // accumulation weeks, not deload.
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 120,
+        entries: [
+          {
+            movement: "Pike Push-Ups",
+            mode: "reps",
+            targetReps: 8,
+            tempo: T(3, 1, 1, 0),
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 90,
+        entries: [
+          {
+            progression: "Dip Progression",
+            targetReps: 7,
+            tempo: T(3, 1, 1, 0),
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 90,
+        entries: [
+          {
+            progression: "Push-Up Progression",
+            targetReps: 6,
+            tempo: T(3, 0, 1, 0),
+          },
+        ],
+      },
+    ],
+  },
+
+  // Tue Week 6 — Pull A (Skill Only). Light: warmup + lever skill only, no
+  // heavy pull strength. Per the v2 plan "skill only, no straight sets".
+  {
+    name: "Pull A (Skill Only)",
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [{ movement: "Dead Hang", mode: "time", targetSeconds: 30 }],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [
+          {
+            movement: "Scapular Pulls",
+            mode: "reps",
+            targetReps: 10,
+            tempo: T(2, 0, 2, 0),
+          },
+        ],
+      },
+      // Lever skill at ~60% — keeping the pattern grooved without taxing.
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 120,
+        entries: [{ progression: "Front Lever Progression" }],
+      },
+      // Light grip work as cooldown.
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [
+          { movement: "Active Hang", mode: "time", targetSeconds: 20 },
+        ],
+      },
+    ],
+  },
+
+  // Wed Week 6 — Legs + Core (Deload)
+  {
+    name: "Legs + Core (Deload)",
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 120,
+        entries: [
+          {
+            progression: "Squat Progression",
+            tempo: T(3, 0, 1, 0),
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 60,
+        entries: [
+          {
+            movement: "Single-Leg Glute Bridge",
+            mode: "reps",
+            targetReps: 10,
+            perSide: true,
+            tempo: T(2, 1, 1, 0),
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 90,
+        entries: [
+          {
+            movement: "Banded Good Morning",
+            mode: "reps",
+            targetReps: 12,
+            tempo: T(2, 0, 1, 1),
+          },
+        ],
+      },
+      // Nordics dropped this week — heavy eccentrics fight deload intent.
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 60,
+        entries: [
+          {
+            movement: "Seated Single Leg Raise",
+            mode: "reps",
+            targetReps: 8,
+            perSide: true,
+            tempo: T(2, 1, 1, 0),
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 60,
+        entries: [{ progression: "L-Sit Progression" }],
+      },
+      {
+        type: "superset",
+        rounds: 2,
+        restSeconds: 45,
+        entries: [
+          {
+            movement: "Hollow Body Hold",
+            mode: "time",
+            targetSeconds: 30,
+          },
+          { movement: "Arch Body Hold", mode: "time", targetSeconds: 30 },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 45,
+        entries: [
+          {
+            progression: "Leg Raise Progression",
+            targetReps: 10,
+            tempo: T(2, 1, 2, 0),
+          },
+        ],
+      },
+    ],
+  },
+
+  // Fri Week 6 — Pull B (Deload)
+  {
+    name: "Pull B (Deload)",
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [{ movement: "Dead Hang", mode: "time", targetSeconds: 40 }],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 30,
+        entries: [
+          {
+            movement: "Scapular Pulls",
+            mode: "reps",
+            targetReps: 10,
+            tempo: T(2, 0, 2, 0),
+          },
+        ],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 120,
+        entries: [{ progression: "Front Lever Progression" }],
+      },
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 150,
+        entries: [{ progression: "Pull-Up Progression", targetReps: 3 }],
+      },
+      // Negatives dropped — eccentric overload fights deload intent.
+      {
+        type: "set",
+        rounds: 2,
+        restSeconds: 90,
+        entries: [
+          {
+            movement: "Inverted Rows",
+            mode: "reps",
+            targetReps: 12,
+            tempo: T(3, 0, 1, 0),
+          },
+        ],
+      },
+      // Chin-Up Hold dropped this week. Biceps dropped this week.
+    ],
+  },
 ];

@@ -67,6 +67,8 @@ export function useUpdateCurrentLevel() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
+      // Diagnostics depend on currentLevel; bumping it clears the stuck state.
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.diagnostics })
     },
   })
 }
@@ -81,5 +83,12 @@ export function useProgressionReadiness(progressionIds: string[], currentSets: S
     queryKey: queryKeys.progressions.readiness(progressionIds, currentSets.length),
     queryFn: () => progressionsRepository.checkReadiness(progressionIds, currentSets),
     enabled: progressionIds.length > 0,
+  })
+}
+
+export function useProgressionDiagnostics() {
+  return useQuery({
+    queryKey: queryKeys.progressions.diagnostics,
+    queryFn: () => progressionsRepository.getDiagnostics(),
   })
 }
