@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { Minus, Plus, Check, StickyNote } from 'lucide-react'
@@ -42,12 +43,23 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, ad
   const showBand = entry.targetBandLevel != null
 
   // Weight display + input convert via the user's unit preference. Internal
-  // state stays in kg; the visible value here uses unit-rounded conversions.
+  // state stays in kg; the visible value here keeps 1-decimal precision via
+  // fromKg, and direct typing through the input lets the user enter values
+  // that aren't on the +/- gym-plate grid.
   const displayWeight = adjustWeightKg != null ? fromKg(adjustWeightKg, unit) : 0
   const weightStep = unit === 'lb' ? 5 : 2.5
+  const [editingWeight, setEditingWeight] = useState(false)
+  const [weightDraft, setWeightDraft] = useState('')
   const bumpWeight = (delta: number) => {
     const next = Math.max(0, displayWeight + delta)
     onSetWeightKg(next === 0 ? 0 : toKg(next, unit))
+  }
+  const commitWeightDraft = () => {
+    const num = parseFloat(weightDraft)
+    if (Number.isFinite(num) && num >= 0) {
+      onSetWeightKg(num === 0 ? 0 : toKg(num, unit))
+    }
+    setEditingWeight(false)
   }
 
   const weightRow = showWeight ? (
@@ -64,9 +76,35 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, ad
         >
           <Minus className="h-4 w-4" />
         </Button>
-        <span className="text-2xl font-bold font-mono tabular-nums min-w-[5rem] text-center">
-          {displayWeight} <span className="text-sm text-muted-foreground">{unit}</span>
-        </span>
+        {editingWeight ? (
+          <Input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            min={0}
+            value={weightDraft}
+            onChange={(e) => setWeightDraft(e.target.value)}
+            onBlur={commitWeightDraft}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitWeightDraft()
+              if (e.key === 'Escape') setEditingWeight(false)
+            }}
+            autoFocus
+            className="w-28 h-10 text-center text-2xl font-bold font-mono tabular-nums"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setWeightDraft(String(displayWeight))
+              setEditingWeight(true)
+            }}
+            className="text-2xl font-bold font-mono tabular-nums min-w-[5rem] text-center hover:opacity-70 transition-opacity"
+            aria-label="Edit weight value"
+          >
+            {displayWeight} <span className="text-sm text-muted-foreground">{unit}</span>
+          </button>
+        )}
         <Button
           variant="outline"
           size="icon"

@@ -228,7 +228,8 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
           <Input
             type="number"
             min={0}
-            step={unit === 'lb' ? 1 : 0.5}
+            step="0.1"
+            inputMode="decimal"
             value={entry.targetWeightKg != null ? fromKg(entry.targetWeightKg, unit) : ''}
             onChange={(e) => {
               const raw = e.target.value

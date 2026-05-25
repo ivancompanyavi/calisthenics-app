@@ -73,7 +73,7 @@ export function BodyweightCard() {
               <Input
                 type="number"
                 inputMode="decimal"
-                step={unit === 'lb' ? '1' : '0.1'}
+                step="0.1"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder={unit}
