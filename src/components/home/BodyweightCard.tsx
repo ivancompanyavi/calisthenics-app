@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Scale, Check, X } from 'lucide-react'
+import { Scale, Check, X, ChevronRight } from 'lucide-react'
 import { useMostRecentBodyweight, useLogBodyweight } from '@/hooks/useBodyweight'
 import { useWeightUnit } from '@/hooks/useSettings'
 import { fromKg, toKg, formatWeight } from '@/lib/units'
@@ -119,6 +120,17 @@ export function BodyweightCard() {
             </button>
           )}
         </div>
+        {/* History affordance — only when there's something to look at and the
+            user isn't mid-edit, so we don't crowd the inline form. */}
+        {!editing && recent && (
+          <Link
+            to="/bodyweight"
+            aria-label="View bodyweight history"
+            className="p-1 -mr-1 rounded-md text-muted-foreground hover:text-foreground"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        )}
       </div>
     </Card>
   )
