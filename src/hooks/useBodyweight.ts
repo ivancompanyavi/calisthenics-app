@@ -23,6 +23,8 @@ export function useLogBodyweight() {
       bodyweightRepository.log(kg, notes),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bodyweight })
+      // Insights overlays bodyweight on the lift trends — keep it in sync.
+      qc.invalidateQueries({ queryKey: queryKeys.insights })
     },
   })
 }
@@ -33,6 +35,8 @@ export function useDeleteBodyweight() {
     mutationFn: (id: string) => bodyweightRepository.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bodyweight })
+      // Insights overlays bodyweight on the lift trends — keep it in sync.
+      qc.invalidateQueries({ queryKey: queryKeys.insights })
     },
   })
 }

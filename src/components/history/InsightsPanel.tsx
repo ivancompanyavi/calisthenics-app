@@ -21,25 +21,68 @@ function MiniBarChart({ data }: { data: { week: string; count: number }[] }) {
   )
 }
 
-function MiniTrendLine({ data, improving }: { data: { value: number }[]; improving: boolean }) {
+function MiniTrendLine({
+  data,
+  improving,
+}: {
+  data: { value: number; bodyweightKg?: number }[]
+  improving: boolean
+}) {
   if (data.length < 2) return null
-  const max = Math.max(...data.map((d) => d.value))
-  const min = Math.min(...data.map((d) => d.value))
-  const range = max - min || 1
   const width = 120
   const height = 32
   const padding = 2
 
-  const points = data.map((d, i) => {
-    const x = padding + (i / (data.length - 1)) * (width - padding * 2)
-    const y = height - padding - ((d.value - min) / range) * (height - padding * 2)
-    return `${x},${y}`
-  }).join(' ')
+  // Each series is normalized to its own [min, max] so both span the chart
+  // height regardless of unit scale. We only care about correlation in
+  // shape here — absolute axes belong on a fuller chart.
+  const normalize = (
+    values: number[],
+  ): ((v: number) => number) => {
+    const max = Math.max(...values)
+    const min = Math.min(...values)
+    const range = max - min || 1
+    return (v) => height - padding - ((v - min) / range) * (height - padding * 2)
+  }
+
+  const xAt = (i: number) =>
+    padding + (i / (data.length - 1)) * (width - padding * 2)
+
+  const liftY = normalize(data.map((d) => d.value))
+  const liftPoints = data.map((d, i) => `${xAt(i)},${liftY(d.value)}`).join(' ')
+
+  const bwValues = data
+    .map((d) => d.bodyweightKg)
+    .filter((v): v is number => v != null)
+  // Only draw the bodyweight overlay when we have at least 2 readings across
+  // the visible window — otherwise it'd be a single dot, which says nothing.
+  const hasBodyweight = bwValues.length >= 2
+  const bwY = hasBodyweight ? normalize(bwValues) : null
+  const bwPoints = hasBodyweight
+    ? data
+        .map((d, i) =>
+          d.bodyweightKg != null && bwY ? `${xAt(i)},${bwY(d.bodyweightKg)}` : null,
+        )
+        .filter((p): p is string => p != null)
+        .join(' ')
+    : null
 
   return (
     <svg width={width} height={height} className="flex-shrink-0">
+      {bwPoints && (
+        <polyline
+          points={bwPoints}
+          fill="none"
+          stroke="hsl(var(--muted-foreground))"
+          strokeWidth="1.5"
+          strokeDasharray="2 2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.6}
+        />
+      )}
       <polyline
-        points={points}
+        points={liftPoints}
         fill="none"
         stroke={improving ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
         strokeWidth="2"
@@ -47,6 +90,14 @@ function MiniTrendLine({ data, improving }: { data: { value: number }[]; improvi
         strokeLinejoin="round"
       />
     </svg>
+  )
+}
+
+function hasBodyweightOverlay(
+  trends: { data: { bodyweightKg?: number }[] }[],
+): boolean {
+  return trends.some(
+    (t) => t.data.filter((d) => d.bodyweightKg != null).length >= 2,
   )
 }
 
@@ -87,7 +138,27 @@ export function InsightsPanel() {
 
       {insights.progressionTrends.length > 0 && (
         <Card className="p-3 space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">Progression trends</p>
+          <div className="flex items-baseline justify-between">
+            <p className="text-xs font-medium text-muted-foreground">Progression trends</p>
+            {hasBodyweightOverlay(insights.progressionTrends) && (
+              <p className="text-[10px] text-muted-foreground inline-flex items-center gap-2">
+                <span className="inline-flex items-center gap-1">
+                  <span className="inline-block w-3 h-[2px] bg-primary rounded-full" />
+                  lift
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-block w-3 h-[2px] rounded-full opacity-60"
+                    style={{
+                      backgroundImage:
+                        'repeating-linear-gradient(90deg, hsl(var(--muted-foreground)) 0 2px, transparent 2px 4px)',
+                    }}
+                  />
+                  bw
+                </span>
+              </p>
+            )}
+          </div>
           {insights.progressionTrends.map((trend) => (
             <div key={trend.movementName} className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0 flex-1">

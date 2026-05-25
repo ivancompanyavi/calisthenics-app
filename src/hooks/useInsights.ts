@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
-import { workoutLogsRepository } from '@/repositories'
+import { workoutLogsRepository, bodyweightRepository } from '@/repositories'
 
 export interface WeeklyVolume {
   week: string
@@ -9,7 +9,9 @@ export interface WeeklyVolume {
 
 export interface ProgressionTrend {
   movementName: string
-  data: { date: string; value: number }[]
+  // bodyweightKg is the nearest weigh-in on or before the session date.
+  // Absent (undefined) when no weigh-in exists in that window.
+  data: { date: string; value: number; bodyweightKg?: number }[]
   improving: boolean
 }
 
@@ -36,8 +38,25 @@ export function useInsights() {
   return useQuery({
     queryKey: queryKeys.insights,
     queryFn: async (): Promise<InsightsData> => {
-      const logs = await workoutLogsRepository.getAll()
-      const setLogs = await workoutLogsRepository.getAllSetLogs()
+      const [logs, setLogs, bodyweightLogs] = await Promise.all([
+        workoutLogsRepository.getAll(),
+        workoutLogsRepository.getAllSetLogs(),
+        bodyweightRepository.getAll(),
+      ])
+      // bodyweightRepository.getAll returns newest-first; we want oldest-first
+      // here so the "nearest on-or-before" lookup is a clean linear scan from
+      // the end (most recent entries scanned first).
+      const bodyweightByDateAsc = [...bodyweightLogs].reverse()
+      const nearestBodyweightAt = (timestamp: number): number | undefined => {
+        // Walk newest-first and return the first reading ≤ timestamp. Cheap
+        // enough for sub-thousand-row scale; revisit if it ever isn't.
+        for (let i = bodyweightByDateAsc.length - 1; i >= 0; i--) {
+          if (bodyweightByDateAsc[i].date <= timestamp) {
+            return bodyweightByDateAsc[i].kg
+          }
+        }
+        return undefined
+      }
 
       const now = new Date()
       const thisWeekStart = getWeekStart(now)
@@ -105,6 +124,7 @@ export function useInsights() {
         const data = recent.map((e) => ({
           date: new Date(e.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
           value: e.value,
+          bodyweightKg: nearestBodyweightAt(e.date),
         }))
 
         const firstHalf = recent.slice(0, Math.ceil(recent.length / 2))
