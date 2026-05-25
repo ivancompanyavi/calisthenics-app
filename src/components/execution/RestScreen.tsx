@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatTime } from '@/lib/utils'
 import { SkipForward } from 'lucide-react'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
-import type { ResolvedEntry } from '@/lib/execution-engine'
+import { ExerciseDetailDialog } from '@/components/workouts/ExerciseDetailDialog'
+import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 import { useWeightUnit } from '@/hooks/useSettings'
 import { formatWeight } from '@/lib/units'
 import type { WeightUnit } from '@/models/types'
@@ -11,6 +13,11 @@ interface RestScreenProps {
   remaining: number
   total: number
   nextEntry?: ResolvedEntry | null
+  // The block the next entry belongs to, plus its 0-based index in the
+  // workout. Both feed the ExerciseDetailDialog opened from the "Up next"
+  // card so the modal can show the rounds/rest/position context.
+  nextBlock?: ResolvedBlock | null
+  nextBlockIndex?: number | null
   onSkip: () => void
 }
 
@@ -29,11 +36,22 @@ function formatTarget(entry: ResolvedEntry, unit: WeightUnit): string {
   return parts.join(' · ')
 }
 
-export function RestScreen({ remaining, total, nextEntry, onSkip }: RestScreenProps) {
+export function RestScreen({
+  remaining,
+  total,
+  nextEntry,
+  nextBlock,
+  nextBlockIndex,
+  onSkip,
+}: RestScreenProps) {
   const elapsed = total - remaining
   const unit = useWeightUnit()
   const circumference = 2 * Math.PI * 72
   const strokeDashoffset = circumference * (1 - elapsed / total)
+  const [detailOpen, setDetailOpen] = useState(false)
+  // Dialog needs both entry + block to render the block-context strip. If the
+  // block is missing (legacy callers, edge cases) we just don't expose tap.
+  const canShowDetail = !!nextEntry && !!nextBlock
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6">
@@ -71,7 +89,12 @@ export function RestScreen({ remaining, total, nextEntry, onSkip }: RestScreenPr
       </div>
 
       {nextEntry && (
-        <div className="w-full max-w-sm rounded-xl border border-border bg-card/50 p-3">
+        <button
+          type="button"
+          onClick={() => canShowDetail && setDetailOpen(true)}
+          disabled={!canShowDetail}
+          className="w-full max-w-sm rounded-xl border border-border bg-card/50 p-3 text-left transition-colors enabled:hover:bg-card disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+        >
           <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
             Up next
           </p>
@@ -87,13 +110,21 @@ export function RestScreen({ remaining, total, nextEntry, onSkip }: RestScreenPr
               <p className="text-sm text-muted-foreground">{formatTarget(nextEntry, unit)}</p>
             </div>
           </div>
-        </div>
+        </button>
       )}
 
       <Button variant="outline" size="lg" onClick={onSkip}>
         <SkipForward className="h-5 w-5 mr-2" />
         Skip Rest
       </Button>
+
+      <ExerciseDetailDialog
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        entry={nextEntry ?? null}
+        block={nextBlock ?? null}
+        blockIndex={nextBlockIndex ?? null}
+      />
     </div>
   )
 }

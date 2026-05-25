@@ -109,7 +109,11 @@ export function WorkoutExecution() {
       await markSlotDone.mutateAsync({ slotIndex: activeProgramDayIndex, workoutLogId: logId })
     }
     await inProgressRepository.clear()
-    queryClient.invalidateQueries({ queryKey: queryKeys.inProgress })
+    // removeQueries (not invalidate): an invalidated cache still returns the
+    // stale value to the next observer while a refetch races in. Home would
+    // briefly render the InProgressCard for the workout we just finished.
+    // removeQueries forces the next observer to fetch from scratch.
+    queryClient.removeQueries({ queryKey: queryKeys.inProgress })
     navigate('/')
   }
 
@@ -129,7 +133,11 @@ export function WorkoutExecution() {
       destructive: true,
     }))) return
     await inProgressRepository.clear()
-    queryClient.invalidateQueries({ queryKey: queryKeys.inProgress })
+    // removeQueries (not invalidate): an invalidated cache still returns the
+    // stale value to the next observer while a refetch races in. Home would
+    // briefly render the InProgressCard for the workout we just finished.
+    // removeQueries forces the next observer to fetch from scratch.
+    queryClient.removeQueries({ queryKey: queryKeys.inProgress })
     navigate('/')
   }
 
@@ -249,6 +257,8 @@ export function WorkoutExecution() {
             remaining={state.restRemaining}
             total={state.restTotal}
             nextEntry={currentEntry}
+            nextBlock={state.blocks[state.currentBlockIndex] ?? null}
+            nextBlockIndex={state.currentBlockIndex}
             onSkip={() => dispatch({ type: 'SKIP_REST', now: Date.now() })}
           />
         )}
