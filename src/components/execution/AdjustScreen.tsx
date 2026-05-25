@@ -36,6 +36,14 @@ const RIR_OPTIONS: number[] = [0, 1, 2, 3, 4]
 export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, adjustRir, adjustWeightKg, adjustBandLevel, onSetReps, onSetSeconds, onSetNotes, onSetRir, onSetWeightKg, onSetBandLevel, onConfirm }: AdjustScreenProps) {
   const sideLabel = entry.perSide ? ' /side' : ''
   const [showNotes, setShowNotes] = useState(!!adjustNotes)
+  // Tap-to-edit state for the seconds display (max / time mode adjust).
+  const [editingSeconds, setEditingSeconds] = useState(false)
+  const [secondsDraft, setSecondsDraft] = useState('')
+  const commitSecondsDraft = () => {
+    const num = parseInt(secondsDraft, 10)
+    if (Number.isFinite(num) && num >= 0) onSetSeconds(num)
+    setEditingSeconds(false)
+  }
   // Hold/max-mode sets don't get an RIR — RIR is a reps concept. Skip rendering.
   const showRir = entry.mode === 'reps'
   const unit = useWeightUnit()
@@ -257,20 +265,46 @@ export function AdjustScreen({ entry, adjustReps, adjustSeconds, adjustNotes, ad
           variant="outline"
           size="icon"
           className="h-14 w-14 rounded-full"
-          onClick={() => onSetSeconds(Math.max(0, adjustSeconds - 5))}
+          onClick={() => onSetSeconds(Math.max(0, adjustSeconds - 1))}
         >
           <Minus className="h-6 w-6" />
         </Button>
 
-        <span className="text-5xl font-bold font-mono tabular-nums min-w-[100px] text-center">
-          {adjustSeconds}s
-        </span>
+        {editingSeconds ? (
+          <Input
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min={0}
+            value={secondsDraft}
+            onChange={(e) => setSecondsDraft(e.target.value)}
+            onBlur={commitSecondsDraft}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitSecondsDraft()
+              if (e.key === 'Escape') setEditingSeconds(false)
+            }}
+            autoFocus
+            className="w-32 h-16 text-center text-5xl font-bold font-mono tabular-nums"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setSecondsDraft(String(adjustSeconds))
+              setEditingSeconds(true)
+            }}
+            className="text-5xl font-bold font-mono tabular-nums min-w-[100px] text-center hover:opacity-70 transition-opacity"
+            aria-label="Edit hold time"
+          >
+            {adjustSeconds}s
+          </button>
+        )}
 
         <Button
           variant="outline"
           size="icon"
           className="h-14 w-14 rounded-full"
-          onClick={() => onSetSeconds(adjustSeconds + 5)}
+          onClick={() => onSetSeconds(adjustSeconds + 1)}
         >
           <Plus className="h-6 w-6" />
         </Button>
