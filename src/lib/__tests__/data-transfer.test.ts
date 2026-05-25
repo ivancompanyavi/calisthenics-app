@@ -93,6 +93,35 @@ describe('data-transfer', () => {
       }
     })
 
+    it('round-trips bodyweight + goals rows', async () => {
+      await db.bodyweightLogs.add({ id: 'bw1', date: 1_700_000_000_000, kg: 75.5 })
+      await db.bodyweightLogs.add({ id: 'bw2', date: 1_700_604_800_000, kg: 75.3, notes: 'morning' })
+      await db.goals.add({ id: 'g1', movementId: 'm1', targetReps: 10, createdAt: 1_700_000_000_000 })
+
+      const json = await exportAllData()
+      await clearAllTables()
+      await importAllData(json)
+
+      expect(await db.bodyweightLogs.count()).toBe(2)
+      expect((await db.bodyweightLogs.get('bw1'))?.kg).toBe(75.5)
+      expect((await db.bodyweightLogs.get('bw2'))?.notes).toBe('morning')
+      expect(await db.goals.count()).toBe(1)
+      expect((await db.goals.get('g1'))?.targetReps).toBe(10)
+    })
+
+    it('imports older v3 backups without bodyweight/goals (treated as empty)', async () => {
+      const payload = JSON.stringify({
+        version: 3,
+        movements: [{ id: 'm1', name: 'Push-Up', createdAt: 0 }],
+        progressions: [], progressionLevels: [], workouts: [], workoutBlocks: [],
+        blockEntries: [], workoutLogs: [], setLogs: [],
+      })
+      await importAllData(payload)
+      expect(await db.movements.count()).toBe(1)
+      expect(await db.bodyweightLogs.count()).toBe(0)
+      expect(await db.goals.count()).toBe(0)
+    })
+
     it('round-trips a photo Blob via base64 encoding', async () => {
       const photoBytes = new Uint8Array([1, 2, 3, 4, 5, 0xff, 0xfe])
       const photo = new Blob([photoBytes], { type: 'image/webp' })

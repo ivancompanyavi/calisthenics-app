@@ -2,6 +2,8 @@ import { db } from '@/db'
 import type {
   ActiveProgram,
   BlockEntry,
+  BodyweightLog,
+  Goal,
   Movement,
   Program,
   ProgramDay,
@@ -13,8 +15,10 @@ import type {
   WorkoutLog,
 } from '@/models/types'
 
-const EXPORT_VERSION = 3
-const SUPPORTED_IMPORT_VERSIONS = [2, 3]
+const EXPORT_VERSION = 4
+// v4 adds bodyweightLogs + goals. Older v2/v3 files import cleanly because
+// both new tables are treated as optional (default to [] when absent).
+const SUPPORTED_IMPORT_VERSIONS = [2, 3, 4]
 
 // ───────────────── Photo encoding ─────────────────
 
@@ -52,6 +56,8 @@ export async function exportAllData(): Promise<string> {
     programs,
     programDays,
     activePrograms,
+    bodyweightLogs,
+    goals,
   ] = await Promise.all([
     db.movements.toArray(),
     db.progressions.toArray(),
@@ -64,6 +70,8 @@ export async function exportAllData(): Promise<string> {
     db.programs.toArray(),
     db.programDays.toArray(),
     db.activePrograms.toArray(),
+    db.bodyweightLogs.toArray(),
+    db.goals.toArray(),
   ])
 
   // Inline photo Blobs as base64 so a JSON export is fully self-contained.
@@ -96,6 +104,8 @@ export async function exportAllData(): Promise<string> {
     programs,
     programDays,
     activePrograms,
+    bodyweightLogs,
+    goals,
   }
 
   return JSON.stringify(data, null, 2)
@@ -124,7 +134,13 @@ const REQUIRED_TABLES = [
   'setLogs',
 ] as const
 
-const OPTIONAL_TABLES = ['programs', 'programDays', 'activePrograms'] as const
+const OPTIONAL_TABLES = [
+  'programs',
+  'programDays',
+  'activePrograms',
+  'bodyweightLogs',
+  'goals',
+] as const
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -157,6 +173,8 @@ interface ValidatedImport {
   programs: Record<string, unknown>[]
   programDays: Record<string, unknown>[]
   activePrograms: Record<string, unknown>[]
+  bodyweightLogs: Record<string, unknown>[]
+  goals: Record<string, unknown>[]
 }
 
 function validateImport(parsed: unknown): ValidatedImport {
@@ -237,6 +255,7 @@ export async function importAllData(json: string): Promise<void> {
     [
       db.movements, db.progressions, db.progressionLevels, db.workouts, db.workoutBlocks,
       db.blockEntries, db.workoutLogs, db.setLogs, db.programs, db.programDays, db.activePrograms,
+      db.bodyweightLogs, db.goals,
     ],
     async () => {
       await db.movements.clear()
@@ -250,6 +269,8 @@ export async function importAllData(json: string): Promise<void> {
       await db.programs.clear()
       await db.programDays.clear()
       await db.activePrograms.clear()
+      await db.bodyweightLogs.clear()
+      await db.goals.clear()
 
       // Casts: validateImport guarantees each row is an object with a string
       // id; per-table schema details are trusted to match because the file
@@ -265,6 +286,8 @@ export async function importAllData(json: string): Promise<void> {
       if (data.programs.length > 0) await db.programs.bulkAdd(data.programs as unknown as Program[])
       if (data.programDays.length > 0) await db.programDays.bulkAdd(data.programDays as unknown as ProgramDay[])
       if (data.activePrograms.length > 0) await db.activePrograms.bulkAdd(data.activePrograms as unknown as ActiveProgram[])
+      if (data.bodyweightLogs.length > 0) await db.bodyweightLogs.bulkAdd(data.bodyweightLogs as unknown as BodyweightLog[])
+      if (data.goals.length > 0) await db.goals.bulkAdd(data.goals as unknown as Goal[])
     },
   )
 }
