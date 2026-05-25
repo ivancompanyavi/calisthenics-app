@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { useBodyweightLogs, useDeleteBodyweight } from '@/hooks/useBodyweight'
 import { useWeightUnit } from '@/hooks/useSettings'
 import { formatWeight, fromKg } from '@/lib/units'
+import { analyzeBodyweightTrend } from '@/lib/bodyweight-trend'
+import { BodyweightAnnotation } from '@/components/bodyweight/BodyweightAnnotation'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -48,6 +50,16 @@ export function BodyweightHistory() {
         ) : (
           <>
             <SparklineCard logs={logs} unit={unit} />
+
+            {(() => {
+              const annotation = analyzeBodyweightTrend(logs)
+              if (!annotation) return null
+              return (
+                <Card className="p-3">
+                  <BodyweightAnnotation annotation={annotation} />
+                </Card>
+              )
+            })()}
 
             <section>
               <h3 className="text-sm font-semibold mb-2">

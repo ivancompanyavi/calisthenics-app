@@ -4,9 +4,11 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Scale, Check, X, ChevronRight } from 'lucide-react'
-import { useMostRecentBodyweight, useLogBodyweight } from '@/hooks/useBodyweight'
+import { useMostRecentBodyweight, useLogBodyweight, useBodyweightLogs } from '@/hooks/useBodyweight'
 import { useWeightUnit } from '@/hooks/useSettings'
 import { fromKg, toKg, formatWeight } from '@/lib/units'
+import { analyzeBodyweightTrend } from '@/lib/bodyweight-trend'
+import { BodyweightAnnotation } from '@/components/bodyweight/BodyweightAnnotation'
 
 // Saturday weigh-in card. The program prescribes weekly weigh-ins to decode
 // pull-up regressions (mass-vs-recovery-vs-programming). Surfaces:
@@ -16,10 +18,12 @@ import { fromKg, toKg, formatWeight } from '@/lib/units'
 //   - a one-tap inline input to log a new value
 export function BodyweightCard() {
   const { data: recent } = useMostRecentBodyweight()
+  const { data: allLogs } = useBodyweightLogs()
   const logBw = useLogBodyweight()
   const unit = useWeightUnit()
   const [draft, setDraft] = useState('')
   const [editing, setEditing] = useState(false)
+  const annotation = analyzeBodyweightTrend(allLogs ?? [])
 
   // Snapshot "now" once per mount. A Home view rarely lives long enough for
   // the prompt to need re-evaluation (e.g., crossing midnight), and re-running
@@ -108,6 +112,11 @@ export function BodyweightCard() {
                       {formatRelative(recent.date, now)}
                     </span>
                   </p>
+                  {annotation && !shouldPrompt && (
+                    <div className="mt-0.5">
+                      <BodyweightAnnotation annotation={annotation} small />
+                    </div>
+                  )}
                   {shouldPrompt && (
                     <p className="text-xs text-amber-500 mt-0.5">
                       {todayIsLogDay ? "Saturday weigh-in" : "Weekly weigh-in overdue"} — tap to log
