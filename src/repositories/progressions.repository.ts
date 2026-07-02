@@ -147,6 +147,14 @@ export const progressionsRepository = {
     await db.progressions.update(id, { currentLevel })
   },
 
+  /**
+   * Decrement currentLevel by 1, flooring at 0 (never goes below the first rung).
+   */
+  decrementCurrentLevel: async (id: string, currentLevel: number): Promise<void> => {
+    const newLevel = Math.max(0, currentLevel - 1)
+    await db.progressions.update(id, { currentLevel: newLevel })
+  },
+
   // Returns the progressions where the user just hit every target in the
   // current workout AND hit every target in the most recent PRIOR workout
   // that touched that movement.

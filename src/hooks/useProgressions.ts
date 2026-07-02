@@ -109,6 +109,26 @@ export function useProgressionVerdicts() {
 }
 
 /**
+ * Decrement currentLevel by 1, flooring at 0.
+ * Used by the regressing and stuck cards to drop a rung.
+ * Also clears snooze state so the new rung starts fresh.
+ */
+export function useDecrementCurrentLevel() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, currentLevel }: { id: string; currentLevel: number }) => {
+      await progressionsRepository.decrementCurrentLevel(id, currentLevel)
+      await progressionsRepository.clearDismissal(id)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.diagnostics })
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.verdicts })
+    },
+  })
+}
+
+/**
  * Dismiss (snooze) the ready-to-advance card for a progression.
  * Re-surfaces automatically after the next qualifying session.
  */
