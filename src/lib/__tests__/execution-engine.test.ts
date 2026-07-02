@@ -642,3 +642,161 @@ describe('computeProgress', () => {
     expect(computeProgress(3, 12, 2)).toBeCloseTo(0.3)
   })
 })
+
+describe('REORDER_BLOCK_ENTRIES', () => {
+  const entryA = makeEntry({ movementId: 'mov-a', movementName: 'Pull Up' })
+  const entryB = makeEntry({ movementId: 'mov-b', movementName: 'Dip' })
+  const entryC = makeEntry({ movementId: 'mov-c', movementName: 'Row' })
+
+  function makeReadyState(entries: ReturnType<typeof makeEntry>[]) {
+    return makeInitializedState({
+      phase: 'ready',
+      blocks: [makeBlock({ type: 'superset', entries })],
+    })
+  }
+
+  it('moves entry down one position', () => {
+    const state = makeReadyState([entryA, entryB, entryC])
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 0,
+      toIndex: 1,
+    })
+    expect(result.blocks[0].entries.map((e) => e.movementName)).toEqual([
+      'Dip', 'Pull Up', 'Row',
+    ])
+  })
+
+  it('moves entry up one position', () => {
+    const state = makeReadyState([entryA, entryB, entryC])
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 2,
+      toIndex: 1,
+    })
+    expect(result.blocks[0].entries.map((e) => e.movementName)).toEqual([
+      'Pull Up', 'Row', 'Dip',
+    ])
+  })
+
+  it('moves entry from last to first', () => {
+    const state = makeReadyState([entryA, entryB, entryC])
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 2,
+      toIndex: 0,
+    })
+    expect(result.blocks[0].entries.map((e) => e.movementName)).toEqual([
+      'Row', 'Pull Up', 'Dip',
+    ])
+  })
+
+  it('is a no-op when fromIndex === toIndex', () => {
+    const state = makeReadyState([entryA, entryB, entryC])
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 1,
+      toIndex: 1,
+    })
+    expect(result).toBe(state)
+  })
+
+  it('is a no-op when phase is not ready (workout already started)', () => {
+    const state = makeInitializedState({
+      phase: 'exercise',
+      blocks: [makeBlock({ type: 'superset', entries: [entryA, entryB] })],
+    })
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 0,
+      toIndex: 1,
+    })
+    expect(result).toBe(state)
+  })
+
+  it('is a no-op for an out-of-range blockIndex', () => {
+    const state = makeReadyState([entryA, entryB])
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 5,
+      fromIndex: 0,
+      toIndex: 1,
+    })
+    expect(result).toBe(state)
+  })
+
+  it('is a no-op for an out-of-range fromIndex', () => {
+    const state = makeReadyState([entryA, entryB])
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 5,
+      toIndex: 1,
+    })
+    expect(result).toBe(state)
+  })
+
+  it('does not mutate the original blocks array', () => {
+    const entries = [entryA, entryB, entryC]
+    const state = makeReadyState(entries)
+    const originalEntries = [...state.blocks[0].entries]
+    executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 0,
+      toIndex: 2,
+    })
+    // The original state's block entries must be unchanged
+    expect(state.blocks[0].entries).toEqual(originalEntries)
+  })
+
+  it('only affects the targeted block; other blocks remain unchanged', () => {
+    const block0 = makeBlock({ type: 'superset', entries: [entryA, entryB] })
+    const block1 = makeBlock({ entries: [entryC] })
+    const state = makeInitializedState({
+      phase: 'ready',
+      blocks: [block0, block1],
+    })
+    const result = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 0,
+      toIndex: 1,
+    })
+    expect(result.blocks[1]).toBe(block1)
+  })
+
+  it('canonical workout blocks are untouched after reorder', () => {
+    // The INIT payload carries the canonical resolved blocks. After a reorder,
+    // re-initialising from the same payload must produce the original order.
+    const state = makeReadyState([entryA, entryB, entryC])
+    const afterReorder = executionReducer(state, {
+      type: 'REORDER_BLOCK_ENTRIES',
+      blockIndex: 0,
+      fromIndex: 0,
+      toIndex: 2,
+    })
+    // Re-init with the original blocks — simulates starting a fresh run
+    const reInit = executionReducer(afterReorder, {
+      type: 'INIT',
+      payload: {
+        workoutId: 'w-1',
+        workoutName: 'Test Workout',
+        blocks: [makeBlock({ type: 'superset', entries: [entryA, entryB, entryC] })],
+        startedAt: T0,
+        currentBlockIndex: 0,
+        currentRound: 0,
+        currentEntryIndex: 0,
+        completedSets: [],
+      },
+    })
+    expect(reInit.blocks[0].entries.map((e) => e.movementName)).toEqual([
+      'Pull Up', 'Dip', 'Row',
+    ])
+  })
+})
