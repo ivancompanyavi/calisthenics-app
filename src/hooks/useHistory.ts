@@ -26,6 +26,14 @@ export function useSetLogs(workoutLogId: string | undefined) {
   })
 }
 
+export function useAllSetLogs(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.workoutLogs.allSets,
+    queryFn: () => workoutLogsRepository.getAllSetLogs(),
+    enabled,
+  })
+}
+
 export function useDeleteWorkoutLog() {
   const qc = useQueryClient()
   return useMutation({
