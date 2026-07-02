@@ -251,6 +251,9 @@ function buildProgressionLevels(
       defaultTargetReps: lvl.defaultTargetReps,
       defaultTargetSeconds: lvl.defaultTargetSeconds,
       perSide: lvl.perSide,
+      // exitCriteria is non-indexed — no Dexie schema version bump needed.
+      // Absent from seed defs until issue #8 populates real values.
+      ...(lvl.exitCriteria !== undefined ? { exitCriteria: lvl.exitCriteria } : {}),
     });
   }
   return levels;

@@ -1,4 +1,4 @@
-import type { MovementFamily, PrepTag, SetMode, TempoSpec, GateSpec } from "@/models/types";
+import type { ExitCriteria, MovementFamily, PrepTag, SetMode, TempoSpec, GateSpec } from "@/models/types";
 
 export interface SeedMovement {
   name: string;
@@ -21,6 +21,10 @@ export interface SeedLevelDef {
   defaultTargetReps?: number;
   defaultTargetSeconds?: number;
   perSide?: boolean;
+  // When set, this level's exit criteria override the global fallback. Absent
+  // = use the global fallback (3 consecutive qualifying sessions). Do NOT add
+  // real values here until issue #8 (HITL content pass) is complete.
+  exitCriteria?: ExitCriteria;
 }
 
 export interface SeedProgression {
