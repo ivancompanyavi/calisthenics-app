@@ -59,10 +59,10 @@ const TEMPLATE_TRIGGERS: Record<string, Trigger[]> = {
     { kind: 'prepTag', tag: 'overhead' },
   ],
   legs: [{ kind: 'family', family: 'legs' }],
-  core: [
-    { kind: 'family', family: 'core' },
-    { kind: 'prepTag', tag: 'scap-pull' }, // lever work → core activation
-  ],
+  // Core prep fires only when the session actually contains a core movement.
+  // (An earlier scap-pull trigger over-fired on ordinary pull days — every
+  // scapular-pull movement carries the scap-pull prep tag — so it's removed.)
+  core: [{ kind: 'family', family: 'core' }],
 }
 
 // ── Core logic ────────────────────────────────────────────────────────────────
@@ -103,11 +103,16 @@ export function getTriggeredTemplateLabels(
  *
  * @param movements   Resolved movements for today's session (family + prepTags).
  * @param movementMap Map of movement name → {id, seedImagePath, …} for lookup.
+ * @param sessionMovementIds Movement ids already in the main session. A warm-up
+ *   exercise resolving to one of these is dropped — prepping a movement the
+ *   session already trains is redundant (e.g. Scapular Pulls / Hollow Body Hold
+ *   appearing as warm-up for a pull day that already contains them).
  * @returns           A warm-up ResolvedBlock, or null when nothing is triggered.
  */
 export function buildWarmupBlock(
   movements: WarmupMovementInput[],
   movementMap: Map<string, WarmupMovementRecord>,
+  sessionMovementIds: Set<string> = new Set(),
 ): ResolvedBlock | null {
   const triggeredLabels = getTriggeredTemplateLabels(movements)
   if (triggeredLabels.length === 0) return null
@@ -121,6 +126,7 @@ export function buildWarmupBlock(
     for (const ex of template.exercises) {
       const record = movementMap.get(ex.movement)
       if (!record) continue // movement not yet seeded — skip gracefully
+      if (sessionMovementIds.has(record.id)) continue // already in the session — don't duplicate
 
       const entry: ResolvedEntry = {
         movementId: record.id,

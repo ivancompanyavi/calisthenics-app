@@ -94,10 +94,13 @@ describe('getTriggeredTemplateLabels', () => {
     expect(labels).toContain('core')
   })
 
-  it('triggers core template for scap-pull tag (lever work)', () => {
+  it('does NOT trigger core from a scap-pull tag alone (only a core-family movement does)', () => {
+    // The scap-pull prep tag is on ordinary scapular-pull movements, so an
+    // earlier scap-pull→core trigger over-fired hollow-body work on plain pull
+    // days. Core now requires an actual core-family movement.
     const mv = makeMovement({ family: 'push', prepTags: ['scap-pull'] })
     const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('core')
+    expect(labels).not.toContain('core')
   })
 
   it('deduplicates: two movements with the same family trigger a template only once', () => {
@@ -147,6 +150,31 @@ describe('buildWarmupBlock', () => {
   it('returns null for an empty movements array', () => {
     const map = makeFullMovementMap()
     const block = buildWarmupBlock([], map)
+    expect(block).toBeNull()
+  })
+
+  it('drops warm-up exercises already in the session (no duplication)', () => {
+    // A pull movement fires the scap-pull template (Scapular Pulls + Dead Hang).
+    const mv = makeMovement({ family: 'pull', prepTags: ['scap-pull'] })
+    const map = makeFullMovementMap()
+    const scapularPullsId = map.get('Scapular Pulls')!.id
+
+    // Without dedup: Scapular Pulls is present.
+    const withDup = buildWarmupBlock([mv], map)
+    expect(withDup?.entries.some((e) => e.movementId === scapularPullsId)).toBe(true)
+
+    // With Scapular Pulls already in the session: it must be excluded, but the
+    // non-duplicate Dead Hang stays.
+    const deduped = buildWarmupBlock([mv], map, new Set([scapularPullsId]))
+    expect(deduped?.entries.some((e) => e.movementId === scapularPullsId)).toBe(false)
+    expect(deduped?.entries.some((e) => e.movementName === 'Dead Hang')).toBe(true)
+  })
+
+  it('returns null when every triggered warm-up exercise is already in the session', () => {
+    const mv = makeMovement({ family: 'core', prepTags: [] }) // fires core → Hollow Body Hold
+    const map = makeFullMovementMap()
+    const hollowId = map.get('Hollow Body Hold')!.id
+    const block = buildWarmupBlock([mv], map, new Set([hollowId]))
     expect(block).toBeNull()
   })
 

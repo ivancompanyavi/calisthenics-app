@@ -174,7 +174,13 @@ export function WorkoutExecution() {
           allMovements.map((m) => [m.name, { id: m.id, name: m.name, seedImagePath: m.seedImagePath }]),
         )
 
-        const builtWarmupBlock = buildWarmupBlock(movementInputs, movementNameMap)
+        // Movements already in the session — the warm-up must not duplicate them.
+        const sessionMovementIds = new Set(movementInputs.map((m) => m.movementId))
+        const builtWarmupBlock = buildWarmupBlock(
+          movementInputs,
+          movementNameMap,
+          sessionMovementIds,
+        )
         setWarmupBlock(builtWarmupBlock)
 
         // Prepend warm-up block if enabled and present.
