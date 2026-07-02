@@ -241,6 +241,11 @@ export function computeReadinessVerdict(input: ReadinessInput): ReadinessVerdict
   if (sessionHistory.length >= 3) {
     const recent = sessionHistory.slice(-3)
     if (recent.every(isSessionRegressing)) {
+      // Snooze gating for regressing: re-surface after a new session at the rung.
+      // We store sessionsAtRung (not qualifyingSessionCount) in dismissedAtSessionCount
+      // so the card wakes up as soon as sessionsAtRung increments past the stored value.
+      const regressingSnoozed =
+        dismissedAtSessionCount != null && sessionsAtRung <= dismissedAtSessionCount
       return {
         kind: 'regressing',
         evidence: '3 consecutive sessions below target at failure',
@@ -249,7 +254,7 @@ export function computeReadinessVerdict(input: ReadinessInput): ReadinessVerdict
         sessionsAtRung,
         daysAtRung,
         qualifyingSessionCount,
-        snoozed: false,
+        snoozed: regressingSnoozed,
       }
     }
   }

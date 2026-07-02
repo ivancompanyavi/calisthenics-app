@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   useProgressions,
   useDeleteProgression,
-  useProgressionDiagnostics,
   useProgressionVerdicts,
 } from '@/hooks/useProgressions'
 import { Button } from '@/components/ui/button'
@@ -13,12 +12,13 @@ import { useConfirm } from '@/components/ui/confirm-context'
 import { ProgressionForm } from './ProgressionForm'
 import { ProgressionDetail } from './ProgressionDetail'
 import { AdvanceSuggestionCard } from './AdvanceSuggestionCard'
-import { Plus, Pencil, Trash2, ChevronRight, Clock } from 'lucide-react'
+import { RegressingSuggestionCard } from './RegressingSuggestionCard'
+import { StuckActionCard } from './StuckActionCard'
+import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import type { Progression } from '@/models/types'
 
 export function ProgressionsList() {
   const { data: progressions, isLoading } = useProgressions()
-  const { data: diagnostics } = useProgressionDiagnostics()
   const { data: verdicts } = useProgressionVerdicts()
   const deleteProgression = useDeleteProgression()
   const confirm = useConfirm()
@@ -57,10 +57,13 @@ export function ProgressionsList() {
       )}
 
       {filtered?.map((progression) => {
-        const diag = diagnostics?.get(progression.id)
         const verdict = verdicts?.get(progression.id)
         const showAdvanceCard =
           verdict?.kind === 'ready-to-advance' && !verdict.snoozed
+        const showRegressingCard =
+          verdict?.kind === 'regressing' && !verdict.snoozed
+        const showStuckCard =
+          verdict?.kind === 'stuck'
         return (
           <div key={progression.id} className="space-y-2">
             <Card className="p-3">
@@ -73,12 +76,6 @@ export function ProgressionsList() {
                   <p className="text-xs text-muted-foreground">
                     Level {progression.currentLevel + 1} / {progression.levelCount}
                   </p>
-                  {diag?.stuck && !showAdvanceCard && (
-                    <p className="text-[11px] mt-1 inline-flex items-center gap-1 text-amber-500">
-                      <Clock className="h-3 w-3" />
-                      Stuck — {diag.sessionsAtRung} sessions / {diag.daysAtRung}d at this rung
-                    </p>
-                  )}
                 </button>
                 <div className="flex gap-1 items-center">
                   <Button
@@ -115,6 +112,16 @@ export function ProgressionsList() {
 
             {showAdvanceCard && verdict && (
               <AdvanceSuggestionCard progression={progression} verdict={verdict} />
+            )}
+            {showRegressingCard && verdict && (
+              <RegressingSuggestionCard progression={progression} verdict={verdict} />
+            )}
+            {showStuckCard && verdict && (
+              <StuckActionCard
+                progression={progression}
+                verdict={verdict}
+                onSwapVariant={() => setEditingProgression(progression)}
+              />
             )}
           </div>
         )

@@ -279,3 +279,32 @@ describe('progressionsRepository.getDiagnostics', () => {
     expect(diag.get('p1')?.sessionsAtRung).toBe(0)
   })
 })
+
+// ── decrementCurrentLevel ──────────────────────────────────────────────────────
+
+describe('progressionsRepository.decrementCurrentLevel', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+  })
+
+  it('decrements currentLevel by 1', async () => {
+    await db.progressions.add(makeProgression('p1', 'Prog', 2))
+    await progressionsRepository.decrementCurrentLevel('p1', 2)
+    const updated = await db.progressions.get('p1')
+    expect(updated?.currentLevel).toBe(1)
+  })
+
+  it('floors at 0 — does not go below the first rung', async () => {
+    await db.progressions.add(makeProgression('p1', 'Prog', 0))
+    await progressionsRepository.decrementCurrentLevel('p1', 0)
+    const updated = await db.progressions.get('p1')
+    expect(updated?.currentLevel).toBe(0)
+  })
+
+  it('decrements from level 1 to level 0', async () => {
+    await db.progressions.add(makeProgression('p1', 'Prog', 1))
+    await progressionsRepository.decrementCurrentLevel('p1', 1)
+    const updated = await db.progressions.get('p1')
+    expect(updated?.currentLevel).toBe(0)
+  })
+})

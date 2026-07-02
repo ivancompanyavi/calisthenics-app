@@ -396,13 +396,39 @@ describe('regressing', () => {
     expect(verdict.kind).not.toBe('regressing')
   })
 
-  it('snoozed is false', () => {
+  it('snoozed is false when dismissedAtSessionCount is absent', () => {
     const verdict = computeReadinessVerdict(
       baseInput({
         sessionHistory: [regressSession(), regressSession(), regressSession()],
         sessionsAtRung: 3,
       }),
     )
+    expect(verdict.snoozed).toBe(false)
+  })
+
+  it('snoozed = true when dismissed and sessionsAtRung has not exceeded stored count', () => {
+    // User dismissed at sessionsAtRung=3; still at 3 → still snoozed.
+    const verdict = computeReadinessVerdict(
+      baseInput({
+        sessionHistory: [regressSession(), regressSession(), regressSession()],
+        sessionsAtRung: 3,
+        dismissedAtSessionCount: 3,
+      }),
+    )
+    expect(verdict.kind).toBe('regressing')
+    expect(verdict.snoozed).toBe(true)
+  })
+
+  it('snoozed = false when a new session has occurred after dismissal', () => {
+    // User dismissed at sessionsAtRung=3; now at 4 (new session) → not snoozed.
+    const verdict = computeReadinessVerdict(
+      baseInput({
+        sessionHistory: [regressSession(), regressSession(), regressSession(), regressSession()],
+        sessionsAtRung: 4,
+        dismissedAtSessionCount: 3,
+      }),
+    )
+    expect(verdict.kind).toBe('regressing')
     expect(verdict.snoozed).toBe(false)
   })
 })
