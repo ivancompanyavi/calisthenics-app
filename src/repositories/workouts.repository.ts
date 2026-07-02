@@ -3,6 +3,7 @@ import type { Movement, Progression, ProgressionLevel, Workout, WorkoutBlock, Bl
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 import { workoutLogsRepository, type RepsSuggestion } from './workout-logs.repository'
 import { generateId } from '@/lib/utils'
+import type { WorkoutEntryGroup } from '@/lib/advance-audit'
 
 interface SaveEntryShared {
   targetReps?: number
@@ -104,6 +105,32 @@ export const workoutsRepository = {
     })
 
     return workoutId
+  },
+
+  /**
+   * Returns every workout paired with its flat list of block entries.
+   * Used by the advance-audit to detect movement-kind entries that directly
+   * reference a movement the user is about to advance a progression into.
+   */
+  getWorkoutEntryGroups: async (): Promise<WorkoutEntryGroup[]> => {
+    const [workouts, blocks, entries] = await Promise.all([
+      db.workouts.toArray(),
+      db.workoutBlocks.toArray(),
+      db.blockEntries.toArray(),
+    ])
+    const blockToWorkoutId = new Map(blocks.map((b) => [b.id, b.workoutId]))
+    const workoutEntryMap = new Map<string, BlockEntry[]>()
+    for (const entry of entries) {
+      const workoutId = blockToWorkoutId.get(entry.blockId)
+      if (!workoutId) continue
+      const arr = workoutEntryMap.get(workoutId) ?? []
+      arr.push(entry)
+      workoutEntryMap.set(workoutId, arr)
+    }
+    return workouts.map((w) => ({
+      workoutName: w.name,
+      entries: workoutEntryMap.get(w.id) ?? [],
+    }))
   },
 
   delete: async (id: string) => {

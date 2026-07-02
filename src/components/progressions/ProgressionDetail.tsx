@@ -1,4 +1,5 @@
 import { useProgression, useProgressionLevels, useUpdateCurrentLevel } from '@/hooks/useProgressions'
+import { useAdvanceWithAudit } from '@/hooks/useAdvanceWithAudit'
 import { DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
@@ -16,13 +17,20 @@ export function ProgressionDetail({ progression: initialProgression, onEdit }: P
   const progression = freshProgression ?? initialProgression
   const { data: levels } = useProgressionLevels(progression.id)
   const updateLevel = useUpdateCurrentLevel()
+  const { advance } = useAdvanceWithAudit()
 
   const currentLevel = progression.currentLevel
   const maxLevel = (levels?.length ?? 1) - 1
 
-  const handleLevelChange = (newLevel: number) => {
+  const handleLevelChange = async (newLevel: number) => {
     if (newLevel < 0 || newLevel > maxLevel) return
-    updateLevel.mutate({ id: progression.id, currentLevel: newLevel })
+    if (newLevel > currentLevel) {
+      // Advancing: run the duplicate-exercise audit before committing.
+      await advance(progression.id, currentLevel, newLevel)
+    } else {
+      // Regressing: no audit needed, commit directly.
+      updateLevel.mutate({ id: progression.id, currentLevel: newLevel })
+    }
   }
 
   const currentMovement = levels?.[currentLevel]?.movement

@@ -7,8 +7,8 @@ import {
   useProgressionReadiness,
   useProgressions,
   useProgressionVerdicts,
-  useUpdateCurrentLevel,
 } from '@/hooks/useProgressions'
+import { useAdvanceWithAudit } from '@/hooks/useAdvanceWithAudit'
 import { useInProgressWorkout } from '@/hooks/useInProgressWorkout'
 import { useMarkSlotDone } from '@/hooks/usePrograms'
 import { useQueryClient } from '@tanstack/react-query'
@@ -41,7 +41,7 @@ export function WorkoutExecution() {
   const confirm = useConfirm()
 
   const { data: inProgress } = useInProgressWorkout()
-  const updateLevel = useUpdateCurrentLevel()
+  const { advance: advanceLevel } = useAdvanceWithAudit()
 
   // activeProgramDayIndex is finalized below once we know the resume record;
   // pass slotFromUrl here so a fresh start gets the slot persisted from the
@@ -159,7 +159,7 @@ export function WorkoutExecution() {
   const handleLevelUp = async (progressionId: string) => {
     const progression = await progressionsRepository.getById(progressionId)
     if (progression) {
-      await updateLevel.mutateAsync({ id: progressionId, currentLevel: progression.currentLevel + 1 })
+      await advanceLevel(progressionId, progression.currentLevel, progression.currentLevel + 1)
     }
   }
 
