@@ -223,6 +223,13 @@ export interface Settings {
   // rest and time-mode exercise countdowns. Defaults to true.
   // Stored as a non-indexed field so no schema-version bump is required.
   soundCues?: boolean
+  // When true, the rest timer freezes at 0:00 and waits for a manual tap
+  // before entering the next exercise. When false (default), rest reaching
+  // zero auto-advances into the next exercise (and arms its timer for
+  // time/max modes) — the original behavior, which also fires the end-of-rest
+  // cue on the resting→exercise transition.
+  // Non-indexed — no Dexie version bump required.
+  waitAfterRest?: boolean
 }
 
 // A self-set training goal pinned to a specific movement. Progress is

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatTime } from '@/lib/utils'
-import { SkipForward } from 'lucide-react'
+import { Minus, Plus, SkipForward } from 'lucide-react'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { ExerciseDetailDialog } from '@/components/workouts/ExerciseDetailDialog'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
@@ -19,6 +19,8 @@ interface RestScreenProps {
   nextBlock?: ResolvedBlock | null
   nextBlockIndex?: number | null
   onSkip: () => void
+  // Called with ±30 (seconds) to bump the current rest duration.
+  onAdjust: (delta: number) => void
 }
 
 function formatTarget(entry: ResolvedEntry, unit: WeightUnit): string {
@@ -43,6 +45,7 @@ export function RestScreen({
   nextBlock,
   nextBlockIndex,
   onSkip,
+  onAdjust,
 }: RestScreenProps) {
   const elapsed = total - remaining
   const unit = useWeightUnit()
@@ -86,6 +89,17 @@ export function RestScreen({
             {formatTime(remaining)}
           </span>
         </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Button variant="outline" size="sm" onClick={() => onAdjust(-30)}>
+          <Minus className="h-4 w-4 mr-1" />
+          30s
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => onAdjust(30)}>
+          <Plus className="h-4 w-4 mr-1" />
+          30s
+        </Button>
       </div>
 
       {nextEntry && (

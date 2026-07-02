@@ -21,6 +21,12 @@ export function Settings() {
     update.mutate({ soundCues: next })
   }
 
+  const waitAfterRest = settings?.waitAfterRest ?? false
+  const setWaitAfterRest = (next: boolean) => {
+    if (next === waitAfterRest) return
+    update.mutate({ waitAfterRest: next })
+  }
+
   return (
     <div>
       <PageHeader title="Settings" />
@@ -60,6 +66,28 @@ export function Settings() {
                 On
               </UnitButton>
               <UnitButton active={!soundCues} onClick={() => setSoundCues(false)}>
+                Off
+              </UnitButton>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold">Wait for tap after rest</h2>
+              <p className="text-xs text-muted-foreground">
+                When on, the rest timer freezes at 0:00 and waits for you to tap
+                before starting the next exercise. When off (default), rest
+                reaching zero automatically moves into the next exercise and
+                starts its timer for time / max&#8209;hold sets.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <UnitButton active={waitAfterRest} onClick={() => setWaitAfterRest(true)}>
+                On
+              </UnitButton>
+              <UnitButton active={!waitAfterRest} onClick={() => setWaitAfterRest(false)}>
                 Off
               </UnitButton>
             </div>

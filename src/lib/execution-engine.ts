@@ -119,8 +119,9 @@ export type Action =
   | { type: 'DELAY_EXERCISE'; now: number }
   | { type: 'SKIP_EXERCISE'; now: number; reason?: string }
   | { type: 'FINISH_WORKOUT' }
-  | { type: 'TICK_REST'; now: number }
+  | { type: 'TICK_REST'; now: number; noAutoStart?: boolean }
   | { type: 'SKIP_REST'; now: number }
+  | { type: 'ADJUST_REST'; delta: number; now: number }
 
 export function getCurrentEntry(state: ExecutionState): ResolvedEntry | null {
   const block = state.blocks[state.currentBlockIndex]
@@ -605,7 +606,10 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
 
     case 'TICK_REST': {
       const endsAt = state.restEndsAt
-      if (endsAt && action.now >= endsAt) {
+      // noAutoStart=true: caller handles the transition (tap-to-continue mode).
+      // noAutoStart=false/undefined (default): auto-transition when timer expires.
+      const noAutoStart = action.noAutoStart ?? false
+      if (!noAutoStart && endsAt && action.now >= endsAt) {
         const entry = getCurrentEntry(state)
         return {
           ...state,
@@ -619,6 +623,28 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         ? Math.max(0, Math.ceil((endsAt - action.now) / 1000))
         : state.restRemaining
       return { ...state, restRemaining: remaining }
+    }
+
+    case 'ADJUST_REST': {
+      if (state.phase !== 'resting') return state
+      const newEndsAt = state.restEndsAt + action.delta * 1000
+      // When a negative delta puts the deadline in the past, end rest immediately.
+      if (newEndsAt <= action.now) {
+        const entry = getCurrentEntry(state)
+        return {
+          ...state,
+          phase: 'exercise',
+          restRemaining: 0,
+          restEndsAt: 0,
+          ...startExerciseFields(entry, action.now),
+        }
+      }
+      const newRemaining = Math.ceil((newEndsAt - action.now) / 1000)
+      return {
+        ...state,
+        restEndsAt: newEndsAt,
+        restRemaining: newRemaining,
+      }
     }
 
     case 'SKIP_REST': {

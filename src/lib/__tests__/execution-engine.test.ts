@@ -418,6 +418,122 @@ describe('executionReducer', () => {
       expect(result.restRemaining).toBe(0)
       expect(result.restEndsAt).toBe(0)
     })
+
+    it('TICK_REST with omitted noAutoStart auto-advances at expiry (default/original behavior)', () => {
+      // Default path: waitAfterRest=false → hook passes noAutoStart undefined/false.
+      // The reducer must auto-transition rest→exercise exactly as it always did,
+      // which is also what fires the merged end-of-rest cue.
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 1,
+        restTotal: 60,
+        restEndsAt: T0 + 1_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 1_500 })
+      expect(result.phase).toBe('exercise')
+      expect(result.restRemaining).toBe(0)
+      expect(result.restEndsAt).toBe(0)
+    })
+
+    it('TICK_REST with noAutoStart=false auto-advances at expiry (explicit default)', () => {
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 1,
+        restTotal: 60,
+        restEndsAt: T0 + 1_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 1_500, noAutoStart: false })
+      expect(result.phase).toBe('exercise')
+      expect(result.restRemaining).toBe(0)
+    })
+
+    it('TICK_REST with noAutoStart=true clamps restRemaining to 0 without transitioning', () => {
+      // Opt-in wait path: freeze at 0:00, stay in resting until a manual tap.
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 1,
+        restTotal: 60,
+        restEndsAt: T0 + 1_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 1_500, noAutoStart: true })
+      expect(result.phase).toBe('resting')
+      expect(result.restRemaining).toBe(0)
+    })
+
+    it('TICK_REST with noAutoStart=true stays at 0 after backgrounding without transitioning', () => {
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 60,
+        restTotal: 60,
+        restEndsAt: T0 + 60_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 75_000, noAutoStart: true })
+      expect(result.phase).toBe('resting')
+      expect(result.restRemaining).toBe(0)
+    })
+  })
+
+  describe('ADJUST_REST', () => {
+    function makeRestingState(restRemaining = 60, restEndsAt = T0 + 60_000) {
+      return makeInitializedState({
+        phase: 'resting',
+        restRemaining,
+        restTotal: 60,
+        restEndsAt,
+      })
+    }
+
+    it('+30s increases restEndsAt and restRemaining', () => {
+      const state = makeRestingState(60, T0 + 60_000)
+      const result = executionReducer(state, { type: 'ADJUST_REST', delta: 30, now: T0 })
+      expect(result.restEndsAt).toBe(T0 + 90_000)
+      expect(result.restRemaining).toBe(90)
+      expect(result.phase).toBe('resting')
+    })
+
+    it('-30s decreases restEndsAt and restRemaining when remaining > 30s', () => {
+      const state = makeRestingState(60, T0 + 60_000)
+      const result = executionReducer(state, { type: 'ADJUST_REST', delta: -30, now: T0 })
+      expect(result.restEndsAt).toBe(T0 + 30_000)
+      expect(result.restRemaining).toBe(30)
+      expect(result.phase).toBe('resting')
+    })
+
+    it('-30s when remaining is 20s clamps to 0 and transitions to exercise immediately', () => {
+      const state = makeRestingState(20, T0 + 20_000)
+      const result = executionReducer(state, { type: 'ADJUST_REST', delta: -30, now: T0 })
+      expect(result.phase).toBe('exercise')
+      expect(result.restRemaining).toBe(0)
+      expect(result.restEndsAt).toBe(0)
+    })
+
+    it('-30s when remaining is exactly 30s clamps to 0 and transitions to exercise', () => {
+      const state = makeRestingState(30, T0 + 30_000)
+      const result = executionReducer(state, { type: 'ADJUST_REST', delta: -30, now: T0 })
+      // newEndsAt = T0 + 30_000 - 30_000 = T0 = now; clamped to 0
+      expect(result.phase).toBe('exercise')
+      expect(result.restRemaining).toBe(0)
+    })
+
+    it('arms exercise timer (time mode) when clamped immediately', () => {
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 5,
+        restTotal: 60,
+        restEndsAt: T0 + 5_000,
+        blocks: [makeBlock({ entries: [makeEntry({ mode: 'time', targetSeconds: 30 })] })],
+      })
+      const result = executionReducer(state, { type: 'ADJUST_REST', delta: -30, now: T0 })
+      expect(result.phase).toBe('exercise')
+      expect(result.exerciseEndsAt).toBe(T0 + 30_000)
+      expect(result.exerciseTimeRemaining).toBe(30)
+    })
+
+    it('is a no-op when not in resting phase', () => {
+      const state = makeInitializedState({ phase: 'exercise' })
+      const result = executionReducer(state, { type: 'ADJUST_REST', delta: 30, now: T0 })
+      expect(result).toBe(state)
+    })
   })
 })
 

@@ -76,6 +76,19 @@ export function useWorkoutExecution(programDayIndex?: number) {
     state.phase === 'exercise' && (state.exerciseTimeRemaining > 0 || currentEntry?.mode === 'max')
   const needsRestTick = state.phase === 'resting' && state.restRemaining > 0
 
+  // ─── Settings ────────────────────────────────────────────────────────────────
+  // Read here (above the tick effect) so the tick closure captures a stable
+  // value from the current render — avoids temporal-dead-zone errors.
+
+  const { data: settings } = useSettings()
+  // Default to enabled while settings load (avoids a silent first workout).
+  const cuesEnabled = settings?.soundCues ?? true
+  // Default false: rest auto-advances at zero (original behavior). Opt-in
+  // true freezes the rest screen at 0:00 until the user taps.
+  const waitAfterRest = settings?.waitAfterRest ?? false
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!needsExerciseTick && !needsRestTick) return
 
@@ -83,7 +96,10 @@ export function useWorkoutExecution(programDayIndex?: number) {
       if (needsExerciseTick) {
         dispatch({ type: 'TICK_EXERCISE', now: Date.now() })
       } else {
-        dispatch({ type: 'TICK_REST', now: Date.now() })
+        // Default (waitAfterRest=false): auto-advance at zero, as the original
+        // reducer did — this also fires the end-of-rest cue on the transition.
+        // Opt-in (waitAfterRest=true): freeze at 0:00 and wait for a tap.
+        dispatch({ type: 'TICK_REST', now: Date.now(), noAutoStart: waitAfterRest })
       }
     }
 
@@ -115,7 +131,7 @@ export function useWorkoutExecution(programDayIndex?: number) {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', tick)
     }
-  }, [needsExerciseTick, needsRestTick])
+  }, [needsExerciseTick, needsRestTick, waitAfterRest])
 
   useEffect(() => {
     if (state.phase === 'ready' || state.phase === 'complete' || !state.workoutId) return
@@ -143,10 +159,6 @@ export function useWorkoutExecution(programDayIndex?: number) {
   }, [state.currentBlockIndex, state.currentRound, state.currentEntryIndex, state.completedSets.length, state.phase, programDayIndex])
 
   // ─── Audio + Haptic Cues ────────────────────────────────────────────────────
-
-  const { data: settings } = useSettings()
-  // Default to enabled while settings load (avoids a silent first workout).
-  const cuesEnabled = settings?.soundCues ?? true
 
   // CuePlayer lives for the lifetime of this hook instance.
   const cuePlayerRef = useRef<CuePlayer | null>(null)
