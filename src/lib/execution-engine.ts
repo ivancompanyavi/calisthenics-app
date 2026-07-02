@@ -67,6 +67,9 @@ export interface ExecutionState {
   adjustNotes: string
   // Optional RIR for this set. `undefined` = user didn't log RIR. 0–4 range.
   adjustRir?: number
+  // Optional SIR for this set. `undefined` = not captured (earlier sets or
+  // reps mode). 0 = nothing left, 1 = ~5s left, 2 = 10s+ left.
+  adjustSir?: 0 | 1 | 2
   // Adjust-phase weight + band level. Pre-filled from entry.targetWeightKg /
   // targetBandLevel on transition into adjust; undefined means the entry has
   // no load prescription (most calisthenics moves).
@@ -109,6 +112,7 @@ export type Action =
   | { type: 'SET_ADJUST_SECONDS'; value: number }
   | { type: 'SET_ADJUST_NOTES'; value: string }
   | { type: 'SET_ADJUST_RIR'; value: number | undefined }
+  | { type: 'SET_ADJUST_SIR'; value: 0 | 1 | 2 | undefined }
   | { type: 'SET_ADJUST_WEIGHT_KG'; value: number | undefined }
   | { type: 'SET_ADJUST_BAND_LEVEL'; value: number | undefined }
   | { type: 'CONFIRM_ADJUST'; now: number }
@@ -179,6 +183,7 @@ export const initialState: ExecutionState = {
   adjustSeconds: 0,
   adjustNotes: '',
   adjustRir: undefined,
+  adjustSir: undefined,
   adjustWeightKg: undefined,
   adjustBandLevel: undefined,
   restRemaining: 0,
@@ -241,6 +246,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         adjustSeconds: 0,
         adjustNotes: '',
         adjustRir: undefined,
+        adjustSir: undefined,
         adjustWeightKg: undefined,
         adjustBandLevel: undefined,
         restRemaining: 0,
@@ -322,6 +328,9 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
 
     case 'SET_ADJUST_RIR':
       return { ...state, adjustRir: action.value }
+
+    case 'SET_ADJUST_SIR':
+      return { ...state, adjustSir: action.value }
 
     case 'SET_ADJUST_WEIGHT_KG':
       return { ...state, adjustWeightKg: action.value }
@@ -516,6 +525,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         round: state.currentRound,
         order: state.completedSets.length,
         rir: state.adjustRir,
+        sir: state.adjustSir,
         targetWeightKg: entry.targetWeightKg,
         actualWeightKg: state.adjustWeightKg,
         targetBandLevel: entry.targetBandLevel,
@@ -548,6 +558,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
             skippedEntries: newSkipped,
             adjustNotes: '',
             adjustRir: undefined,
+            adjustSir: undefined,
             adjustWeightKg: undefined,
             adjustBandLevel: undefined,
             ...startRestFields(restDuration, action.now),
@@ -565,6 +576,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
           skippedEntries: newSkipped,
           adjustNotes: '',
           adjustRir: undefined,
+          adjustSir: undefined,
           adjustWeightKg: undefined,
           adjustBandLevel: undefined,
           currentBlockIndex: next.blockIndex,
@@ -583,6 +595,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         skippedEntries: newSkipped,
         adjustNotes: '',
         adjustRir: undefined,
+        adjustSir: undefined,
         adjustWeightKg: undefined,
         adjustBandLevel: undefined,
         currentEntryIndex: nextEntryIndex,

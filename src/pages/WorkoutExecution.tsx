@@ -240,12 +240,15 @@ export function WorkoutExecution() {
             adjustSeconds={state.adjustSeconds}
             adjustNotes={state.adjustNotes}
             adjustRir={state.adjustRir}
+            adjustSir={state.adjustSir}
             adjustWeightKg={state.adjustWeightKg}
             adjustBandLevel={state.adjustBandLevel}
+            isLastRound={state.currentRound === (currentBlock?.rounds ?? 1) - 1}
             onSetReps={(v) => dispatch({ type: 'SET_ADJUST_REPS', value: v })}
             onSetSeconds={(v) => dispatch({ type: 'SET_ADJUST_SECONDS', value: v })}
             onSetNotes={(v) => dispatch({ type: 'SET_ADJUST_NOTES', value: v })}
             onSetRir={(v) => dispatch({ type: 'SET_ADJUST_RIR', value: v })}
+            onSetSir={(v) => dispatch({ type: 'SET_ADJUST_SIR', value: v })}
             onSetWeightKg={(v) => dispatch({ type: 'SET_ADJUST_WEIGHT_KG', value: v })}
             onSetBandLevel={(v) => dispatch({ type: 'SET_ADJUST_BAND_LEVEL', value: v })}
             onConfirm={() => dispatch({ type: 'CONFIRM_ADJUST', now: Date.now() })}
