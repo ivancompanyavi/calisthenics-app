@@ -3,7 +3,8 @@ import { Card } from '@/components/ui/card'
 import { TrendingUp } from 'lucide-react'
 import type { Progression } from '@/models/types'
 import type { ReadinessVerdict } from '@/lib/readiness-engine'
-import { useUpdateCurrentLevel, useDismissVerdictCard } from '@/hooks/useProgressions'
+import { useDismissVerdictCard } from '@/hooks/useProgressions'
+import { useAdvanceWithAudit } from '@/hooks/useAdvanceWithAudit'
 
 export interface AdvanceSuggestionCardProps {
   progression: Progression
@@ -19,7 +20,7 @@ export interface AdvanceSuggestionCardProps {
  * snoozed state via the same useProgressionVerdicts query key.
  */
 export function AdvanceSuggestionCard({ progression, verdict }: AdvanceSuggestionCardProps) {
-  const advanceLevel = useUpdateCurrentLevel()
+  const { advance, isPending } = useAdvanceWithAudit()
   const dismissVerdict = useDismissVerdictCard()
 
   return (
@@ -39,12 +40,9 @@ export function AdvanceSuggestionCard({ progression, verdict }: AdvanceSuggestio
           size="sm"
           className="flex-1"
           onClick={() =>
-            advanceLevel.mutate({
-              id: progression.id,
-              currentLevel: progression.currentLevel + 1,
-            })
+            advance(progression.id, progression.currentLevel, progression.currentLevel + 1)
           }
-          disabled={advanceLevel.isPending}
+          disabled={isPending}
         >
           Advance
         </Button>
