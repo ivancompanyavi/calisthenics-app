@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUp, ArrowDown, Play, TrendingUp } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, Play, TrendingUp, Flame } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
@@ -10,6 +10,9 @@ interface SessionPreviewScreenProps {
   blocks: ResolvedBlock[]
   isLoading: boolean
   isResume: boolean
+  warmupEnabled: boolean
+  warmupBlockPresent: boolean
+  onToggleWarmup: (enabled: boolean) => void
   onStart: () => void
   onBack: () => void
   onReorderEntry: (blockIndex: number, fromIndex: number, toIndex: number) => void
@@ -40,6 +43,9 @@ export function SessionPreviewScreen({
   blocks,
   isLoading,
   isResume,
+  warmupEnabled,
+  warmupBlockPresent,
+  onToggleWarmup,
   onStart,
   onBack,
   onReorderEntry,
@@ -56,6 +62,34 @@ export function SessionPreviewScreen({
         <div className="w-16" />
       </div>
 
+      {/* Warm-up toggle — shown only when the session has triggerable warm-up exercises */}
+      {warmupBlockPresent && (
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <Flame className="h-4 w-4 shrink-0 text-orange-400" />
+            <span className="text-sm font-medium">Warm-up</span>
+            <span className="text-xs text-muted-foreground truncate">auto-generated pre-block</span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={warmupEnabled}
+            onClick={() => onToggleWarmup(!warmupEnabled)}
+            className={[
+              'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+              warmupEnabled ? 'bg-primary' : 'bg-input',
+            ].join(' ')}
+          >
+            <span
+              className={[
+                'pointer-events-none inline-block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform duration-200',
+                warmupEnabled ? 'translate-x-5' : 'translate-x-0',
+              ].join(' ')}
+            />
+          </button>
+        </div>
+      )}
+
       {/* Scrollable block list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-32 space-y-4">
         {isLoading ? (
@@ -67,10 +101,19 @@ export function SessionPreviewScreen({
             <section key={blockIdx} className="space-y-2">
               <div className="flex items-baseline justify-between">
                 <h3 className="text-sm font-semibold">
-                  Block {blockIdx + 1}
-                  <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {block.type === 'superset' ? 'Superset' : 'Set'}
-                  </span>
+                  {block.isWarmup ? (
+                    <span className="flex items-center gap-1">
+                      <Flame className="h-3.5 w-3.5 text-orange-400 inline" />
+                      Warm-Up
+                    </span>
+                  ) : (
+                    <>
+                      Block {blockIdx + 1}
+                      <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {block.type === 'superset' ? 'Superset' : 'Set'}
+                      </span>
+                    </>
+                  )}
                 </h3>
                 <p className="text-xs text-muted-foreground">{formatBlockMeta(block)}</p>
               </div>

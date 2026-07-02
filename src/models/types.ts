@@ -189,6 +189,10 @@ export interface SetLog {
   actualWeightKg?: number
   targetBandLevel?: number
   actualBandLevel?: number
+  // When true, this set is part of the auto-generated warm-up pre-block and
+  // must be excluded from PR derivation, progression readiness metrics, and
+  // volume accounting. Never set by hand on user-created logs.
+  warmup?: boolean
 }
 
 // Bodyweight reading. The weekly Saturday prompt drives most rows; ad-hoc
@@ -230,6 +234,10 @@ export interface Settings {
   // cue on the resting→exercise transition.
   // Non-indexed — no Dexie version bump required.
   waitAfterRest?: boolean
+  // When true, the warm-up pre-block is prepended to the execution queue.
+  // When false (or absent), the warm-up is skipped. Last choice persists.
+  // Non-indexed — no Dexie version bump required.
+  warmupEnabled?: boolean
 }
 
 // A self-set training goal pinned to a specific movement. Progress is

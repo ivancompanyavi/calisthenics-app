@@ -374,4 +374,26 @@ export const EXERCISES = [
     // height, draw apart) and avoid words that read as violent in isolation.
     pose: "performing a cable rear-deltoid drill at a gym cable machine, athletic figure standing upright facing the cable pulley set at head height, both hands gripping the two ends of a long rope attachment, drawing the rope ends apart and rearward so the elbows finish high and wide at shoulder level with the hands beside the temples, the rope splitting into a wide V shape around the head, slight backward lean for stability, front three-quarter view",
   },
+
+  // ───── Warm-up pre-block movements ─────
+  {
+    slug: "wrist-rocks",
+    pose: "on all fours with hands flat on the floor, rocking body weight forward onto the palms with wrists extended and elbows slightly bent, fingers spread wide, knees on floor, side profile view",
+  },
+  {
+    slug: "wrist-push-up-lean",
+    pose: "in a push-up plank position with hands flat on the floor fingers pointing forward, shifting body weight forward over the hands so the wrists are fully extended, arms straight, on toes, side profile view",
+  },
+  {
+    slug: "band-dislocates",
+    pose: "standing upright holding a resistance band stretched wide overhead with both arms straight, rotating the band rearward so it passes behind the body, arms fully extended forming a large arc, front view",
+  },
+  {
+    slug: "deep-squat-hold",
+    pose: "in the bottom of a deep squat with heels flat on the floor, knees wide and tracking over the toes, chest upright, elbows pressed inside the knees with hands together in front, hips below parallel, front three-quarter view",
+  },
+  {
+    slug: "leg-swings",
+    pose: "standing on one leg beside a vertical support bar holding it with one hand, the free leg swung forward parallel to the floor with the knee straight, a dynamic hip-flexor stretch, side profile view",
+  },
 ];
