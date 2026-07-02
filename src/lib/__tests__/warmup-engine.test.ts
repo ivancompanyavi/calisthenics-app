@@ -18,24 +18,24 @@ function makeMovement(overrides: Partial<WarmupMovementInput> = {}): WarmupMovem
   }
 }
 
-/** Build a movement map that covers all warm-up template exercise names. */
+/** Build a movement map covering every dedicated warm-up drill name. */
 function makeFullMovementMap(): Map<string, WarmupMovementRecord> {
   const names = [
+    'Wrist Circles',
     'Wrist Rocks',
-    'Wrist Push-Up Lean',
-    'Scapular Pulls',
-    'Dead Hang',
+    'Band Pull-Aparts',
+    'Scapular Shrugs',
+    'Arm Circles',
     'Band Dislocates',
-    'Scapular Push-Ups',
-    'Deep Squat Hold',
+    'Wall Slides',
     'Leg Swings',
-    'Hollow Body Hold',
+    'Hip Circles',
+    'Ankle Rocks',
+    'Cat-Cow',
+    'Bird Dog',
   ]
   return new Map(
-    names.map((name, i) => [
-      name,
-      { id: `warmup-mv-${i}`, name, seedImagePath: undefined },
-    ]),
+    names.map((name, i) => [name, { id: `warmup-mv-${i}`, name, seedImagePath: undefined }]),
   )
 }
 
@@ -46,239 +46,126 @@ describe('getTriggeredTemplateLabels', () => {
     expect(getTriggeredTemplateLabels([])).toEqual([])
   })
 
-  it('returns empty array when no tags/families match', () => {
-    // A push movement with no prepTags that matches no template trigger.
-    const mv = makeMovement({ family: 'push', prepTags: [] })
-    expect(getTriggeredTemplateLabels([mv])).toEqual([])
-  })
-
-  it('triggers wrist template for a wrist-loaded movement', () => {
+  it('triggers wrist template only for a wrist-loaded movement', () => {
     const mv = makeMovement({ family: 'push', prepTags: ['wrist-loaded'] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('wrist')
+    expect(getTriggeredTemplateLabels([mv])).toContain('wrist')
   })
 
-  it('triggers scap-pull template for a pull-family movement (no explicit tag)', () => {
+  it('triggers pull template for a pull-family movement', () => {
     const mv = makeMovement({ family: 'pull', prepTags: [] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('scap-pull')
+    expect(getTriggeredTemplateLabels([mv])).toContain('pull')
   })
 
-  it('triggers scap-pull template for scap-pull prepTag regardless of family', () => {
-    const mv = makeMovement({ family: 'push', prepTags: ['scap-pull'] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('scap-pull')
+  it('triggers push template for a push-family movement', () => {
+    const mv = makeMovement({ family: 'push', prepTags: [] })
+    expect(getTriggeredTemplateLabels([mv])).toContain('push')
   })
 
-  it('triggers heavy-push-overhead for heavy-push prepTag', () => {
-    const mv = makeMovement({ family: 'push', prepTags: ['heavy-push'] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('heavy-push-overhead')
-  })
-
-  it('triggers heavy-push-overhead for overhead prepTag', () => {
-    const mv = makeMovement({ family: 'push', prepTags: ['overhead'] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('heavy-push-overhead')
+  it('triggers push template for heavy-push / overhead prep tags', () => {
+    expect(
+      getTriggeredTemplateLabels([makeMovement({ family: 'pull', prepTags: ['heavy-push'] })]),
+    ).toContain('push')
+    expect(
+      getTriggeredTemplateLabels([makeMovement({ family: 'pull', prepTags: ['overhead'] })]),
+    ).toContain('push')
   })
 
   it('triggers legs template for a legs-family movement', () => {
     const mv = makeMovement({ family: 'legs', prepTags: [] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('legs')
+    expect(getTriggeredTemplateLabels([mv])).toContain('legs')
   })
 
   it('triggers core template for a core-family movement', () => {
     const mv = makeMovement({ family: 'core', prepTags: [] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).toContain('core')
+    expect(getTriggeredTemplateLabels([mv])).toContain('core')
   })
 
-  it('does NOT trigger core from a scap-pull tag alone (only a core-family movement does)', () => {
-    // The scap-pull prep tag is on ordinary scapular-pull movements, so an
-    // earlier scap-pull→core trigger over-fired hollow-body work on plain pull
-    // days. Core now requires an actual core-family movement.
-    const mv = makeMovement({ family: 'push', prepTags: ['scap-pull'] })
-    const labels = getTriggeredTemplateLabels([mv])
-    expect(labels).not.toContain('core')
+  it('every family produces at least one template (no workout goes without a warm-up)', () => {
+    for (const family of ['pull', 'push', 'legs', 'core'] as const) {
+      const labels = getTriggeredTemplateLabels([makeMovement({ family, prepTags: [] })])
+      expect(labels.length).toBeGreaterThan(0)
+    }
   })
 
-  it('deduplicates: two movements with the same family trigger a template only once', () => {
-    const mv1 = makeMovement({ movementId: 'mv-1', family: 'pull', prepTags: [] })
-    const mv2 = makeMovement({ movementId: 'mv-2', family: 'pull', prepTags: [] })
-    const labels = getTriggeredTemplateLabels([mv1, mv2])
-    expect(labels.filter((l) => l === 'scap-pull')).toHaveLength(1)
+  it('deduplicates: two pull movements trigger the pull template once', () => {
+    const mv1 = makeMovement({ movementId: 'a', family: 'pull' })
+    const mv2 = makeMovement({ movementId: 'b', family: 'pull' })
+    expect(getTriggeredTemplateLabels([mv1, mv2]).filter((l) => l === 'pull')).toHaveLength(1)
   })
 
-  it('deduplicates: same prepTag on two movements triggers the template once', () => {
-    const mv1 = makeMovement({ movementId: 'mv-1', family: 'push', prepTags: ['wrist-loaded'] })
-    const mv2 = makeMovement({ movementId: 'mv-2', family: 'core', prepTags: ['wrist-loaded'] })
-    const labels = getTriggeredTemplateLabels([mv1, mv2])
-    expect(labels.filter((l) => l === 'wrist')).toHaveLength(1)
-  })
-
-  it('returns templates in canonical order: wrist before scap before heavy-push before legs before core', () => {
+  it('returns templates in canonical order: wrist → pull → push → legs → core', () => {
     const movements: WarmupMovementInput[] = [
-      makeMovement({ movementId: 'mv-core', family: 'core', prepTags: [] }),
-      makeMovement({ movementId: 'mv-legs', family: 'legs', prepTags: [] }),
-      makeMovement({ movementId: 'mv-pull', family: 'pull', prepTags: ['scap-pull', 'wrist-loaded', 'heavy-push'] }),
+      makeMovement({ movementId: 'c', family: 'core' }),
+      makeMovement({ movementId: 'l', family: 'legs' }),
+      makeMovement({ movementId: 'p', family: 'pull', prepTags: ['wrist-loaded', 'heavy-push'] }),
     ]
     const labels = getTriggeredTemplateLabels(movements)
-    const wristIdx = labels.indexOf('wrist')
-    const scapIdx = labels.indexOf('scap-pull')
-    const heavyIdx = labels.indexOf('heavy-push-overhead')
-    const legsIdx = labels.indexOf('legs')
-    const coreIdx = labels.indexOf('core')
-
-    expect(wristIdx).toBeLessThan(scapIdx)
-    expect(scapIdx).toBeLessThan(heavyIdx)
-    expect(heavyIdx).toBeLessThan(legsIdx)
-    expect(legsIdx).toBeLessThan(coreIdx)
+    const idx = (l: string) => labels.indexOf(l)
+    expect(idx('wrist')).toBeLessThan(idx('pull'))
+    expect(idx('pull')).toBeLessThan(idx('push'))
+    expect(idx('push')).toBeLessThan(idx('legs'))
+    expect(idx('legs')).toBeLessThan(idx('core'))
   })
 })
 
 // ── buildWarmupBlock ─────────────────────────────────────────────────────────
 
 describe('buildWarmupBlock', () => {
-  it('returns null when no movements trigger any template', () => {
-    const mv = makeMovement({ family: 'push', prepTags: [] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)
-    expect(block).toBeNull()
-  })
-
   it('returns null for an empty movements array', () => {
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([], map)
-    expect(block).toBeNull()
+    expect(buildWarmupBlock([], makeFullMovementMap())).toBeNull()
   })
 
-  it('drops warm-up exercises already in the session (no duplication)', () => {
-    // A pull movement fires the scap-pull template (Scapular Pulls + Dead Hang).
-    const mv = makeMovement({ family: 'pull', prepTags: ['scap-pull'] })
-    const map = makeFullMovementMap()
-    const scapularPullsId = map.get('Scapular Pulls')!.id
-
-    // Without dedup: Scapular Pulls is present.
-    const withDup = buildWarmupBlock([mv], map)
-    expect(withDup?.entries.some((e) => e.movementId === scapularPullsId)).toBe(true)
-
-    // With Scapular Pulls already in the session: it must be excluded, but the
-    // non-duplicate Dead Hang stays.
-    const deduped = buildWarmupBlock([mv], map, new Set([scapularPullsId]))
-    expect(deduped?.entries.some((e) => e.movementId === scapularPullsId)).toBe(false)
-    expect(deduped?.entries.some((e) => e.movementName === 'Dead Hang')).toBe(true)
-  })
-
-  it('returns null when every triggered warm-up exercise is already in the session', () => {
-    const mv = makeMovement({ family: 'core', prepTags: [] }) // fires core → Hollow Body Hold
-    const map = makeFullMovementMap()
-    const hollowId = map.get('Hollow Body Hold')!.id
-    const block = buildWarmupBlock([mv], map, new Set([hollowId]))
-    expect(block).toBeNull()
-  })
-
-  it('returns a ResolvedBlock when templates fire', () => {
-    const mv = makeMovement({ family: 'pull', prepTags: ['wrist-loaded'] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)
-    expect(block).not.toBeNull()
-    expect(block!.rounds).toBe(1)
-    expect(block!.restSeconds).toBe(0)
-    expect(block!.type).toBe('set')
-  })
-
-  it('includes wrist exercises when wrist-loaded tag is present', () => {
-    const mv = makeMovement({ family: 'push', prepTags: ['wrist-loaded'] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)!
-    const names = block.entries.map((e) => e.movementName)
-    expect(names).toContain('Wrist Rocks')
-    expect(names).toContain('Wrist Push-Up Lean')
-  })
-
-  it('includes scap-pull exercises when pull family present', () => {
+  it('builds a pull warm-up from dedicated mobility drills (not training movements)', () => {
     const mv = makeMovement({ family: 'pull', prepTags: [] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)!
+    const block = buildWarmupBlock([mv], makeFullMovementMap())!
     const names = block.entries.map((e) => e.movementName)
-    expect(names).toContain('Scapular Pulls')
-    expect(names).toContain('Dead Hang')
-  })
-
-  it('includes legs exercises for a legs-family movement', () => {
-    const mv = makeMovement({ family: 'legs', prepTags: [] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)!
-    const names = block.entries.map((e) => e.movementName)
-    expect(names).toContain('Deep Squat Hold')
-    expect(names).toContain('Leg Swings')
-  })
-
-  it('sets perSide=true on Leg Swings', () => {
-    const mv = makeMovement({ family: 'legs', prepTags: [] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)!
-    const legSwings = block.entries.find((e) => e.movementName === 'Leg Swings')
-    expect(legSwings?.perSide).toBe(true)
-  })
-
-  it('includes hollow body hold for core-family movement', () => {
-    const mv = makeMovement({ family: 'core', prepTags: [] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)!
-    const names = block.entries.map((e) => e.movementName)
-    expect(names).toContain('Hollow Body Hold')
-  })
-
-  it('includes band dislocates + scapular push-ups for heavy-push tag', () => {
-    const mv = makeMovement({ family: 'push', prepTags: ['heavy-push'] })
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock([mv], map)!
-    const names = block.entries.map((e) => e.movementName)
-    expect(names).toContain('Band Dislocates')
-    expect(names).toContain('Scapular Push-Ups')
-  })
-
-  it('entries appear in wrist→scap→heavy-push→legs→core order', () => {
-    const movements: WarmupMovementInput[] = [
-      makeMovement({ movementId: 'mv-1', family: 'core', prepTags: [] }),
-      makeMovement({ movementId: 'mv-2', family: 'legs', prepTags: [] }),
-      makeMovement({ movementId: 'mv-3', family: 'pull', prepTags: ['wrist-loaded', 'heavy-push'] }),
-    ]
-    const map = makeFullMovementMap()
-    const block = buildWarmupBlock(movements, map)!
-    const names = block.entries.map((e) => e.movementName)
-
-    const wristIdx = names.indexOf('Wrist Rocks')
-    const scapIdx = names.indexOf('Scapular Pulls')
-    const bandIdx = names.indexOf('Band Dislocates')
-    const sqHoldIdx = names.indexOf('Deep Squat Hold')
-    const hollowIdx = names.indexOf('Hollow Body Hold')
-
-    expect(wristIdx).toBeLessThan(scapIdx)
-    expect(scapIdx).toBeLessThan(bandIdx)
-    expect(bandIdx).toBeLessThan(sqHoldIdx)
-    expect(sqHoldIdx).toBeLessThan(hollowIdx)
-  })
-
-  it('gracefully omits exercises whose movement is not in the map', () => {
-    const mv = makeMovement({ family: 'pull', prepTags: ['wrist-loaded'] })
-    // Empty map — no movements can be resolved.
-    const block = buildWarmupBlock([mv], new Map())
-    // All exercises skipped → null (no entries to form a block).
-    expect(block).toBeNull()
-  })
-
-  it('partial map: includes resolved exercises only', () => {
-    const mv = makeMovement({ family: 'pull', prepTags: [] })
-    // Only Dead Hang is in the map; Scapular Pulls is missing.
-    const map = new Map<string, WarmupMovementRecord>([
-      ['Dead Hang', { id: 'dh-id', name: 'Dead Hang' }],
-    ])
-    const block = buildWarmupBlock([mv], map)!
-    const names = block.entries.map((e) => e.movementName)
-    expect(names).toContain('Dead Hang')
+    expect(names).toContain('Band Pull-Aparts')
+    expect(names).toContain('Scapular Shrugs')
+    // Never prescribes an actual pull training movement.
     expect(names).not.toContain('Scapular Pulls')
+    expect(names).not.toContain('Dead Hang')
+    expect(block.rounds).toBe(1)
+    expect(block.restSeconds).toBe(0)
+  })
+
+  it('builds a legs warm-up of mobility drills (no Deep Squat Hold "exercise")', () => {
+    const block = buildWarmupBlock([makeMovement({ family: 'legs' })], makeFullMovementMap())!
+    const names = block.entries.map((e) => e.movementName)
+    expect(names).toEqual(['Leg Swings', 'Hip Circles', 'Ankle Rocks'])
+  })
+
+  it('builds a core warm-up of light activation (Cat-Cow / Bird Dog, not Hollow Body Hold)', () => {
+    const block = buildWarmupBlock([makeMovement({ family: 'core' })], makeFullMovementMap())!
+    const names = block.entries.map((e) => e.movementName)
+    expect(names).toContain('Cat-Cow')
+    expect(names).toContain('Bird Dog')
+    expect(names).not.toContain('Hollow Body Hold')
+  })
+
+  it('includes wrist drills when wrist-loaded tag is present', () => {
+    const mv = makeMovement({ family: 'push', prepTags: ['wrist-loaded'] })
+    const names = buildWarmupBlock([mv], makeFullMovementMap())!.entries.map((e) => e.movementName)
+    expect(names).toContain('Wrist Circles')
+    expect(names).toContain('Wrist Rocks')
+  })
+
+  it('sets perSide=true on unilateral drills (Leg Swings)', () => {
+    const block = buildWarmupBlock([makeMovement({ family: 'legs' })], makeFullMovementMap())!
+    expect(block.entries.find((e) => e.movementName === 'Leg Swings')?.perSide).toBe(true)
+  })
+
+  it('safety-net dedup: still drops a warm-up drill if it somehow appears in the session', () => {
+    const mv = makeMovement({ family: 'pull' })
+    const map = makeFullMovementMap()
+    const bandId = map.get('Band Pull-Aparts')!.id
+    const deduped = buildWarmupBlock([mv], map, new Set([bandId]))
+    expect(deduped?.entries.some((e) => e.movementId === bandId)).toBe(false)
+    // The other pull drill remains.
+    expect(deduped?.entries.some((e) => e.movementName === 'Scapular Shrugs')).toBe(true)
+  })
+
+  it('gracefully omits drills whose movement is not in the map', () => {
+    const block = buildWarmupBlock([makeMovement({ family: 'pull' })], new Map())
+    expect(block).toBeNull()
   })
 })

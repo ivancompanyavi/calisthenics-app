@@ -28,44 +28,52 @@ export interface WarmupTemplate {
 }
 
 // Canonical ordered list of templates. Order here defines the execution order
-// in the warm-up block: wrists → shoulders/scap → hips/legs → core.
+// in the warm-up block: wrists → upper (pull/push) → hips/legs → core.
+//
+// Every exercise here is a DEDICATED mobility/activation drill that is never
+// used as training in a workout — so the warm-up reads as a warm-up and can
+// never duplicate the session.
 export const ORDERED_WARMUP_TEMPLATES: WarmupTemplate[] = [
-  // ── Wrists ────────────────────────────────────────────────────────────────
+  // ── Wrists (hand-balancing / straight-arm days) ─────────────────────────────
   {
     label: 'wrist',
     exercises: [
+      { movement: 'Wrist Circles', mode: 'reps', targetReps: 10 },
       { movement: 'Wrist Rocks', mode: 'reps', targetReps: 10 },
-      { movement: 'Wrist Push-Up Lean', mode: 'reps', targetReps: 8 },
     ],
   },
-  // ── Shoulders / scapular ──────────────────────────────────────────────────
+  // ── Pull days ───────────────────────────────────────────────────────────────
   {
-    label: 'scap-pull',
+    label: 'pull',
     exercises: [
-      { movement: 'Scapular Pulls', mode: 'reps', targetReps: 8 },
-      { movement: 'Dead Hang', mode: 'time', targetSeconds: 20 },
+      { movement: 'Band Pull-Aparts', mode: 'reps', targetReps: 15 },
+      { movement: 'Scapular Shrugs', mode: 'reps', targetReps: 10 },
     ],
   },
+  // ── Push days ───────────────────────────────────────────────────────────────
   {
-    label: 'heavy-push-overhead',
+    label: 'push',
     exercises: [
+      { movement: 'Arm Circles', mode: 'reps', targetReps: 10 },
       { movement: 'Band Dislocates', mode: 'reps', targetReps: 10 },
-      { movement: 'Scapular Push-Ups', mode: 'reps', targetReps: 8 },
+      { movement: 'Wall Slides', mode: 'reps', targetReps: 8 },
     ],
   },
   // ── Hips / legs ───────────────────────────────────────────────────────────
   {
     label: 'legs',
     exercises: [
-      { movement: 'Deep Squat Hold', mode: 'time', targetSeconds: 30 },
       { movement: 'Leg Swings', mode: 'reps', targetReps: 10, perSide: true },
+      { movement: 'Hip Circles', mode: 'reps', targetReps: 10, perSide: true },
+      { movement: 'Ankle Rocks', mode: 'reps', targetReps: 10, perSide: true },
     ],
   },
   // ── Core ──────────────────────────────────────────────────────────────────
   {
     label: 'core',
     exercises: [
-      { movement: 'Hollow Body Hold', mode: 'time', targetSeconds: 20 },
+      { movement: 'Cat-Cow', mode: 'reps', targetReps: 10 },
+      { movement: 'Bird Dog', mode: 'reps', targetReps: 8, perSide: true },
     ],
   },
 ]

@@ -487,6 +487,74 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     family: "legs",
   },
 
+  // ── Dedicated warm-up / mobility drills ──────────────────────────────────
+  // These exist ONLY to be assembled into the execution-time warm-up block by
+  // src/lib/warmup-engine.ts. They are intentionally NOT used as training
+  // movements in any workout, so the warm-up never duplicates the session.
+  {
+    name: "Arm Circles",
+    description: "Shoulder warm-up — controlled forward and backward arm circles.",
+    coachingCues:
+      "Stand tall, arms out to the sides. Make small circles growing to large, forward then backward. ~10 each direction.",
+    family: "push",
+  },
+  {
+    name: "Band Pull-Aparts",
+    description: "Upper-back and rear-delt activation with a light resistance band.",
+    coachingCues:
+      "Hold a light band at shoulder height, arms straight. Pull it apart by squeezing the shoulder blades, then return slowly. Keep ribs down.",
+    family: "pull",
+  },
+  {
+    name: "Scapular Shrugs",
+    description: "Scapular elevation/depression to wake up the traps before pulling.",
+    coachingCues:
+      "Standing or in a light hang, shrug the shoulders up toward the ears then pull them down — movement comes from the shoulder blades, arms stay straight.",
+    family: "pull",
+  },
+  {
+    name: "Wrist Circles",
+    description: "Wrist mobility — slow circles in both directions to prep for loading.",
+    coachingCues:
+      "Interlace fingers or extend hands; rotate the wrists through their full range, ~10 circles each way. Add gentle finger extensions.",
+    family: "push",
+  },
+  {
+    name: "Wall Slides",
+    description: "Shoulder-flexion and scapular-upward-rotation mobility drill.",
+    coachingCues:
+      "Back to a wall, arms in a goalpost. Slide the arms overhead keeping wrists and elbows on the wall, then return. Move slowly through the available range.",
+    family: "push",
+  },
+  {
+    name: "Hip Circles",
+    description: "Hip-mobility warm-up — circle the knee to open the hip joint.",
+    coachingCues:
+      "Standing on one leg (hold support), lift the other knee and draw big circles with it, opening the hip. ~10 each direction per side.",
+    family: "legs",
+  },
+  {
+    name: "Ankle Rocks",
+    description: "Ankle dorsiflexion mobility to prep deep squatting.",
+    coachingCues:
+      "In a half-kneel or standing lunge, drive the knee forward over the toes keeping the heel down, then rock back. ~10 per side.",
+    family: "legs",
+  },
+  {
+    name: "Cat-Cow",
+    description: "Spinal mobility — alternate flexion and extension of the spine.",
+    coachingCues:
+      "On all fours, round the back toward the ceiling (cat), then drop the belly and lift the chest (cow). Move slowly with the breath, ~10 cycles.",
+    family: "core",
+  },
+  {
+    name: "Bird Dog",
+    description: "Light core-and-hip activation with anti-rotation demand.",
+    coachingCues:
+      "On all fours, extend the opposite arm and leg until level with the torso, keep hips square, pause, return. Slow and controlled, ~8 per side.",
+    family: "core",
+  },
+
   // ── Warm-up / mobility / accessory ───────────────────────────────────────
   {
     name: "Wrist Mobility Routine",
