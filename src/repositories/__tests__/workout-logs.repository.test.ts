@@ -3,18 +3,19 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@/db'
 import { workoutLogsRepository } from '@/repositories/workout-logs.repository'
 import { clearAllTables } from './setup'
-import type { WorkoutLog, SetLog } from '@/models/types'
+import type { WorkoutLog, SetLog, Workout } from '@/models/types'
 
 // Build a workout log row with sensible defaults.
 function makeLog(
   id: string,
   workoutId: string,
   completedAt: number,
+  workoutName = 'W',
 ): WorkoutLog {
   return {
     id,
     workoutId,
-    workoutName: 'W',
+    workoutName,
     startedAt: completedAt - 1000,
     completedAt,
   }
@@ -35,6 +36,10 @@ function makeSet(
     order: 0,
     ...overrides,
   }
+}
+
+function makeWorkout(id: string, name: string): Workout {
+  return { id, name, createdAt: 0 }
 }
 
 describe('workoutLogsRepository.getRepsSuggestions', () => {
@@ -151,5 +156,106 @@ describe('workoutLogsRepository.getRepsSuggestions', () => {
 
     const result = await workoutLogsRepository.getRepsSuggestions('w1', ['m1'])
     expect(result.has('m1')).toBe(false)
+  })
+})
+
+describe('workoutLogsRepository.getAllPRs — testDay flag', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+  })
+
+  it('flags bestRepsTestDay when the PR-setting set came from a Test Day session (id match)', async () => {
+    // Seed the Test Day workout in the DB so the id-based lookup works.
+    const testDayWorkout = makeWorkout('td-id', 'Test Day (Week 6)')
+    await db.workouts.add(testDayWorkout)
+
+    const log = makeLog('log1', 'td-id', 100)
+    await db.workoutLogs.add(log)
+    await db.setLogs.add(makeSet('s1', 'log1', 'm1', { actualReps: 10 }))
+
+    const prs = await workoutLogsRepository.getAllPRs()
+    expect(prs.get('m1')?.bestReps).toBe(10)
+    expect(prs.get('m1')?.bestRepsTestDay).toBe(true)
+  })
+
+  it('does not flag bestRepsTestDay for a regular session', async () => {
+    const log = makeLog('log1', 'regular-workout-id', 100)
+    await db.workoutLogs.add(log)
+    await db.setLogs.add(makeSet('s1', 'log1', 'm1', { actualReps: 8 }))
+
+    const prs = await workoutLogsRepository.getAllPRs()
+    expect(prs.get('m1')?.bestReps).toBe(8)
+    expect(prs.get('m1')?.bestRepsTestDay).toBe(false)
+  })
+
+  it('falls back to name match for old logs predating the id link', async () => {
+    // No workout row in the DB — simulates a DB-wipe reseed where the old log
+    // still carries the old workoutId but matches by workoutName.
+    const log = makeLog('log1', 'stale-id', 100, 'Test Day (Week 6)')
+    await db.workoutLogs.add(log)
+    await db.setLogs.add(makeSet('s1', 'log1', 'm1', { actualSeconds: 45 }))
+
+    const prs = await workoutLogsRepository.getAllPRs()
+    expect(prs.get('m1')?.bestSeconds).toBe(45)
+    expect(prs.get('m1')?.bestSecondsTestDay).toBe(true)
+  })
+
+  it('flag follows the current best value (regular PR later beats the Test Day PR)', async () => {
+    const testDayWorkout = makeWorkout('td-id', 'Test Day (Week 6)')
+    await db.workouts.add(testDayWorkout)
+
+    await db.workoutLogs.bulkAdd([
+      makeLog('log1', 'td-id', 100),        // Test Day: 8 reps
+      makeLog('log2', 'regular-id', 200),   // Regular: 10 reps (new best)
+    ])
+    await db.setLogs.bulkAdd([
+      makeSet('s1', 'log1', 'm1', { actualReps: 8 }),
+      makeSet('s2', 'log2', 'm1', { actualReps: 10 }),
+    ])
+
+    const prs = await workoutLogsRepository.getAllPRs()
+    // The current best (10 reps) came from a regular session → not test day.
+    expect(prs.get('m1')?.bestReps).toBe(10)
+    expect(prs.get('m1')?.bestRepsTestDay).toBe(false)
+  })
+
+  it('flag follows the current best value (Test Day PR later beats the regular PR)', async () => {
+    const testDayWorkout = makeWorkout('td-id', 'Test Day (Week 6)')
+    await db.workouts.add(testDayWorkout)
+
+    await db.workoutLogs.bulkAdd([
+      makeLog('log1', 'regular-id', 100),  // Regular: 6 reps
+      makeLog('log2', 'td-id', 200),       // Test Day: 9 reps (new best)
+    ])
+    await db.setLogs.bulkAdd([
+      makeSet('s1', 'log1', 'm1', { actualReps: 6 }),
+      makeSet('s2', 'log2', 'm1', { actualReps: 9 }),
+    ])
+
+    const prs = await workoutLogsRepository.getAllPRs()
+    // The current best (9 reps) came from Test Day → is test day.
+    expect(prs.get('m1')?.bestReps).toBe(9)
+    expect(prs.get('m1')?.bestRepsTestDay).toBe(true)
+  })
+
+  it('tracks reps and seconds testDay flags independently', async () => {
+    const testDayWorkout = makeWorkout('td-id', 'Test Day (Week 6)')
+    await db.workouts.add(testDayWorkout)
+
+    // Regular session: best reps. Test Day: best hold.
+    await db.workoutLogs.bulkAdd([
+      makeLog('log1', 'regular-id', 100),
+      makeLog('log2', 'td-id', 200),
+    ])
+    await db.setLogs.bulkAdd([
+      makeSet('s1', 'log1', 'm1', { actualReps: 12 }),
+      makeSet('s2', 'log2', 'm1', { actualSeconds: 60 }),
+    ])
+
+    const prs = await workoutLogsRepository.getAllPRs()
+    expect(prs.get('m1')?.bestReps).toBe(12)
+    expect(prs.get('m1')?.bestRepsTestDay).toBe(false)
+    expect(prs.get('m1')?.bestSeconds).toBe(60)
+    expect(prs.get('m1')?.bestSecondsTestDay).toBe(true)
   })
 })
