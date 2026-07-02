@@ -1,6 +1,7 @@
 import { useInsights } from '@/hooks/useInsights'
 import { Card } from '@/components/ui/card'
 import { Flame, TrendingUp, TrendingDown } from 'lucide-react'
+import { VolumeBalancePanel } from '@/components/history/VolumeBalancePanel'
 
 function MiniBarChart({ data }: { data: { week: string; count: number }[] }) {
   const max = Math.max(...data.map((d) => d.count), 1)
@@ -135,6 +136,8 @@ export function InsightsPanel() {
         <p className="text-xs font-medium text-muted-foreground mb-2">Workouts per week</p>
         <MiniBarChart data={insights.weeklyVolume} />
       </Card>
+
+      <VolumeBalancePanel />
 
       {insights.progressionTrends.length > 0 && (
         <Card className="p-3 space-y-3">
