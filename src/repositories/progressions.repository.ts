@@ -2,6 +2,9 @@ import { db } from '@/db'
 import type { Movement, Progression, ProgressionLevel, SetLog, SetMode, LevelUpCandidate, WorkoutLog } from '@/models/types'
 import { generateId } from '@/lib/utils'
 import { hitsTarget, computeRungDiagnostic } from '@/lib/progression-metrics'
+import { computeReadinessVerdict } from '@/lib/readiness-engine'
+import type { ReadinessVerdict } from '@/lib/readiness-engine'
+import type { EvalSession } from '@/lib/progression-metrics'
 
 export interface LevelInput {
   movementId: string
@@ -278,5 +281,115 @@ export const progressionsRepository = {
     }
 
     return candidates
+  },
+
+  // ── Readiness verdicts ─────────────────────────────────────────────────────
+
+  /**
+   * Compute a ReadinessVerdict for every progression.
+   *
+   * Session history derivation:
+   *   1. Load all SetLogs whose progressionId matches and movementId matches
+   *      the current level's movement — only non-skipped sets (same filter as
+   *      getDiagnostics so sessionsAtRung stays consistent).
+   *   2. Group by workoutLogId, sort groups by workoutLog.completedAt
+   *      oldest → newest.
+   *   3. Each group becomes one EvalSession.
+   */
+  getVerdicts: async (): Promise<Map<string, ReadinessVerdict>> => {
+    const [progressions, levels, allSetLogs, workoutLogs] = await Promise.all([
+      db.progressions.toArray(),
+      db.progressionLevels.toArray(),
+      db.setLogs.toArray(),
+      db.workoutLogs.toArray(),
+    ])
+
+    // Index levels by progression
+    const levelsByProgression = new Map<string, ProgressionLevel[]>()
+    for (const lvl of levels) {
+      const arr = levelsByProgression.get(lvl.progressionId) ?? []
+      arr.push(lvl)
+      levelsByProgression.set(lvl.progressionId, arr)
+    }
+    for (const arr of levelsByProgression.values()) arr.sort((a, b) => a.order - b.order)
+
+    // Index setLogs by progressionId → movementId (pre-filtered non-skipped)
+    const relevantSets = allSetLogs.filter((s) => s.progressionId != null && !s.skipped)
+
+    // Index workoutLog timestamps for sorting and diagnostic
+    const completedAtById = new Map(workoutLogs.map((l) => [l.id, l.completedAt]))
+    const now = Date.now()
+
+    const verdicts = new Map<string, ReadinessVerdict>()
+
+    for (const prog of progressions) {
+      const progLevels = levelsByProgression.get(prog.id) ?? []
+      const currentLevelObj = progLevels[prog.currentLevel]
+      if (!currentLevelObj) continue
+
+      const currentMovementId = currentLevelObj.movementId
+
+      // Sets for this progression at the current rung
+      const rungSets = relevantSets.filter(
+        (s) => s.progressionId === prog.id && s.movementId === currentMovementId,
+      )
+
+      // Compute diagnostic (sessionsAtRung, daysAtRung, stuck) — same logic as getDiagnostics
+      const { sessionsAtRung, daysAtRung } = computeRungDiagnostic(rungSets, completedAtById, now)
+
+      // Build session history: group by workoutLogId, sorted oldest → newest
+      const setsByLog = new Map<string, SetLog[]>()
+      for (const s of rungSets) {
+        const arr = setsByLog.get(s.workoutLogId) ?? []
+        arr.push(s)
+        setsByLog.set(s.workoutLogId, arr)
+      }
+
+      // Sort workoutLog ids by completedAt, oldest first
+      const sortedLogIds = [...setsByLog.keys()].sort((a, b) => {
+        const ta = completedAtById.get(a) ?? 0
+        const tb = completedAtById.get(b) ?? 0
+        return ta - tb
+      })
+
+      const sessionHistory: EvalSession[] = sortedLogIds.map((logId) => ({
+        sets: setsByLog.get(logId) ?? [],
+      }))
+
+      verdicts.set(
+        prog.id,
+        computeReadinessVerdict({
+          sessionHistory,
+          criteria: currentLevelObj.exitCriteria,
+          sessionsAtRung,
+          daysAtRung,
+          dismissedAtSessionCount: prog.dismissedAtSessionCount,
+        }),
+      )
+    }
+
+    return verdicts
+  },
+
+  /**
+   * Persist the snooze state for a progression's advance-suggestion card.
+   * Non-indexed fields → no Dexie version bump needed.
+   */
+  dismissVerdict: async (progressionId: string, dismissedAtSessionCount: number): Promise<void> => {
+    await db.progressions.update(progressionId, {
+      dismissedAt: Date.now(),
+      dismissedAtSessionCount,
+    })
+  },
+
+  /**
+   * Clear the snooze state (called after the user advances, so a fresh
+   * verdict on the new rung starts without a stale dismissedAtSessionCount).
+   */
+  clearDismissal: async (progressionId: string): Promise<void> => {
+    await db.progressions.update(progressionId, {
+      dismissedAt: undefined,
+      dismissedAtSessionCount: undefined,
+    })
   },
 }

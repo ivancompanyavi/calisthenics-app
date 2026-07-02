@@ -23,6 +23,12 @@ export interface Progression {
   // See Workout.seedFingerprint — same idea for progressions. Lets the seed
   // loop skip the levels rewrite when nothing changed.
   seedFingerprint?: string
+  // Snooze fields for the readiness suggest-and-confirm card.
+  // Non-indexed — no Dexie version bump required.
+  // Set when the user dismisses the "ready to advance" card; cleared when they
+  // advance or when a new qualifying session re-surfaces the card.
+  dismissedAt?: number
+  dismissedAtSessionCount?: number
 }
 
 // Advancement gate for a single progression rung. All numeric thresholds are
