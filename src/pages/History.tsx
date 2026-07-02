@@ -1,29 +1,52 @@
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useWorkoutLogs, useDeleteWorkoutLog } from '@/hooks/useHistory'
+import { useWorkoutLogs, useDeleteWorkoutLog, useAllSetLogs } from '@/hooks/useHistory'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { InsightsPanel } from '@/components/history/InsightsPanel'
+import { TrainingHeatmap } from '@/components/history/TrainingHeatmap'
+import { buildHeatmapGrid, toLocalDateKey } from '@/lib/heatmap'
 import { Clock, ChevronRight, Trash2 } from 'lucide-react'
 
 export function History() {
   const navigate = useNavigate()
   const { data: logs, isLoading } = useWorkoutLogs()
+  const { data: setLogs } = useAllSetLogs()
   const deleteLog = useDeleteWorkoutLog()
   const confirm = useConfirm()
 
-  const groupedByDate = logs?.reduce<Record<string, typeof logs>>((acc, log) => {
-    const date = new Date(log.completedAt).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-    if (!acc[date]) acc[date] = []
-    acc[date].push(log)
-    return acc
-  }, {})
+  // Heatmap tap-to-filter state: null means "show all"
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  // Build the heatmap grid from all workout + set logs
+  const heatmapGrid = useMemo(
+    () => buildHeatmapGrid(logs ?? [], setLogs ?? []),
+    [logs, setLogs],
+  )
+
+  // Group logs by local date, optionally filtered by the heatmap selection.
+  const groupedByDate = useMemo(() => {
+    if (!logs) return undefined
+
+    // When a date is selected, only include logs for that day
+    const filtered = selectedDate
+      ? logs.filter((log) => toLocalDateKey(log.completedAt) === selectedDate)
+      : logs
+
+    return filtered.reduce<Record<string, typeof logs>>((acc, log) => {
+      const date = new Date(log.completedAt).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+      if (!acc[date]) acc[date] = []
+      acc[date].push(log)
+      return acc
+    }, {})
+  }, [logs, selectedDate])
 
   return (
     <div>
@@ -31,6 +54,12 @@ export function History() {
 
       <div className="px-4 space-y-6 pb-8">
         <InsightsPanel />
+
+        <TrainingHeatmap
+          grid={heatmapGrid}
+          selectedDate={selectedDate}
+          onDaySelect={setSelectedDate}
+        />
 
         {isLoading && (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
@@ -45,6 +74,16 @@ export function History() {
             </p>
           </div>
         )}
+
+        {/* Empty state when a date is selected but has no workouts */}
+        {!isLoading &&
+          selectedDate &&
+          groupedByDate &&
+          Object.keys(groupedByDate).length === 0 && (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              No workouts logged on this day.
+            </div>
+          )}
 
         {groupedByDate &&
           Object.entries(groupedByDate).map(([date, dateLogs]) => (

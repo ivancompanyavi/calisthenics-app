@@ -59,3 +59,10 @@ export function useMovementPRs() {
     queryFn: () => workoutLogsRepository.getAllPRs(),
   })
 }
+
+export function useAllSetLogs() {
+  return useQuery({
+    queryKey: ['setLogs', 'all'] as const,
+    queryFn: () => workoutLogsRepository.getAllSetLogs(),
+  })
+}
