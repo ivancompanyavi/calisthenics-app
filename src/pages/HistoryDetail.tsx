@@ -140,6 +140,13 @@ export function HistoryDetail() {
                     {set.actualBandLevel != null && `band ${set.actualBandLevel}`}
                   </p>
                 )}
+                {(set.rir != null || set.sir != null) && (
+                  <p className="text-xs text-muted-foreground mt-1 ml-9">
+                    {set.rir != null && `RIR ${set.rir}`}
+                    {set.rir != null && set.sir != null && ' · '}
+                    {set.sir != null && `SIR ${set.sir === 0 ? '0' : set.sir === 1 ? '~5s' : '10s+'}`}
+                  </p>
+                )}
                 {set.notes && (
                   <p className="text-xs italic text-muted-foreground mt-1 ml-9">{set.notes}</p>
                 )}

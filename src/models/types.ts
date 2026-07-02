@@ -145,6 +145,10 @@ export interface SetLog {
   // Reps-in-reserve at the end of the set. 0 = went to failure, 3 = could have
   // done 3 more clean reps. Optional — pre-RIR logs leave this undefined.
   rir?: number
+  // Seconds-in-reserve at the end of a hold set. 0 = nothing left (failure),
+  // 1 = ~5s left, 2 = 10s+ left. Only captured on the final time/max set of
+  // an exercise. Optional — pre-SIR logs and non-hold sets leave this undefined.
+  sir?: 0 | 1 | 2
   // Weight / band-level prescription and actual performance. Stored canonical
   // in kg; UI converts based on Settings. See BlockEntryShared for semantics.
   targetWeightKg?: number

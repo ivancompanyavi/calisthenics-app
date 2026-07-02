@@ -291,6 +291,48 @@ describe('executionReducer', () => {
       expect(result.adjustWeightKg).toBeUndefined()
       expect(result.adjustBandLevel).toBeUndefined()
     })
+
+    it('persists sir from adjust state into the SetLog for time/max sets', () => {
+      const state = makeInitializedState({
+        phase: 'adjust',
+        adjustSeconds: 20,
+        adjustSir: 1,
+        blocks: [makeBlock({
+          rounds: 1, restSeconds: 60,
+          entries: [makeEntry({ mode: 'time', targetSeconds: 30 })],
+        })],
+        currentRound: 0,
+      })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
+      expect(result.completedSets[0].sir).toBe(1)
+    })
+
+    it('resets adjustSir after confirming a set', () => {
+      const state = makeInitializedState({
+        phase: 'adjust',
+        adjustSeconds: 20,
+        adjustSir: 2,
+        blocks: [makeBlock({
+          rounds: 3, restSeconds: 60,
+          entries: [makeEntry({ mode: 'max' })],
+        })],
+        currentRound: 0,
+      })
+      const result = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
+      expect(result.adjustSir).toBeUndefined()
+    })
+
+    it('SET_ADJUST_SIR updates adjustSir in state', () => {
+      const state = makeInitializedState({ phase: 'adjust' })
+      const result = executionReducer(state, { type: 'SET_ADJUST_SIR', value: 0 })
+      expect(result.adjustSir).toBe(0)
+    })
+
+    it('SET_ADJUST_SIR can be cleared by passing undefined', () => {
+      const state = makeInitializedState({ phase: 'adjust', adjustSir: 2 })
+      const result = executionReducer(state, { type: 'SET_ADJUST_SIR', value: undefined })
+      expect(result.adjustSir).toBeUndefined()
+    })
   })
 
   describe('DELAY_EXERCISE', () => {
