@@ -8,45 +8,73 @@ import { useConfirm } from '@/components/ui/confirm-context'
 import { InsightsPanel } from '@/components/history/InsightsPanel'
 import { TrainingHeatmap } from '@/components/history/TrainingHeatmap'
 import { buildHeatmapGrid, toLocalDateKey } from '@/lib/heatmap'
-import { Clock, ChevronRight, Trash2 } from 'lucide-react'
+import { NotesSearchInput } from '@/components/history/NotesSearchInput'
+import { searchNotes } from '@/lib/notes-search'
+import { Clock, ChevronRight, Trash2, FileText } from 'lucide-react'
 
 export function History() {
   const navigate = useNavigate()
   const { data: logs, isLoading } = useWorkoutLogs()
+  // Loaded eagerly: the heatmap needs every set log to count daily volume, so
+  // notes search reuses the same data rather than fetching it again.
   const { data: setLogs } = useAllSetLogs()
   const deleteLog = useDeleteWorkoutLog()
   const confirm = useConfirm()
 
-  // Heatmap tap-to-filter state: null means "show all"
+  // Heatmap tap-to-filter state: null means "show all".
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  // Build the heatmap grid from all workout + set logs
   const heatmapGrid = useMemo(
     () => buildHeatmapGrid(logs ?? [], setLogs ?? []),
     [logs, setLogs],
   )
 
-  // Group logs by local date, optionally filtered by the heatmap selection.
-  const groupedByDate = useMemo(() => {
-    if (!logs) return undefined
+  const isSearching = searchTerm.trim().length > 0
 
-    // When a date is selected, only include logs for that day
-    const filtered = selectedDate
-      ? logs.filter((log) => toLocalDateKey(log.completedAt) === selectedDate)
-      : logs
+  const searchMatches = useMemo(() => {
+    if (!isSearching || !logs) return null
+    return searchNotes(logs, setLogs ?? [], searchTerm)
+  }, [isSearching, logs, setLogs, searchTerm])
 
-    return filtered.reduce<Record<string, typeof logs>>((acc, log) => {
-      const date = new Date(log.completedAt).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-      if (!acc[date]) acc[date] = []
-      acc[date].push(log)
-      return acc
-    }, {})
-  }, [logs, selectedDate])
+  // Fast lookup logId → NoteMatch for rendering snippets on matched cards.
+  const matchMap = useMemo(
+    () => new Map(searchMatches?.map((m) => [m.workoutLogId, m]) ?? []),
+    [searchMatches],
+  )
+
+  // Apply the heatmap date filter and the notes search together (AND).
+  const filteredLogs = useMemo(() => {
+    if (!logs) return []
+    let result = logs
+    if (selectedDate) {
+      result = result.filter((l) => toLocalDateKey(l.completedAt) === selectedDate)
+    }
+    if (isSearching && searchMatches) {
+      const ids = new Set(searchMatches.map((m) => m.workoutLogId))
+      result = result.filter((l) => ids.has(l.id))
+    }
+    return result
+  }, [logs, selectedDate, isSearching, searchMatches])
+
+  const groupedByDate = useMemo(
+    () =>
+      filteredLogs.reduce<Record<string, typeof filteredLogs>>((acc, log) => {
+        const date = new Date(log.completedAt).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+        if (!acc[date]) acc[date] = []
+        acc[date].push(log)
+        return acc
+      }, {}),
+    [filteredLogs],
+  )
+
+  const hasAnyLogs = !!logs && logs.length > 0
+  const hasResults = filteredLogs.length > 0
 
   return (
     <div>
@@ -61,11 +89,14 @@ export function History() {
           onDaySelect={setSelectedDate}
         />
 
+        <NotesSearchInput value={searchTerm} onChange={setSearchTerm} />
+
         {isLoading && (
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         )}
 
-        {!isLoading && (!logs || logs.length === 0) && (
+        {/* Empty state: no logs at all */}
+        {!isLoading && !hasAnyLogs && (
           <div className="py-12 text-center">
             <Clock className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground">No workouts completed yet.</p>
@@ -75,25 +106,42 @@ export function History() {
           </div>
         )}
 
-        {/* Empty state when a date is selected but has no workouts */}
-        {!isLoading &&
-          selectedDate &&
-          groupedByDate &&
-          Object.keys(groupedByDate).length === 0 && (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              No workouts logged on this day.
-            </div>
-          )}
+        {/* Empty state: search has no matches */}
+        {!isLoading && hasAnyLogs && isSearching && !hasResults && (
+          <div className="py-12 text-center">
+            <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No notes match &ldquo;{searchTerm}&rdquo;.</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Try a different search term.
+            </p>
+          </div>
+        )}
 
-        {groupedByDate &&
+        {/* Empty state: a date is selected (and not searching) with no workouts */}
+        {!isLoading && hasAnyLogs && !isSearching && selectedDate && !hasResults && (
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            No workouts logged on this day.
+          </div>
+        )}
+
+        {/* Result count hint when searching */}
+        {isSearching && hasResults && (
+          <p className="text-xs text-muted-foreground">
+            {filteredLogs.length} workout{filteredLogs.length !== 1 ? 's' : ''} matched
+          </p>
+        )}
+
+        {hasResults &&
           Object.entries(groupedByDate).map(([date, dateLogs]) => (
             <section key={date}>
               <h3 className="text-sm font-semibold text-muted-foreground mb-2">{date}</h3>
               <div className="space-y-2">
                 {dateLogs.map((log) => {
                   const duration = Math.round(
-                    (log.completedAt - log.startedAt) / 60000
+                    (log.completedAt - log.startedAt) / 60000,
                   )
+                  const match = matchMap.get(log.id)
+
                   return (
                     <Card
                       key={log.id}
@@ -121,11 +169,13 @@ export function History() {
                             className="h-8 w-8 text-destructive"
                             onClick={async (e) => {
                               e.stopPropagation()
-                              if (await confirm({
-                                title: 'Delete this workout log?',
-                                confirmLabel: 'Delete',
-                                destructive: true,
-                              })) {
+                              if (
+                                await confirm({
+                                  title: 'Delete this workout log?',
+                                  confirmLabel: 'Delete',
+                                  destructive: true,
+                                })
+                              ) {
                                 deleteLog.mutate(log.id)
                               }
                             }}
@@ -135,6 +185,28 @@ export function History() {
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
                       </div>
+
+                      {/* Note snippets — only visible when a search is active */}
+                      {match && (
+                        <div className="mt-2 space-y-1 border-t border-border/40 pt-2">
+                          {match.workoutNoteMatched && log.notes && (
+                            <p className="text-xs italic text-muted-foreground line-clamp-2">
+                              {log.notes}
+                            </p>
+                          )}
+                          {match.matchedSets.map((s, i) => (
+                            <p
+                              key={i}
+                              className="text-xs text-muted-foreground line-clamp-1"
+                            >
+                              <span className="font-medium text-foreground/70">
+                                {s.movementName}:
+                              </span>{' '}
+                              {s.notes}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                     </Card>
                   )
                 })}

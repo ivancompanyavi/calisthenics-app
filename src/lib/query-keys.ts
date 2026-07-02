@@ -22,6 +22,7 @@ export const queryKeys = {
     all: ['workoutLogs'] as const,
     detail: (id: string) => ['workoutLogs', id] as const,
     sets: (workoutLogId: string) => ['setLogs', workoutLogId] as const,
+    allSets: ['setLogs', 'all'] as const,
   },
   programs: {
     all: ['programs'] as const,
