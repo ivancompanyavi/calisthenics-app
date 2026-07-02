@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useWorkout, useWorkoutBlocks, useAllBlockEntries } from '@/hooks/useWorkouts'
 import { useSaveWorkoutLog } from '@/hooks/useHistory'
 import { useWorkoutExecution } from '@/hooks/useWorkoutExecution'
-import { useProgressionReadiness, useUpdateCurrentLevel } from '@/hooks/useProgressions'
+import {
+  useProgressionReadiness,
+  useProgressions,
+  useProgressionVerdicts,
+  useUpdateCurrentLevel,
+} from '@/hooks/useProgressions'
 import { useInProgressWorkout } from '@/hooks/useInProgressWorkout'
 import { useMarkSlotDone } from '@/hooks/usePrograms'
 import { useQueryClient } from '@tanstack/react-query'
@@ -44,6 +49,11 @@ export function WorkoutExecution() {
   const { state, dispatch, currentEntry, progress, init } = useWorkoutExecution(slotFromUrl)
   const [initialized, setInitialized] = useState(false)
   const [workoutNotes, setWorkoutNotes] = useState('')
+  const [workoutSaved, setWorkoutSaved] = useState(false)
+
+  // For post-workout readiness cards (after save).
+  const { data: allProgressions } = useProgressions()
+  const { data: verdicts } = useProgressionVerdicts()
   // Track which (blockIndex, round, entryIndex) tuples have already had their
   // gate answered Yes. Each new round re-asks because joint state can change
   // mid-workout. Reset when the workoutId changes — using the React-blessed
@@ -73,6 +83,27 @@ export function WorkoutExecution() {
     state.completedSets
   )
 
+  // After the workout is saved (workoutSaved=true), verdicts are invalidated and
+  // refetched. Filter to progressions trained in this session that are now
+  // ready-to-advance (and not snoozed). Sort most-stale first.
+  const readyVerdicts = useMemo(() => {
+    if (!workoutSaved || !allProgressions || !verdicts) return []
+    return progressionIds
+      .flatMap((pid) => {
+        const progression = allProgressions.find((p) => p.id === pid)
+        const verdict = verdicts.get(pid)
+        if (!progression || !verdict || verdict.kind !== 'ready-to-advance' || verdict.snoozed) return []
+        return [{ progression, verdict }]
+      })
+      .sort(
+        (a, b) =>
+          (b.verdict.daysAtRung - a.verdict.daysAtRung) ||
+          (b.verdict.sessionsAtRung - a.verdict.sessionsAtRung),
+      )
+  // progressionIds is recomputed each render from state; stable when phase=complete.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutSaved, allProgressions, verdicts])
+
   // Resumed runs carry the original programDayIndex on the in-progress record;
   // fresh runs use whatever the URL specified (if any).
   const resumeData = inProgress?.workoutId === id ? inProgress : null
@@ -97,7 +128,10 @@ export function WorkoutExecution() {
     })
   }, [workout, blocks, entries, resumeData, id, init, initialized])
 
-  const handleComplete = async () => {
+  // Phase 1: persist the workout log and flip workoutSaved so CompleteScreen can
+  // show post-save readiness cards (the verdict query is invalidated by
+  // useSaveWorkoutLog and will refetch to include this session).
+  const handleSave = async () => {
     const logId = await saveLog.mutateAsync({
       workoutId: state.workoutId,
       workoutName: state.workoutName,
@@ -114,6 +148,11 @@ export function WorkoutExecution() {
     // briefly render the InProgressCard for the workout we just finished.
     // removeQueries forces the next observer to fetch from scratch.
     queryClient.removeQueries({ queryKey: queryKeys.inProgress })
+    setWorkoutSaved(true)
+  }
+
+  // Phase 2: navigate home (called after the user has reviewed readiness cards).
+  const handleFinish = () => {
     navigate('/')
   }
 
@@ -275,7 +314,11 @@ export function WorkoutExecution() {
             onSetNotes={setWorkoutNotes}
             levelUpCandidates={levelUpCandidates}
             onLevelUp={handleLevelUp}
-            onFinish={handleComplete}
+            onSave={handleSave}
+            onFinish={handleFinish}
+            isSaving={saveLog.isPending}
+            saved={workoutSaved}
+            readyVerdicts={readyVerdicts}
           />
         )}
       </div>

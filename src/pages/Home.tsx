@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Settings as SettingsIcon } from 'lucide-react'
 import { useWorkouts } from '@/hooks/useWorkouts'
 import { useWorkoutLogs } from '@/hooks/useHistory'
 import { useInProgressWorkout, useDiscardInProgress } from '@/hooks/useInProgressWorkout'
 import { useCurrentSlot, useMarkSlotDone } from '@/hooks/usePrograms'
+import { useProgressions, useProgressionVerdicts } from '@/hooks/useProgressions'
 import { ProgramCompleteCard } from '@/components/programs/ProgramCompleteCard'
 import { PickWorkoutSheet } from '@/components/programs/PickWorkoutSheet'
 import { PageHeader } from '@/components/ui/page-header'
@@ -15,6 +16,7 @@ import { RecentActivityList } from '@/components/home/RecentActivityList'
 import { DataIOSection } from '@/components/home/DataIOSection'
 import { BodyweightCard } from '@/components/home/BodyweightCard'
 import { GoalsCard } from '@/components/home/GoalsCard'
+import { AdvanceSuggestionCard } from '@/components/progressions/AdvanceSuggestionCard'
 
 export function Home() {
   const navigate = useNavigate()
@@ -24,8 +26,25 @@ export function Home() {
   const discardInProgress = useDiscardInProgress()
   const { data: currentSlot } = useCurrentSlot()
   const markSlotDone = useMarkSlotDone()
+  const { data: progressions } = useProgressions()
+  const { data: verdicts } = useProgressionVerdicts()
   const [dismissedCompletion, setDismissedCompletion] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  // Progressions that are ready to advance and not snoozed, most-stale first.
+  const readyToAdvance = useMemo(() => {
+    if (!progressions || !verdicts) return []
+    return progressions
+      .filter((p) => {
+        const v = verdicts.get(p.id)
+        return v?.kind === 'ready-to-advance' && !v.snoozed
+      })
+      .sort((a, b) => {
+        const va = verdicts.get(a.id)!
+        const vb = verdicts.get(b.id)!
+        return (vb.daysAtRung - va.daysAtRung) || (vb.sessionsAtRung - va.sessionsAtRung)
+      })
+  }, [progressions, verdicts])
 
   const startWorkoutForSlot = (workoutId: string, slotIndex: number) => {
     setPickerOpen(false)
@@ -50,6 +69,21 @@ export function Home() {
             inProgress={inProgress}
             onDiscard={() => discardInProgress.mutate()}
           />
+        )}
+
+        {readyToAdvance.length > 0 && (
+          <div className="space-y-2">
+            {readyToAdvance.map((progression) => {
+              const verdict = verdicts!.get(progression.id)!
+              return (
+                <AdvanceSuggestionCard
+                  key={progression.id}
+                  progression={progression}
+                  verdict={verdict}
+                />
+              )
+            })}
+          </div>
         )}
 
         {currentSlot?.programCompleted && !dismissedCompletion && (
