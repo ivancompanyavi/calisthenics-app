@@ -9,16 +9,20 @@ import type {
   BlockEntry,
   Program,
   ProgramDay,
+  Skill,
+  SkillPrerequisite,
 } from "@/models/types";
 import { SEED_MOVEMENTS } from "./seed/movements";
 import { SEED_PROGRESSIONS } from "./seed/progressions";
 import { SEED_WORKOUTS } from "./seed/workouts";
 import { SEED_PROGRAMS } from "./seed/programs";
+import { SEED_SKILLS } from "./seed/skills";
 import type {
   SeedBlockDef,
   SeedWorkout,
   SeedProgram,
   SeedProgression,
+  SeedSkill,
 } from "./seed/types";
 import { lbToKg } from "@/lib/units";
 
@@ -603,9 +607,97 @@ async function ensureProgramsExist() {
   }
 }
 
+function skillFingerprint(ss: SeedSkill): string {
+  return stableStringify({
+    name: ss.name,
+    description: ss.description ?? "",
+    prerequisites: ss.prerequisites,
+  });
+}
+
+// Resolve a seed skill's name-based prerequisites to id-based ones.
+// Silently skips any prerequisite whose progression/movement name isn't found
+// in the maps — consistent with how buildBlocks handles unknown names.
+function resolveSeedSkillPrerequisites(
+  ss: SeedSkill,
+  progressionMap: Map<string, string>,
+  movementMap: Map<string, string>,
+): SkillPrerequisite[] {
+  const prerequisites: SkillPrerequisite[] = [];
+  for (const prereq of ss.prerequisites) {
+    if (prereq.kind === "progression-level") {
+      const progressionId = progressionMap.get(prereq.progression);
+      if (!progressionId) continue;
+      prerequisites.push({
+        kind: "progression-level",
+        progressionId,
+        levelOrder: prereq.levelOrder,
+      });
+    } else if (prereq.kind === "movement-pr") {
+      const movementId = movementMap.get(prereq.movement);
+      if (!movementId) continue;
+      prerequisites.push({
+        kind: "movement-pr",
+        movementId,
+        ...(prereq.minReps !== undefined ? { minReps: prereq.minReps } : {}),
+        ...(prereq.minSeconds !== undefined
+          ? { minSeconds: prereq.minSeconds }
+          : {}),
+      });
+    }
+  }
+  return prerequisites;
+}
+
+async function ensureSkillsExist(
+  progressionMap: Map<string, string>,
+  movementMap: Map<string, string>,
+): Promise<void> {
+  const existing = await db.skills.toArray();
+  const byName = new Map(existing.map((s) => [s.name, s]));
+
+  for (const ss of SEED_SKILLS) {
+    const fingerprint = skillFingerprint(ss);
+    const existingSkill = byName.get(ss.name);
+
+    if (existingSkill && existingSkill.seedFingerprint === fingerprint) {
+      continue;
+    }
+
+    const prerequisites = resolveSeedSkillPrerequisites(
+      ss,
+      progressionMap,
+      movementMap,
+    );
+
+    if (existingSkill) {
+      // Stale fingerprint: update in-place, preserving id so any future
+      // user references (e.g. bookmarks, notes) stay linked.
+      await db.skills.update(existingSkill.id, {
+        description: ss.description,
+        prerequisites,
+        seedFingerprint: fingerprint,
+      });
+      continue;
+    }
+
+    // Fresh insert.
+    const skill: Skill = {
+      id: generateId(),
+      name: ss.name,
+      description: ss.description,
+      prerequisites,
+      seedFingerprint: fingerprint,
+      createdAt: Date.now(),
+    };
+    await db.skills.add(skill);
+  }
+}
+
 export async function seedDatabase() {
   const movementMap = await ensureMovementsExist();
   const progressionMap = await ensureProgressionsExist(movementMap);
   await ensureWorkoutsExist(progressionMap, movementMap);
   await ensureProgramsExist();
+  await ensureSkillsExist(progressionMap, movementMap);
 }

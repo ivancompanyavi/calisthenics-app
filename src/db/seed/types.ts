@@ -77,3 +77,15 @@ export interface SeedProgram {
   totalCycles: number;
   days: Array<{ workout: string } | null>;
 }
+
+// Seed-time prerequisite: references progressions/movements by name.
+// ensureSkillsExist() resolves these to ids before writing to the DB.
+export type SeedSkillPrerequisite =
+  | { kind: 'progression-level'; progression: string; levelOrder: number }
+  | { kind: 'movement-pr'; movement: string; minReps?: number; minSeconds?: number }
+
+export interface SeedSkill {
+  name: string;
+  description?: string;
+  prerequisites: SeedSkillPrerequisite[];
+}

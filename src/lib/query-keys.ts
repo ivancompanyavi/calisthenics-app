@@ -40,4 +40,5 @@ export const queryKeys = {
   bodyweight: ['bodyweight'] as const,
   goals: ['goals'] as const,
   settings: ['settings'] as const,
+  skills: ['skills'] as const,
 } as const

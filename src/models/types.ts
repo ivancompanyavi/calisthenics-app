@@ -335,3 +335,34 @@ export interface DraftBlock {
   restSeconds: number
   entries: DraftEntry[]
 }
+
+// ──────────────────────── Skill Atlas ────────────────────────
+
+// A prerequisite for a skill node. Seed files reference progressions and
+// movements by name; ensureSkillsExist() resolves those to ids at sync time.
+export type SkillPrerequisite =
+  | {
+      kind: 'progression-level'
+      // User's currentLevel in this progression must be ≥ levelOrder.
+      progressionId: string
+      levelOrder: number
+    }
+  | {
+      kind: 'movement-pr'
+      // User must have a PR for this movement meeting the threshold.
+      movementId: string
+      minReps?: number
+      minSeconds?: number
+    }
+
+// A skill node in the atlas. Prerequisites are stored with resolved ids so
+// the evaluator never needs to do name lookups at evaluation time.
+export interface Skill {
+  id: string
+  name: string
+  description?: string
+  prerequisites: SkillPrerequisite[]
+  // Content fingerprint — same semantics as Workout.seedFingerprint.
+  seedFingerprint?: string
+  createdAt: number
+}

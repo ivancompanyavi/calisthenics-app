@@ -15,6 +15,7 @@ import type {
   BodyweightLog,
   Goal,
   Settings,
+  Skill,
 } from '@/models/types'
 
 const db = new Dexie('CalisthenicsTracker') as Dexie & {
@@ -33,6 +34,7 @@ const db = new Dexie('CalisthenicsTracker') as Dexie & {
   bodyweightLogs: EntityTable<BodyweightLog, 'id'>
   goals: EntityTable<Goal, 'id'>
   settings: EntityTable<Settings, 'id'>
+  skills: EntityTable<Skill, 'id'>
 }
 
 db.version(1).stores({
@@ -235,6 +237,27 @@ db.version(9).stores({
   bodyweightLogs: 'id, date',
   goals: 'id, movementId, createdAt',
   settings: 'id',
+})
+
+// v10: skills table for the atlas feature. Additive — no upgrade transform
+// needed. prerequisites are stored as a JSON array (non-indexed).
+db.version(10).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, kind, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, progressionId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
+  bodyweightLogs: 'id, date',
+  goals: 'id, movementId, createdAt',
+  settings: 'id',
+  skills: 'id, name, createdAt',
 })
 
 export { db }
