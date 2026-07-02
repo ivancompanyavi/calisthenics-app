@@ -372,6 +372,9 @@ export const progressionsRepository = {
           sessionsAtRung,
           daysAtRung,
           dismissedAtSessionCount: prog.dismissedAtSessionCount,
+          // Max-mode rungs (planche, lever, handstand holds) have no target to
+          // hit, so they use the relative-to-own-best hold rule.
+          holdMode: currentLevelObj.mode === 'max',
         }),
       )
     }

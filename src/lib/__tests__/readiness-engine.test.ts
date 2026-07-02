@@ -759,3 +759,99 @@ describe('structured number fields', () => {
     expect(verdict.qualifyingSessionCount).toBe(3)
   })
 })
+
+// ── Hold mode (max-mode static holds, relative-to-own-best) ─────────────────────
+
+/** Max-mode hold session: actualSeconds set, NO targetSeconds. */
+function holdSession(opts: { seconds: number; sir?: 0 | 1 | 2; skipped?: boolean }): EvalSession {
+  const { seconds, sir, skipped } = opts
+  return {
+    sets: [makeSet({ id: 's1', actualSeconds: seconds, sir, skipped })],
+  }
+}
+
+describe('computeReadinessVerdict — hold mode', () => {
+  it('never fires target-based ready for a max hold (regression guard): holdMode routes elsewhere', () => {
+    // Three strong holds but referenceBest logic, not target-hitting, decides.
+    const history = [holdSession({ seconds: 20, sir: 1 }), holdSession({ seconds: 20, sir: 1 }), holdSession({ seconds: 20, sir: 1 })]
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: history, sessionsAtRung: 3, holdMode: true }))
+    expect(verdict.kind).toBe('ready-to-advance')
+  })
+
+  it('ready-to-advance: 3 consecutive holds at ≥90% of best with reserve (SIR≥1)', () => {
+    // best = 20s; all three ≥18s with SIR 1
+    const history = [holdSession({ seconds: 20, sir: 1 }), holdSession({ seconds: 19, sir: 1 }), holdSession({ seconds: 18, sir: 1 })]
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: history, sessionsAtRung: 3, holdMode: true }))
+    expect(verdict.kind).toBe('ready-to-advance')
+    expect(verdict.qualifyingStreak).toBe(3)
+  })
+
+  it('NOT ready when holds are far below best even if SIR high', () => {
+    // best = 20s (first), recent holds ~10s (<90% of 20) → don't qualify
+    const history = [holdSession({ seconds: 20, sir: 2 }), holdSession({ seconds: 10, sir: 2 }), holdSession({ seconds: 10, sir: 2 }), holdSession({ seconds: 10, sir: 2 })]
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: history, sessionsAtRung: 4, holdMode: true }))
+    expect(verdict.kind).not.toBe('ready-to-advance')
+  })
+
+  it('NOT ready when near best but taken to failure (SIR 0) — no reserve', () => {
+    const history = [holdSession({ seconds: 20, sir: 0 }), holdSession({ seconds: 20, sir: 0 }), holdSession({ seconds: 20, sir: 0 })]
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: history, sessionsAtRung: 3, holdMode: true }))
+    expect(verdict.kind).not.toBe('ready-to-advance')
+  })
+
+  it('absent SIR is a non-veto: strong holds near best still qualify', () => {
+    const history = [holdSession({ seconds: 20 }), holdSession({ seconds: 19 }), holdSession({ seconds: 20 })]
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: history, sessionsAtRung: 3, holdMode: true }))
+    expect(verdict.kind).toBe('ready-to-advance')
+  })
+
+  it('close: 2 of 3 qualifying holds', () => {
+    // best=20; last two qualify (≥18, SIR1), third-from-last is short → streak 2
+    const history = [holdSession({ seconds: 12, sir: 1 }), holdSession({ seconds: 19, sir: 1 }), holdSession({ seconds: 20, sir: 1 })]
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: history, sessionsAtRung: 3, holdMode: true }))
+    expect(verdict.kind).toBe('close')
+    expect(verdict.qualifyingStreak).toBe(2)
+  })
+
+  it('regressing: 3 recent holds short of best at failure (SIR 0)', () => {
+    // best=30 (old), recent three ~12s at SIR 0
+    const history = [holdSession({ seconds: 30, sir: 1 }), holdSession({ seconds: 12, sir: 0 }), holdSession({ seconds: 11, sir: 0 }), holdSession({ seconds: 10, sir: 0 })]
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: history, sessionsAtRung: 4, holdMode: true }))
+    expect(verdict.kind).toBe('regressing')
+  })
+
+  it('stuck: many sessions at rung without qualifying', () => {
+    const history = [holdSession({ seconds: 20, sir: 1 }), holdSession({ seconds: 10, sir: 1 })]
+    const verdict = computeReadinessVerdict(
+      baseInput({ sessionHistory: history, sessionsAtRung: STUCK_SESSIONS, holdMode: true }),
+    )
+    expect(verdict.kind).toBe('stuck')
+  })
+
+  it('steady with no holds logged does not crash and is not ready', () => {
+    const verdict = computeReadinessVerdict(baseInput({ sessionHistory: [], sessionsAtRung: 0, holdMode: true }))
+    expect(verdict.kind).toBe('steady')
+    expect(verdict.qualifyingStreak).toBe(0)
+  })
+
+  it('snooze: dismissed ready hold stays hidden until a new qualifying hold', () => {
+    const history = [holdSession({ seconds: 20, sir: 1 }), holdSession({ seconds: 19, sir: 1 }), holdSession({ seconds: 20, sir: 1 })]
+    // qualifyingSessionCount = 3; dismissed at 3 → snoozed
+    const snoozedVerdict = computeReadinessVerdict(
+      baseInput({ sessionHistory: history, sessionsAtRung: 3, holdMode: true, dismissedAtSessionCount: 3 }),
+    )
+    expect(snoozedVerdict.kind).toBe('ready-to-advance')
+    expect(snoozedVerdict.snoozed).toBe(true)
+
+    // A new qualifying hold → count 4 > 3 → re-surfaces
+    const woken = computeReadinessVerdict(
+      baseInput({
+        sessionHistory: [...history, holdSession({ seconds: 20, sir: 1 })],
+        sessionsAtRung: 4,
+        holdMode: true,
+        dismissedAtSessionCount: 3,
+      }),
+    )
+    expect(woken.snoozed).toBe(false)
+  })
+})

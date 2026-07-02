@@ -62,6 +62,77 @@ export interface ReadinessInput {
    * When set and current count ≤ stored count, the card is snoozed.
    */
   dismissedAtSessionCount: number | undefined
+  /**
+   * True when the current rung is a `max`-mode static hold (no target seconds).
+   * Such rungs can never "hit target", so target-based readiness never fires;
+   * they are evaluated by the relative-to-own-best hold rule instead.
+   */
+  holdMode?: boolean
+}
+
+// ── Hold (max-mode) readiness ───────────────────────────────────────────────────
+
+/**
+ * Percent-of-max gate for static holds. A max-mode rung has no absolute target
+ * (holding "20s" means nothing without knowing the person), so readiness is
+ * judged RELATIVE to the athlete's own best hold at this rung: a session
+ * qualifies when the working (last) set reaches at least this fraction of the
+ * best hold ever recorded at the rung AND was left with time in reserve (SIR).
+ *
+ * This is a coaching convention (Steven Low's "train at a % of max hold"),
+ * expressed relative to the athlete rather than as arbitrary fixed seconds —
+ * see docs/coaching-standards.md.
+ */
+export const RELATIVE_HOLD_THRESHOLD = 0.9
+
+/** Best (max) actualSeconds across all sessions at the rung; 0 if none logged. */
+function holdReferenceBest(sessionHistory: EvalSession[]): number {
+  let best = 0
+  for (const session of sessionHistory) {
+    for (const s of session.sets) {
+      if (s.skipped) continue
+      if (s.actualSeconds != null && s.actualSeconds > best) best = s.actualSeconds
+    }
+  }
+  return best
+}
+
+/**
+ * A hold session qualifies for advancement when its working set reaches
+ * ≥ RELATIVE_HOLD_THRESHOLD of the reference best AND kept time in reserve.
+ * Absent SIR is a non-veto (mirrors the reps-mode RIR convention): a strong
+ * hold near the ceiling counts even if the athlete didn't log effort.
+ */
+function holdSessionQualifies(session: EvalSession, referenceBest: number): boolean {
+  if (referenceBest <= 0) return false
+  const active = session.sets.filter((s) => !s.skipped)
+  const last = active[active.length - 1]
+  if (!last || last.actualSeconds == null) return false
+  if (last.actualSeconds < RELATIVE_HOLD_THRESHOLD * referenceBest) return false
+  if (last.sir != null && last.sir < 1) return false
+  return true
+}
+
+/**
+ * A hold session is regressing when the working set was well short of the
+ * reference best AND taken to failure (SIR 0) — straining yet falling short.
+ */
+function holdSessionRegressing(session: EvalSession, referenceBest: number): boolean {
+  if (referenceBest <= 0) return false
+  const active = session.sets.filter((s) => !s.skipped)
+  const last = active[active.length - 1]
+  if (!last || last.actualSeconds == null) return false
+  return last.sir === 0 && last.actualSeconds < RELATIVE_HOLD_THRESHOLD * referenceBest
+}
+
+/** Consecutive qualifying hold sessions counted from the most recent backward. */
+function holdQualifyingStreak(sessionHistory: EvalSession[], referenceBest: number): number {
+  let streak = 0
+  for (let i = sessionHistory.length - 1; i >= 0; i--) {
+    if (holdSessionQualifies(sessionHistory[i], referenceBest)) streak++
+    else break
+  }
+  return streak
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -189,7 +260,16 @@ function effortNote(sessions: EvalSession[]): string {
  *   5. steady           — none of the above
  */
 export function computeReadinessVerdict(input: ReadinessInput): ReadinessVerdict {
-  const { sessionHistory, criteria, sessionsAtRung, daysAtRung, dismissedAtSessionCount } = input
+  const { sessionHistory, criteria, sessionsAtRung, daysAtRung, dismissedAtSessionCount, holdMode } =
+    input
+
+  // Max-mode static holds have no target to "hit", so the target-based path
+  // below can never fire for them. Route them through the relative-to-own-best
+  // hold rule instead.
+  if (holdMode) {
+    return computeHoldVerdict(input)
+  }
+
   const effective = criteria ?? DEFAULT_EXIT_CRITERIA
   const required = effective.sessions
 
@@ -282,6 +362,85 @@ export function computeReadinessVerdict(input: ReadinessInput): ReadinessVerdict
     sessionsAtRung,
     daysAtRung,
     qualifyingSessionCount,
+    snoozed: false,
+  }
+}
+
+/**
+ * Readiness for a max-mode static hold, judged relative to the athlete's own
+ * best hold at the rung rather than an absolute second-target. Mirrors the
+ * five-verdict priority order of the target-based path.
+ */
+function computeHoldVerdict(input: ReadinessInput): ReadinessVerdict {
+  const { sessionHistory, criteria, sessionsAtRung, daysAtRung, dismissedAtSessionCount } = input
+  const required = (criteria ?? DEFAULT_EXIT_CRITERIA).sessions
+
+  const referenceBest = holdReferenceBest(sessionHistory)
+  const qualifyingStreak = holdQualifyingStreak(sessionHistory, referenceBest)
+  const qualifyingSessionCount = sessionHistory.filter((s) =>
+    holdSessionQualifies(s, referenceBest),
+  ).length
+
+  const bestNote =
+    referenceBest > 0 ? ` (best ${Math.round(referenceBest)}s${effortNote(sessionHistory.slice(-qualifyingStreak))})` : ''
+
+  const base = {
+    qualifyingStreak,
+    requiredSessions: required,
+    sessionsAtRung,
+    daysAtRung,
+    qualifyingSessionCount,
+  }
+
+  // 1. ready-to-advance: enough consecutive holds near the ceiling, with reserve.
+  if (referenceBest > 0 && qualifyingStreak >= required) {
+    const snoozed =
+      dismissedAtSessionCount != null && qualifyingSessionCount <= dismissedAtSessionCount
+    return {
+      ...base,
+      kind: 'ready-to-advance',
+      evidence: `${qualifyingStreak} holds at ~your best with reserve${bestNote}`,
+      snoozed,
+    }
+  }
+
+  // 2. close: one qualifying hold short.
+  if (referenceBest > 0 && qualifyingStreak === required - 1) {
+    return {
+      ...base,
+      kind: 'close',
+      evidence: `${qualifyingStreak}/${required} holds near your best`,
+      snoozed: false,
+    }
+  }
+
+  // 3. regressing: 3 recent holds well short of best, taken to failure.
+  if (sessionHistory.length >= 3 && sessionHistory.slice(-3).every((s) => holdSessionRegressing(s, referenceBest))) {
+    const regressingSnoozed =
+      dismissedAtSessionCount != null && sessionsAtRung <= dismissedAtSessionCount
+    return {
+      ...base,
+      kind: 'regressing',
+      evidence: '3 consecutive holds short of your best at failure',
+      snoozed: regressingSnoozed,
+    }
+  }
+
+  // 4. stuck: unchanged sessions/days heuristic.
+  if (sessionsAtRung >= STUCK_SESSIONS || daysAtRung >= STUCK_DAYS) {
+    return {
+      ...base,
+      kind: 'stuck',
+      evidence: `${sessionsAtRung} sessions / ${daysAtRung}d at this rung`,
+      snoozed: false,
+    }
+  }
+
+  // 5. steady
+  return {
+    ...base,
+    kind: 'steady',
+    evidence: referenceBest > 0 ? `building holds (best ${Math.round(referenceBest)}s)` : 'no holds logged yet',
     snoozed: false,
   }
 }
