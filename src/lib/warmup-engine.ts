@@ -49,19 +49,17 @@ type Trigger =
   | { kind: 'family'; family: MovementFamily }
 
 const TEMPLATE_TRIGGERS: Record<string, Trigger[]> = {
+  // Wrists: only when the day loads the hands (planche / handstand / straight-arm).
   wrist: [{ kind: 'prepTag', tag: 'wrist-loaded' }],
-  'scap-pull': [
-    { kind: 'prepTag', tag: 'scap-pull' },
-    { kind: 'family', family: 'pull' },
-  ],
-  'heavy-push-overhead': [
+  // The four pattern templates fire off the session's movement families, so
+  // every workout gets at least one warm-up block matched to what it trains.
+  pull: [{ kind: 'family', family: 'pull' }],
+  push: [
+    { kind: 'family', family: 'push' },
     { kind: 'prepTag', tag: 'heavy-push' },
     { kind: 'prepTag', tag: 'overhead' },
   ],
   legs: [{ kind: 'family', family: 'legs' }],
-  // Core prep fires only when the session actually contains a core movement.
-  // (An earlier scap-pull trigger over-fired on ordinary pull days — every
-  // scapular-pull movement carries the scap-pull prep tag — so it's removed.)
   core: [{ kind: 'family', family: 'core' }],
 }
 
