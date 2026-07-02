@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -33,5 +33,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  test: {
+    // Keep vitest's default excludes and also ignore Claude Code worktrees,
+    // which are full repo copies and would otherwise double-count tests.
+    exclude: [...configDefaults.exclude, '.claude/**'],
   },
 })
