@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Clock, Dumbbell, CalendarDays, Library } from 'lucide-react'
+import { Home, Clock, Dumbbell, CalendarDays, Map } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
@@ -7,7 +7,7 @@ const tabs = [
   { to: '/history', icon: Clock, label: 'History' },
   { to: '/workouts', icon: Dumbbell, label: 'Workouts' },
   { to: '/programs', icon: CalendarDays, label: 'Programs' },
-  { to: '/library', icon: Library, label: 'Library' },
+  { to: '/atlas', icon: Map, label: 'Atlas' },
 ] as const
 
 export function TabBar() {
