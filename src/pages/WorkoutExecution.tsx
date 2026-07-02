@@ -19,9 +19,10 @@ import { RestScreen } from '@/components/execution/RestScreen'
 import { AdjustScreen } from '@/components/execution/AdjustScreen'
 import { CompleteScreen } from '@/components/execution/CompleteScreen'
 import { GatePrompt } from '@/components/execution/GatePrompt'
+import { SessionPreviewScreen } from '@/components/execution/SessionPreviewScreen'
 import { Button } from '@/components/ui/button'
 import { useConfirm } from '@/components/ui/confirm-context'
-import { Play, X, Flag } from 'lucide-react'
+import { X, Flag } from 'lucide-react'
 
 export function WorkoutExecution() {
   const { id } = useParams<{ id: string }>()
@@ -112,7 +113,14 @@ export function WorkoutExecution() {
   useEffect(() => {
     if (!workout || !blocks || !entries || initialized) return
 
-    workoutsRepository.resolveBlocks(blocks, entries).then((resolvedBlocks) => {
+    // When crash-recovering from a run that used a custom entry order, use the
+    // persisted blocks directly. Falls back to fresh resolution for old records
+    // and brand-new runs (resumeData?.blocks is undefined in both cases).
+    const resolvePromise = resumeData?.blocks
+      ? Promise.resolve(resumeData.blocks)
+      : workoutsRepository.resolveBlocks(blocks, entries)
+
+    resolvePromise.then((resolvedBlocks) => {
       init({
         workoutId: workout.id,
         workoutName: workout.name,
@@ -182,16 +190,17 @@ export function WorkoutExecution() {
 
   if (!initialized || state.phase === 'ready') {
     return (
-      <div className="min-h-dvh flex flex-col items-center justify-center bg-background p-6">
-        <h1 className="text-2xl font-bold mb-2">{workout?.name ?? 'Loading...'}</h1>
-        <p className="text-muted-foreground mb-8">Ready to start?</p>
-        {initialized && (
-          <Button size="lg" className="text-lg px-8" onClick={() => dispatch({ type: 'START', now: Date.now() })}>
-            <Play className="h-5 w-5 mr-2" />
-            {inProgress?.workoutId === id ? 'Resume Workout' : 'Start Workout'}
-          </Button>
-        )}
-      </div>
+      <SessionPreviewScreen
+        workoutName={workout?.name ?? 'Loading...'}
+        blocks={state.blocks}
+        isLoading={!initialized}
+        isResume={inProgress?.workoutId === id}
+        onStart={() => dispatch({ type: 'START', now: Date.now() })}
+        onBack={() => navigate(-1)}
+        onReorderEntry={(blockIndex, fromIndex, toIndex) =>
+          dispatch({ type: 'REORDER_BLOCK_ENTRIES', blockIndex, fromIndex, toIndex })
+        }
+      />
     )
   }
 

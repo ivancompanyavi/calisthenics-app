@@ -257,6 +257,10 @@ export interface InProgressWorkout {
   currentEntryIndex: number
   completedSets: SetLog[]
   programDayIndex?: number
+  // Resolved blocks including any pre-start entry reordering. Absent on older
+  // crash-recovery records — the hook falls back to re-resolving from the
+  // workout definition in that case.
+  blocks?: import('@/lib/execution-engine').ResolvedBlock[]
 }
 
 export interface LevelUpCandidate {

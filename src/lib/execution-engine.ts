@@ -100,6 +100,7 @@ export type Action =
       currentEntryIndex: number
       completedSets: SetLog[]
     } }
+  | { type: 'REORDER_BLOCK_ENTRIES'; blockIndex: number; fromIndex: number; toIndex: number }
   | { type: 'START'; now: number }
   | { type: 'TICK_EXERCISE'; now: number }
   | { type: 'DONE_EXERCISE'; now: number }
@@ -258,6 +259,27 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         exerciseEndsAt: 0,
         exerciseStartedAt: 0,
       }
+
+    case 'REORDER_BLOCK_ENTRIES': {
+      // Only allowed in ready phase (pre-start). Silently no-ops otherwise so
+      // the call site doesn't need to guard the phase.
+      if (state.phase !== 'ready') return state
+      const { blockIndex, fromIndex, toIndex } = action
+      const block = state.blocks[blockIndex]
+      if (!block) return state
+      if (fromIndex === toIndex) return state
+      if (fromIndex < 0 || fromIndex >= block.entries.length) return state
+      if (toIndex < 0 || toIndex >= block.entries.length) return state
+
+      const entries = [...block.entries]
+      const [moved] = entries.splice(fromIndex, 1)
+      entries.splice(toIndex, 0, moved)
+
+      const newBlocks = state.blocks.map((b, i) =>
+        i === blockIndex ? { ...b, entries } : b
+      )
+      return { ...state, blocks: newBlocks }
+    }
 
     case 'START': {
       const entry = getCurrentEntry({ ...state, phase: 'exercise' })

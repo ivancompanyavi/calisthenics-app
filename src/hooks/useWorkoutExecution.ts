@@ -147,6 +147,9 @@ export function useWorkoutExecution(programDayIndex?: number) {
         currentEntryIndex: state.currentEntryIndex,
         completedSets: state.completedSets,
         programDayIndex,
+        // Persist the full resolved blocks (including any pre-start reorder) so
+        // a crash mid-workout resumes in the custom order — not the canonical seed order.
+        blocks: state.blocks,
       }
       await inProgressRepository.save(progress)
     }
