@@ -238,6 +238,19 @@ describe('workoutLogsRepository.getAllPRs — testDay flag', () => {
     expect(prs.get('m1')?.bestRepsTestDay).toBe(true)
   })
 
+  it('excludes warmup=true sets from PR derivation', async () => {
+    const log = makeLog('log1', 'w1', 100)
+    await db.workoutLogs.add(log)
+    // Warm-up set has higher reps — it must NOT become the PR.
+    await db.setLogs.bulkAdd([
+      makeSet('s-warmup', 'log1', 'm1', { actualReps: 20, warmup: true }),
+      makeSet('s-real', 'log1', 'm1', { actualReps: 8, order: 1 }),
+    ])
+
+    const prs = await workoutLogsRepository.getAllPRs()
+    expect(prs.get('m1')?.bestReps).toBe(8)
+  })
+
   it('tracks reps and seconds testDay flags independently', async () => {
     const testDayWorkout = makeWorkout('td-id', 'Test Day (Week 6)')
     await db.workouts.add(testDayWorkout)

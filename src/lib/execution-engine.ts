@@ -1,4 +1,4 @@
-import type { SetLog, TempoSpec, GateSpec } from '@/models/types'
+import type { SetLog, TempoSpec, GateSpec, MovementFamily, PrepTag } from '@/models/types'
 import { generateId } from '@/lib/utils'
 
 export type ExecutionPhase = 'ready' | 'exercise' | 'adjust' | 'resting' | 'complete'
@@ -24,6 +24,10 @@ export interface ResolvedEntry {
   restSeconds?: number
   tempo?: TempoSpec
   gate?: GateSpec
+  // Movement classification — carried through from seed for warm-up derivation.
+  // Optional: user-created movements that have no seed entry omit these.
+  movementFamily?: MovementFamily
+  movementPrepTags?: PrepTag[]
   // Auto-progression suggestion. Set when last clean hit warrants a bump.
   // Display layers show it alongside targetReps; the execution engine pre-
   // fills the adjust screen with this value when present.
@@ -41,6 +45,10 @@ export interface ResolvedBlock {
   rounds: number
   restSeconds: number
   entries: ResolvedEntry[]
+  // When true, all SetLogs produced for this block get warmup=true so they
+  // are excluded from PR derivation, progression readiness metrics, and
+  // volume accounting.
+  isWarmup?: boolean
 }
 
 export interface SkippedEntry {
@@ -446,6 +454,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
       }
       const newCancelled = [...state.cancelledEntries, cancelled]
 
+      const currentBlockIsWarmup = state.blocks[state.currentBlockIndex]?.isWarmup === true
       const skippedLog: SetLog = {
         id: generateId(),
         workoutLogId: '',
@@ -459,6 +468,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         round: state.currentRound,
         order: state.completedSets.length,
         notes: action.reason,
+        warmup: currentBlockIsWarmup || undefined,
       }
       const newCompletedSets = [...state.completedSets, skippedLog]
 
@@ -530,6 +540,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
       const entry = getCurrentEntry(state)
       if (!entry) return state
 
+      const confirmBlockIsWarmup = state.blocks[state.currentBlockIndex]?.isWarmup === true
       const setLog: SetLog = {
         id: generateId(),
         workoutLogId: '',
@@ -553,6 +564,7 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         actualWeightKg: state.adjustWeightKg,
         targetBandLevel: entry.targetBandLevel,
         actualBandLevel: state.adjustBandLevel,
+        warmup: confirmBlockIsWarmup || undefined,
       }
 
       const newCompletedSets = [...state.completedSets, setLog]

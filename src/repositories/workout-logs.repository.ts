@@ -127,6 +127,8 @@ export const workoutLogsRepository = {
     const prs = new Map<string, MovementPR>()
     for (const set of sets) {
       if (set.skipped) continue
+      // Warm-up sets are not training sets — exclude from PRs.
+      if (set.warmup) continue
       const log = logById.get(set.workoutLogId)
       const at = log?.completedAt
       const testDay = log != null && isTestDayLog(log)

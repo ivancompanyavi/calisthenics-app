@@ -14,6 +14,7 @@ import { useMarkSlotDone } from '@/hooks/usePrograms'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/query-keys'
 import { workoutsRepository, inProgressRepository, progressionsRepository } from '@/repositories'
+import { useSettings, useUpdateSettings } from '@/hooks/useSettings'
 import { ExerciseDisplay } from '@/components/execution/ExerciseDisplay'
 import { RestScreen } from '@/components/execution/RestScreen'
 import { AdjustScreen } from '@/components/execution/AdjustScreen'
@@ -23,6 +24,9 @@ import { SessionPreviewScreen } from '@/components/execution/SessionPreviewScree
 import { Button } from '@/components/ui/button'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { X, Flag } from 'lucide-react'
+import { buildWarmupBlock } from '@/lib/warmup-engine'
+import { db } from '@/db'
+import type { ResolvedBlock } from '@/hooks/useWorkoutExecution'
 
 export function WorkoutExecution() {
   const { id } = useParams<{ id: string }>()
@@ -51,6 +55,30 @@ export function WorkoutExecution() {
   const [initialized, setInitialized] = useState(false)
   const [workoutNotes, setWorkoutNotes] = useState('')
   const [workoutSaved, setWorkoutSaved] = useState(false)
+
+  // ─── Warm-up state ────────────────────────────────────────────────────────
+  // Persisted preference (defaults to true = enabled).
+  const { data: settings } = useSettings()
+  const updateSettings = useUpdateSettings()
+  // Local override — starts at undefined (= use persisted setting), then
+  // flips when the user taps the toggle on the preview screen.
+  const [warmupOverride, setWarmupOverride] = useState<boolean | undefined>(undefined)
+  const warmupEnabled = warmupOverride ?? settings?.warmupEnabled ?? true
+
+  // Pre-built warm-up block, derived once from the resolved blocks.
+  // null = nothing to warm up for this session.
+  const [warmupBlock, setWarmupBlock] = useState<ResolvedBlock | null>(null)
+
+  const handleToggleWarmup = (enabled: boolean) => {
+    setWarmupOverride(enabled)
+    // Fire-and-forget — persist so the next session starts with the same choice.
+    updateSettings.mutate({ warmupEnabled: enabled })
+    // Re-init so the warm-up block is added/removed before the user taps Start.
+    // Only safe in the 'ready' phase (before any sets are logged).
+    if (state.phase === 'ready') {
+      setInitialized(false)
+    }
+  }
 
   // For post-workout readiness cards (after save).
   const { data: allProgressions } = useProgressions()
@@ -116,24 +144,77 @@ export function WorkoutExecution() {
     // When crash-recovering from a run that used a custom entry order, use the
     // persisted blocks directly. Falls back to fresh resolution for old records
     // and brand-new runs (resumeData?.blocks is undefined in both cases).
+    //
+    // Note: resume records may already include a warm-up block (isWarmup=true)
+    // if the user started with warmup enabled. We preserve that so mid-warmup
+    // crash recovery works correctly.
     const resolvePromise = resumeData?.blocks
       ? Promise.resolve(resumeData.blocks)
       : workoutsRepository.resolveBlocks(blocks, entries)
 
-    resolvePromise.then((resolvedBlocks) => {
-      init({
-        workoutId: workout.id,
-        workoutName: workout.name,
-        blocks: resolvedBlocks,
-        restBetweenBlocksSeconds: workout.restBetweenBlocksSeconds ?? 0,
-        startedAt: resumeData?.startedAt ?? Date.now(),
-        currentBlockIndex: resumeData?.currentBlockIndex ?? 0,
-        currentRound: resumeData?.currentRound ?? 0,
-        currentEntryIndex: resumeData?.currentEntryIndex ?? 0,
-        completedSets: resumeData?.completedSets ?? [],
-      })
+    resolvePromise.then(async (resolvedBlocks) => {
+      // Derive the warm-up block from the resolved movements.
+      // Skip derivation when this is a crash-recovery resume — the saved blocks
+      // already contain (or don't contain) the warm-up block from the original run.
+      if (!resumeData?.blocks) {
+        // Collect all movement inputs from the resolved blocks.
+        const movementInputs = resolvedBlocks
+          .flatMap((b) => b.entries)
+          .map((e) => ({
+            movementId: e.movementId,
+            movementName: e.movementName,
+            family: e.movementFamily,
+            prepTags: e.movementPrepTags,
+          }))
+
+        // Build a lookup map from movement name → {id, seedImagePath}.
+        // Query all movements by name so warm-up template names resolve correctly.
+        const allMovements = await db.movements.toArray()
+        const movementNameMap = new Map(
+          allMovements.map((m) => [m.name, { id: m.id, name: m.name, seedImagePath: m.seedImagePath }]),
+        )
+
+        const builtWarmupBlock = buildWarmupBlock(movementInputs, movementNameMap)
+        setWarmupBlock(builtWarmupBlock)
+
+        // Prepend warm-up block if enabled and present.
+        const blocksForInit =
+          builtWarmupBlock && warmupEnabled
+            ? [{ ...builtWarmupBlock, isWarmup: true as const }, ...resolvedBlocks]
+            : resolvedBlocks
+
+        init({
+          workoutId: workout.id,
+          workoutName: workout.name,
+          blocks: blocksForInit,
+          restBetweenBlocksSeconds: workout.restBetweenBlocksSeconds ?? 0,
+          startedAt: resumeData?.startedAt ?? Date.now(),
+          currentBlockIndex: resumeData?.currentBlockIndex ?? 0,
+          currentRound: resumeData?.currentRound ?? 0,
+          currentEntryIndex: resumeData?.currentEntryIndex ?? 0,
+          completedSets: resumeData?.completedSets ?? [],
+        })
+      } else {
+        // Crash recovery: use the persisted blocks as-is (warm-up state included).
+        init({
+          workoutId: workout.id,
+          workoutName: workout.name,
+          blocks: resolvedBlocks,
+          restBetweenBlocksSeconds: workout.restBetweenBlocksSeconds ?? 0,
+          startedAt: resumeData.startedAt,
+          currentBlockIndex: resumeData.currentBlockIndex,
+          currentRound: resumeData.currentRound,
+          currentEntryIndex: resumeData.currentEntryIndex,
+          completedSets: resumeData.completedSets,
+        })
+      }
+
       setInitialized(true)
     })
+  // warmupEnabled intentionally omitted: the warm-up choice is baked in at
+  // initialization time. The toggle on the ready screen re-inits via
+  // handleToggleWarmup → setWarmupOverride → triggers a re-init below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout, blocks, entries, resumeData, id, init, initialized])
 
   // Phase 1: persist the workout log and flip workoutSaved so CompleteScreen can
@@ -195,6 +276,9 @@ export function WorkoutExecution() {
         blocks={state.blocks}
         isLoading={!initialized}
         isResume={inProgress?.workoutId === id}
+        warmupEnabled={warmupEnabled}
+        warmupBlockPresent={warmupBlock !== null}
+        onToggleWarmup={handleToggleWarmup}
         onStart={() => dispatch({ type: 'START', now: Date.now() })}
         onBack={() => navigate(-1)}
         onReorderEntry={(blockIndex, fromIndex, toIndex) =>
