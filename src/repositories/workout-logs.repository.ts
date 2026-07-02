@@ -1,6 +1,7 @@
 import { db } from '@/db'
 import type { WorkoutLog, SetLog } from '@/models/types'
 import { generateId } from '@/lib/utils'
+import { deriveRepsSuggestion } from '@/lib/progression-metrics'
 
 export interface MovementPR {
   movementId: string
@@ -19,22 +20,6 @@ export interface MovementPR {
 export interface RepsSuggestion {
   suggestedReps: number
   reason: string
-}
-
-// Decide if last session was "clean" enough to bump: all non-skipped sets met
-// their target AND, where RIR was logged, came in at >=2. RIR is optional; the
-// absence of RIR is treated as a non-veto (we don't punish users for not
-// logging it). A single sub-RIR-2 set vetoes the bump.
-function wasCleanHit(sets: SetLog[]): boolean {
-  let anyHit = false
-  for (const s of sets) {
-    if (s.skipped) continue
-    if (s.targetReps == null) continue
-    if ((s.actualReps ?? 0) < s.targetReps) return false
-    if (s.rir != null && s.rir < 2) return false
-    anyHit = true
-  }
-  return anyHit
 }
 
 export const workoutLogsRepository = {
@@ -91,12 +76,9 @@ export const workoutLogsRepository = {
         const repsSets = sets.filter((s) => !s.skipped && s.actualReps != null)
         if (repsSets.length === 0) break // movement was only logged as max/time mode — no rep suggestion
 
-        if (wasCleanHit(repsSets)) {
-          const max = Math.max(...repsSets.map((s) => s.actualReps ?? 0))
-          suggestions.set(movementId, {
-            suggestedReps: max + 1,
-            reason: `Last session: clean hit — bump from ${max}`,
-          })
+        const suggestion = deriveRepsSuggestion(repsSets)
+        if (suggestion) {
+          suggestions.set(movementId, suggestion)
         }
         // No suggestion on miss/non-clean — UI falls back to entry.targetReps.
         break
