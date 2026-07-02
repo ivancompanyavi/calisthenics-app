@@ -1,4 +1,4 @@
-import type { SetMode, TempoSpec, GateSpec } from "@/models/types";
+import type { MovementFamily, PrepTag, SetMode, TempoSpec, GateSpec } from "@/models/types";
 
 export interface SeedMovement {
   name: string;
@@ -8,6 +8,11 @@ export interface SeedMovement {
   // the movement card. Not required.
   referenceUrl?: string;
   previousNames?: string[];
+  // Every seed movement must carry a family (dominant demand). User-created
+  // movements that aren't in the seed leave this undefined on the Movement row.
+  family: MovementFamily;
+  // Prep tags for warm-up derivation. Omit the field when no prep tags apply.
+  prepTags?: PrepTag[];
 }
 
 export interface SeedLevelDef {

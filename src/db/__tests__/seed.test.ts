@@ -74,6 +74,44 @@ describe('remapCurrentLevel', () => {
   })
 })
 
+describe('seedDatabase movement classification', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+  })
+
+  it('every seeded movement has a family', async () => {
+    await seedDatabase()
+    const movements = await db.movements.toArray()
+    const missing = movements.filter((m) => !m.family)
+    expect(missing).toHaveLength(0)
+  })
+
+  it('at least one wrist-loaded skill carries the wrist-loaded prep tag', async () => {
+    await seedDatabase()
+    const movements = await db.movements.toArray()
+    const wristLoaded = movements.filter((m) => m.prepTags?.includes('wrist-loaded'))
+    expect(wristLoaded.length).toBeGreaterThan(0)
+    // Planche family must be among them.
+    const tuckPlanche = movements.find((m) => m.name === 'Tuck Planche')
+    expect(tuckPlanche?.prepTags).toContain('wrist-loaded')
+  })
+
+  it('updates family and prepTags on existing movement rows when they are missing', async () => {
+    // Simulate a pre-classification DB row (no family or prepTags).
+    await db.movements.add({
+      id: 'mv-existing',
+      name: 'Pull-Ups',
+      createdAt: 0,
+    })
+
+    await seedDatabase()
+
+    const updated = await db.movements.get('mv-existing')
+    expect(updated?.family).toBe('pull')
+    expect(updated?.prepTags).toContain('grip')
+  })
+})
+
 describe('seedDatabase progression sync', () => {
   beforeEach(async () => {
     await clearAllTables()
