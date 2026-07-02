@@ -10,6 +10,7 @@ export const queryKeys = {
     readiness: (progressionIds: string[], setsCount: number) =>
       ['progressionReadiness', progressionIds, setsCount] as const,
     diagnostics: ['progressionDiagnostics'] as const,
+    verdicts: ['progressionVerdicts'] as const,
   },
   workouts: {
     all: ['workouts'] as const,

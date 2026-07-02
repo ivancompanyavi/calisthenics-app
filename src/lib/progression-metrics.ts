@@ -98,7 +98,7 @@ export interface EvalSession {
  *    - Time/max mode: last set's SIR, if logged, must be >= minSIR (default 1).
  *    Absent RIR/SIR is always a non-veto (matching wasCleanHit semantics).
  */
-function sessionQualifies(session: EvalSession, criteria: ExitCriteria): boolean {
+export function sessionQualifies(session: EvalSession, criteria: ExitCriteria): boolean {
   const activeSets = session.sets.filter((s) => !s.skipped)
   if (activeSets.length === 0) return false
 

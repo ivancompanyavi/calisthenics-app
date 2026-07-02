@@ -64,11 +64,15 @@ export function useUpdateCurrentLevel() {
   return useMutation({
     mutationFn: async ({ id, currentLevel }: { id: string; currentLevel: number }) => {
       await progressionsRepository.updateCurrentLevel(id, currentLevel)
+      // Clear any stale snooze so the new rung starts fresh.
+      await progressionsRepository.clearDismissal(id)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
       // Diagnostics depend on currentLevel; bumping it clears the stuck state.
       qc.invalidateQueries({ queryKey: queryKeys.progressions.diagnostics })
+      // Re-compute readiness verdicts after the level change.
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.verdicts })
     },
   })
 }
@@ -90,5 +94,36 @@ export function useProgressionDiagnostics() {
   return useQuery({
     queryKey: queryKeys.progressions.diagnostics,
     queryFn: () => progressionsRepository.getDiagnostics(),
+  })
+}
+
+/**
+ * Readiness verdicts for all progressions.
+ * Returns a Map<progressionId, ReadinessVerdict>.
+ */
+export function useProgressionVerdicts() {
+  return useQuery({
+    queryKey: queryKeys.progressions.verdicts,
+    queryFn: () => progressionsRepository.getVerdicts(),
+  })
+}
+
+/**
+ * Dismiss (snooze) the ready-to-advance card for a progression.
+ * Re-surfaces automatically after the next qualifying session.
+ */
+export function useDismissVerdictCard() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      progressionId,
+      qualifyingSessionCount,
+    }: {
+      progressionId: string
+      qualifyingSessionCount: number
+    }) => progressionsRepository.dismissVerdict(progressionId, qualifyingSessionCount),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.verdicts })
+    },
   })
 }
