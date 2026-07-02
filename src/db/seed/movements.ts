@@ -499,13 +499,6 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     family: "push",
   },
   {
-    name: "Band Pull-Aparts",
-    description: "Upper-back and rear-delt activation with a light resistance band.",
-    coachingCues:
-      "Hold a light band at shoulder height, arms straight. Pull it apart by squeezing the shoulder blades, then return slowly. Keep ribs down.",
-    family: "pull",
-  },
-  {
     name: "Scapular Shrugs",
     description: "Scapular elevation/depression to wake up the traps before pulling.",
     coachingCues:
@@ -517,13 +510,6 @@ export const SEED_MOVEMENTS: SeedMovement[] = [
     description: "Wrist mobility — slow circles in both directions to prep for loading.",
     coachingCues:
       "Interlace fingers or extend hands; rotate the wrists through their full range, ~10 circles each way. Add gentle finger extensions.",
-    family: "push",
-  },
-  {
-    name: "Wall Slides",
-    description: "Shoulder-flexion and scapular-upward-rotation mobility drill.",
-    coachingCues:
-      "Back to a wall, arms in a goalpost. Slide the arms overhead keeping wrists and elbows on the wall, then return. Move slowly through the available range.",
     family: "push",
   },
   {

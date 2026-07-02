@@ -396,4 +396,36 @@ export const EXERCISES = [
     slug: "leg-swings",
     pose: "standing on one leg beside a vertical support bar holding it with one hand, the free leg swung forward parallel to the floor with the knee straight, a dynamic hip-flexor stretch, side profile view",
   },
+  {
+    slug: "wrist-circles",
+    pose: "standing upright with both arms extended forward at shoulder height, fingers interlaced, rotating the wrists in a circle, a gentle wrist mobility drill, front three-quarter view",
+  },
+  {
+    slug: "scapular-shrugs",
+    pose: "hanging from a pull-up bar with both arms straight and relaxed, shoulders shrugged down and away from the ears by squeezing the shoulder blades, body still, arms remaining straight, front view",
+  },
+  {
+    slug: "arm-circles",
+    pose: "standing upright with both arms extended straight out to the sides at shoulder height, tracing large circles, a dynamic shoulder warm-up, front view",
+  },
+  {
+    slug: "wall-slides",
+    pose: "standing with back flat against a wall, both arms raised in a goalpost position with elbows and backs of the wrists touching the wall, sliding the arms upward overhead while keeping contact, front view",
+  },
+  {
+    slug: "hip-circles",
+    pose: "standing on one leg beside a support, the other knee lifted to hip height and drawn outward in a wide circle to open the hip joint, a dynamic mobility drill, front three-quarter view",
+  },
+  {
+    slug: "ankle-rocks",
+    pose: "in a half-kneeling lunge with the front foot flat on the floor, driving the front knee forward past the toes while keeping the heel down, an ankle dorsiflexion mobility drill, side profile view",
+  },
+  {
+    slug: "cat-cow",
+    pose: "on all fours with hands under shoulders and knees under hips, the spine rounded upward toward the ceiling in the cat position, head dropped, a spinal mobility drill, side profile view",
+  },
+  {
+    slug: "bird-dog",
+    pose: "on all fours with hands under shoulders and knees under hips, extending the opposite arm forward and leg backward until both are level with the flat back, hips square, a core stability drill, side profile view",
+  },
 ];
