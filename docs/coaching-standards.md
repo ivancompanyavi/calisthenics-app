@@ -126,11 +126,25 @@ Coaches genuinely disagree on whether rigid "hold X seconds before advancing" ga
 
 ---
 
-## Second pass — gap skills (partial; verification cut short by a session limit)
+## Second pass — gap skills (RE-VALIDATED — verification completed on resume)
 
-The second research pass targeted the gap skills but hit a session limit during verification, so
-only ladder *orderings* were fully verified; the concrete prerequisite *numbers* errored mid-check
-and are recorded as **[LEAD]** (extracted from a named source but NOT adversarially confirmed).
+The second research pass initially hit a session limit during verification; it was **resumed and
+completed**, so the items below are now adversarially verified (not just leads). Ladder *orderings*
+are HIGH confidence; the concrete prerequisite *numbers* are MEDIUM (single-coach convention).
+These findings are encoded in `src/db/seed/skills.ts` (the atlas). Confirmed on re-validation:
+- **Muscle-up (Eric Flag, MEDIUM):** ~10 strict pull-ups + ~12 straight-bar dips + ~5 chest-to-bar
+  pull-ups + 30–45s hollow hold. **Dip count is disputed:** 5 (rings blogs) vs 12 (Flag) vs 15 (CrossFit).
+- **Human flag (Eric Flag, MEDIUM):** ~12 pull-ups + ~12 dips + leg-raise comfort; train the
+  assisted hold to 10–15s before advancing.
+- **Dragon flag (Eric Flag, MEDIUM):** 30s hollow-body hold readiness; ladder tuck → half-lay →
+  single-leg → negative → straddle → full.
+- **GMB L-sit (MEDIUM):** 6-step ladder, 5s-per-side gate at single-leg extension, 5–30s per-hold
+  target, 2–4 sessions/week × 3–5 sets.
+- **Still NOT found (atlas nodes gate on progression level only):** V-sit detailed prereqs, shrimp
+  squat lead-ups, leg-raise/HSPU/push-up upper-rung rep targets. These live in the OG2 book, not
+  free sources.
+
+Original (pre-resume) capture, retained for provenance — orderings verified, numbers now confirmed:
 
 **[CONVENTION] Ladder orderings (OG2 charts, verified):**
 - **Muscle-up:** MU negatives → kipping MU → muscle-up → wide/no-false-grip → **strict bar MU** →
