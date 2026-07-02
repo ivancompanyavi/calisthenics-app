@@ -27,6 +27,18 @@ export function Settings() {
     update.mutate({ waitAfterRest: next })
   }
 
+  const remindersEnabled = settings?.workoutRemindersEnabled ?? false
+  const notifDenied =
+    typeof Notification !== 'undefined' && Notification.permission === 'denied'
+  const setRemindersEnabled = async (next: boolean) => {
+    if (next === remindersEnabled) return
+    // Ask for notification permission when turning reminders on.
+    if (next && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      await Notification.requestPermission()
+    }
+    update.mutate({ workoutRemindersEnabled: next })
+  }
+
   return (
     <div>
       <PageHeader title="Settings" />
@@ -69,6 +81,33 @@ export function Settings() {
                 Off
               </UnitButton>
             </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold">Workout reminders</h2>
+              <p className="text-xs text-muted-foreground">
+                Shows a notification naming today&#39;s workout when you open the app on a
+                scheduled day. Fires while the app is open only — background reminders
+                aren&#39;t possible without a server.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <UnitButton active={remindersEnabled} onClick={() => setRemindersEnabled(true)}>
+                On
+              </UnitButton>
+              <UnitButton active={!remindersEnabled} onClick={() => setRemindersEnabled(false)}>
+                Off
+              </UnitButton>
+            </div>
+            {remindersEnabled && notifDenied && (
+              <p className="text-xs text-destructive">
+                Notifications are blocked in your browser settings — enable them for this
+                site to receive reminders.
+              </p>
+            )}
           </div>
         </Card>
 

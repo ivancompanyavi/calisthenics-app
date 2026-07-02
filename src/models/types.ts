@@ -238,6 +238,12 @@ export interface Settings {
   // When false (or absent), the warm-up is skipped. Last choice persists.
   // Non-indexed — no Dexie version bump required.
   warmupEnabled?: boolean
+  // When true, opening the app on a scheduled-workout day fires a local
+  // notification naming today's workout (requires Notification permission).
+  // Local-first only — true background/push delivery needs a server, which is
+  // deliberately out of scope (see docs/notifications-spike.md). Default false.
+  // Non-indexed — no Dexie version bump required.
+  workoutRemindersEnabled?: boolean
 }
 
 // A self-set training goal pinned to a specific movement. Progress is
