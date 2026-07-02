@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Clock, Dumbbell, CalendarDays, Map } from 'lucide-react'
+import { Home, Clock, Dumbbell, CalendarDays, Library, Map } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const tabs = [
@@ -7,6 +7,7 @@ const tabs = [
   { to: '/history', icon: Clock, label: 'History' },
   { to: '/workouts', icon: Dumbbell, label: 'Workouts' },
   { to: '/programs', icon: CalendarDays, label: 'Programs' },
+  { to: '/library', icon: Library, label: 'Library' },
   { to: '/atlas', icon: Map, label: 'Atlas' },
 ] as const
 
@@ -20,7 +21,7 @@ export function TabBar() {
             to={to}
             className={({ isActive }) =>
               cn(
-                'flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors touch-manipulation',
+                'flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors touch-manipulation',
                 isActive
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground'
