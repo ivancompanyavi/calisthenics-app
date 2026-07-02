@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { CuePlayer, type CuePlayerOptions } from '../cue-player'
+import { CuePlayer, decideCue, type CuePlayerOptions, type CueSnapshot } from '../cue-player'
 
 // ── Minimal fake AudioContext ─────────────────────────────────────────────────
 
@@ -237,5 +237,102 @@ describe('CuePlayer', () => {
       player.unlock()
       expect(() => player.cue(3)).not.toThrow()
     })
+  })
+})
+
+// ─── decideCue — the transition decision logic ───────────────────────────────
+
+describe('decideCue', () => {
+  function snap(overrides: Partial<CueSnapshot> = {}): CueSnapshot {
+    return {
+      phase: 'exercise',
+      restRemaining: 0,
+      exerciseRemaining: 0,
+      exerciseMode: undefined,
+      ...overrides,
+    }
+  }
+
+  // ── time-mode END tone: the regression this test file guards ────────────────
+
+  it('fires end tone on exercise(time) → adjust transition (the important cue)', () => {
+    const prev = snap({ phase: 'exercise', exerciseRemaining: 1, exerciseMode: 'time' })
+    const curr = snap({ phase: 'adjust', exerciseRemaining: 0, exerciseMode: 'time' })
+    expect(decideCue(prev, curr)).toBe(0)
+  })
+
+  it('does NOT fire end tone on exercise(max) → adjust transition', () => {
+    const prev = snap({ phase: 'exercise', exerciseMode: 'max' })
+    const curr = snap({ phase: 'adjust', exerciseMode: 'max' })
+    expect(decideCue(prev, curr)).toBeNull()
+  })
+
+  it('does NOT fire end tone on exercise(reps) → adjust transition', () => {
+    const prev = snap({ phase: 'exercise', exerciseMode: 'reps' })
+    const curr = snap({ phase: 'adjust', exerciseMode: 'reps' })
+    expect(decideCue(prev, curr)).toBeNull()
+  })
+
+  // ── rest END tone ───────────────────────────────────────────────────────────
+
+  it('fires end tone on resting → exercise transition', () => {
+    const prev = snap({ phase: 'resting', restRemaining: 1 })
+    const curr = snap({ phase: 'exercise', restRemaining: 0 })
+    expect(decideCue(prev, curr)).toBe(0)
+  })
+
+  // ── rest countdown beeps ────────────────────────────────────────────────────
+
+  it.each([3, 2, 1])('fires countdown tick %i during rest', (r) => {
+    const prev = snap({ phase: 'resting', restRemaining: r + 1 })
+    const curr = snap({ phase: 'resting', restRemaining: r })
+    expect(decideCue(prev, curr)).toBe(r)
+  })
+
+  it('does not fire a rest tick above 3', () => {
+    const prev = snap({ phase: 'resting', restRemaining: 5 })
+    const curr = snap({ phase: 'resting', restRemaining: 4 })
+    expect(decideCue(prev, curr)).toBeNull()
+  })
+
+  // ── time-mode exercise countdown beeps ──────────────────────────────────────
+
+  it.each([3, 2, 1])('fires countdown tick %i during a time-mode hold', (r) => {
+    const prev = snap({ phase: 'exercise', exerciseRemaining: r + 1, exerciseMode: 'time' })
+    const curr = snap({ phase: 'exercise', exerciseRemaining: r, exerciseMode: 'time' })
+    expect(decideCue(prev, curr)).toBe(r)
+  })
+
+  it('does not fire a hold tick when the timer was just armed (value increased)', () => {
+    // Start of a new time-mode exercise: remaining jumps from 0 up to e.g. 30,
+    // then a fresh entry may briefly read 3 on some path — must not beep unless
+    // it actually counted DOWN to 3.
+    const prev = snap({ phase: 'exercise', exerciseRemaining: 0, exerciseMode: 'time' })
+    const curr = snap({ phase: 'exercise', exerciseRemaining: 3, exerciseMode: 'time' })
+    expect(decideCue(prev, curr)).toBeNull()
+  })
+
+  it('does not fire a hold tick for max mode (count-up)', () => {
+    const prev = snap({ phase: 'exercise', exerciseRemaining: 3, exerciseMode: 'max' })
+    const curr = snap({ phase: 'exercise', exerciseRemaining: 2, exerciseMode: 'max' })
+    expect(decideCue(prev, curr)).toBeNull()
+  })
+
+  it('does not fire a hold tick for reps mode', () => {
+    const prev = snap({ phase: 'exercise', exerciseRemaining: 3, exerciseMode: 'reps' })
+    const curr = snap({ phase: 'exercise', exerciseRemaining: 2, exerciseMode: 'reps' })
+    expect(decideCue(prev, curr)).toBeNull()
+  })
+
+  // ── no-op steady states ─────────────────────────────────────────────────────
+
+  it('returns null when nothing relevant changes (ready → ready)', () => {
+    expect(decideCue(snap({ phase: 'ready' }), snap({ phase: 'ready' }))).toBeNull()
+  })
+
+  it('returns null on a normal reps exercise → adjust with no timer', () => {
+    const prev = snap({ phase: 'exercise', exerciseMode: 'reps' })
+    const curr = snap({ phase: 'adjust', exerciseMode: 'reps' })
+    expect(decideCue(prev, curr)).toBeNull()
   })
 })

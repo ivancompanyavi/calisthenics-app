@@ -27,6 +27,60 @@ const TICK_TONE: Tone = { frequency: 880, duration: 0.12 }
 // Distinct end tone at 0.
 const END_TONE: Tone = { frequency: 1320, duration: 0.45 }
 
+// ─── Cue-decision logic (pure) ───────────────────────────────────────────────
+
+type ExecMode = 'reps' | 'time' | 'max'
+
+/**
+ * Snapshot of the execution-timer fields the cue decision depends on. The hook
+ * keeps a "previous" and "current" snapshot and asks `decideCue` what (if
+ * anything) to play on each transition.
+ */
+export interface CueSnapshot {
+  phase: 'ready' | 'exercise' | 'adjust' | 'resting' | 'complete'
+  restRemaining: number
+  exerciseRemaining: number
+  exerciseMode: ExecMode | undefined
+}
+
+/**
+ * Given the previous and current timer snapshots, decide which cue (if any)
+ * should fire. Returns the argument for `CuePlayer.cue()` — 3 / 2 / 1 for a
+ * countdown tick, 0 for an end tone, or `null` for no cue.
+ *
+ * Pure and side-effect free so the transition logic can be unit-tested without
+ * touching audio. Only `resting` and time-mode `exercise` countdowns produce
+ * cues; `max` (count-up) and `reps` are always silent.
+ */
+export function decideCue(prev: CueSnapshot, curr: CueSnapshot): number | null {
+  // End tone: rest expired and the next exercise begins.
+  if (prev.phase === 'resting' && curr.phase === 'exercise') {
+    return 0
+  }
+
+  // End tone: a time-mode hold finished and we moved to the adjust screen.
+  // This is the most important cue for hold training.
+  if (prev.phase === 'exercise' && curr.phase === 'adjust' && curr.exerciseMode === 'time') {
+    return 0
+  }
+
+  // Countdown beeps while resting.
+  if (curr.phase === 'resting') {
+    const r = curr.restRemaining
+    if (r === 3 || r === 2 || r === 1) return r
+  }
+
+  // Countdown beeps during a time-mode hold — only when the value actually
+  // decreased, so re-arming the timer at the start of an exercise (which sets
+  // remaining to a high number) never re-triggers a stale 3/2/1.
+  if (curr.phase === 'exercise' && curr.exerciseMode === 'time') {
+    const r = curr.exerciseRemaining
+    if ((r === 3 || r === 2 || r === 1) && prev.exerciseRemaining > r) return r
+  }
+
+  return null
+}
+
 export class CuePlayer {
   private ctx: AudioContext | null = null
   private readonly opts: Required<CuePlayerOptions>

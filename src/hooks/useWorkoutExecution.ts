@@ -2,7 +2,7 @@ import { useReducer, useEffect, useCallback, useRef } from 'react'
 import type { InProgressWorkout } from '@/models/types'
 import { inProgressRepository } from '@/repositories'
 import { useSettings } from '@/hooks/useSettings'
-import { CuePlayer } from '@/lib/cue-player'
+import { CuePlayer, decideCue, type CueSnapshot } from '@/lib/cue-player'
 import {
   executionReducer,
   initialState,
@@ -161,79 +161,37 @@ export function useWorkoutExecution(programDayIndex?: number) {
     }
   }, [])
 
-  // Refs that track "previous" state values so effects can detect transitions
-  // and avoid firing duplicate cues when a value is first set.
-  const cueStateRef = useRef({
-    phase: state.phase as ExecutionPhase,
+  // Tracks the "previous" timer snapshot so the cue effect can detect
+  // transitions. A SINGLE effect reads and writes this ref (one reader, one
+  // writer) — splitting rest and exercise cues across two effects that share
+  // this ref creates an ordering hazard where the first effect stomps the
+  // `phase` the second reads as its `prev`, killing the time-mode end tone.
+  const cueSnapshotRef = useRef<CueSnapshot>({
+    phase: state.phase,
     restRemaining: state.restRemaining,
     exerciseRemaining: state.exerciseTimeRemaining,
-    exerciseMode: currentEntry?.mode as 'reps' | 'time' | 'max' | undefined,
+    exerciseMode: currentEntry?.mode,
   })
 
-  // REST CUES: beep at 3 / 2 / 1 s remaining; end tone when rest expires.
+  // CUES: countdown beeps at 3 / 2 / 1 and a distinct end tone at 0, for both
+  // rest countdowns and time-mode exercise holds. The pure `decideCue` decides
+  // what (if anything) to play; `max` (count-up) and `reps` are always silent.
   useEffect(() => {
-    const prev = cueStateRef.current
-    const player = cuePlayerRef.current
-
-    // Always update the phase portion of the ref before early returns so that
-    // the next effect invocation sees the correct previous phase.
-    cueStateRef.current = {
-      ...cueStateRef.current,
+    const prev = cueSnapshotRef.current
+    const curr: CueSnapshot = {
       phase: state.phase,
       restRemaining: state.restRemaining,
-    }
-
-    if (!player || !cuesEnabled) return
-
-    // Beeps at 3 / 2 / 1 while counting down.
-    if (state.phase === 'resting') {
-      const r = state.restRemaining
-      if (r === 3 || r === 2 || r === 1) {
-        player.cue(r)
-      }
-    }
-
-    // End tone when rest expires and the next exercise begins.
-    if (prev.phase === 'resting' && state.phase === 'exercise') {
-      player.cue(0)
-    }
-  }, [state.phase, state.restRemaining, cuesEnabled])
-
-  // EXERCISE TIME CUES: beep at 3 / 2 / 1 s; end tone when timer reaches zero.
-  // Only for `time` mode — `max` (count-up) and `reps` get no cues.
-  useEffect(() => {
-    const prev = cueStateRef.current
-    const player = cuePlayerRef.current
-
-    cueStateRef.current = {
-      ...cueStateRef.current,
       exerciseRemaining: state.exerciseTimeRemaining,
       exerciseMode: currentEntry?.mode,
     }
+    // Write the ref exactly once, up front, so the next run always sees this
+    // run's `curr` as its `prev` regardless of early return.
+    cueSnapshotRef.current = curr
 
-    if (!player || !cuesEnabled) return
-
-    // Countdown beeps — only fire when the value has decreased (i.e., is
-    // counting down, not when the timer was just reset to a high number at
-    // the start of a new exercise).
-    if (state.phase === 'exercise' && currentEntry?.mode === 'time') {
-      const r = state.exerciseTimeRemaining
-      if ((r === 3 || r === 2 || r === 1) && prev.exerciseRemaining > r) {
-        player.cue(r)
-      }
-    }
-
-    // End tone when a time-mode exercise transitions to the adjust screen.
-    // `currentEntry` still points to the same entry during the adjust phase
-    // (blockIndex/entryIndex haven't advanced), so checking mode here is safe.
-    if (
-      prev.phase === 'exercise' &&
-      state.phase === 'adjust' &&
-      currentEntry?.mode === 'time'
-    ) {
-      player.cue(0)
-    }
-  }, [state.phase, state.exerciseTimeRemaining, currentEntry?.mode, cuesEnabled])
+    if (!cuesEnabled) return
+    const cue = decideCue(prev, curr)
+    if (cue !== null) cuePlayerRef.current?.cue(cue)
+  }, [state.phase, state.restRemaining, state.exerciseTimeRemaining, currentEntry?.mode, cuesEnabled])
 
   // Wrap dispatch so we can unlock the AudioContext on the START tap (user
   // gesture) without requiring the calling component to know about cues.
