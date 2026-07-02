@@ -15,6 +15,9 @@ async function requestPersistentStorage() {
 
 seedDatabase().then(() => {
   requestPersistentStorage()
+  if (import.meta.env.DEV) {
+    import('./lib/dev-readiness').then((m) => m.installReadinessDevTools())
+  }
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />
