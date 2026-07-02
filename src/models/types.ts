@@ -25,6 +25,28 @@ export interface Progression {
   seedFingerprint?: string
 }
 
+// Advancement gate for a single progression rung. All numeric thresholds are
+// "at least this" — sessions must hit the count AND each qualifying session
+// must pass the effort/volume gates. Fields are intentionally optional so only
+// the relevant gates need to be specified; absent gates are treated as
+// non-vetoes (matching wasCleanHit semantics).
+export interface ExitCriteria {
+  // Number of consecutive qualifying sessions required to exit the rung.
+  sessions: number
+  // Minimum non-skipped sets per session (omit = no minimum).
+  sets?: number
+  // Minimum reps per set in reps mode (omit = target-hit is sufficient).
+  minReps?: number
+  // Minimum RIR on the last reps-mode set (omit = defaults to 2 when present;
+  // absent RIR is always a non-veto).
+  minRIR?: number
+  // Minimum hold seconds per set in time/max mode (omit = target-hit is sufficient).
+  minHoldSeconds?: number
+  // Minimum SIR on the last time/max-mode set (omit = defaults to 1 when
+  // present; absent SIR is always a non-veto).
+  minSIR?: number
+}
+
 export interface ProgressionLevel {
   id: string
   progressionId: string
@@ -34,6 +56,8 @@ export interface ProgressionLevel {
   defaultTargetReps?: number
   defaultTargetSeconds?: number
   perSide?: boolean
+  // When present, overrides the global fallback used by evaluateExitCriteria.
+  exitCriteria?: ExitCriteria
 }
 
 export type BlockType = 'set' | 'superset'

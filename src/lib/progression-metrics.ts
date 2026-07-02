@@ -1,4 +1,4 @@
-import type { SetLog } from '@/models/types'
+import type { ExitCriteria, SetLog } from '@/models/types'
 
 // ── Stuck thresholds ──────────────────────────────────────────────────────────
 
@@ -66,6 +66,113 @@ export function wasCleanHit(sets: SetLog[]): boolean {
     anyHit = true
   }
   return anyHit
+}
+
+// ── Exit-criteria evaluator ───────────────────────────────────────────────────
+
+// Global fallback: 3 consecutive qualifying sessions. Used for every
+// progression level that has no level-specific exitCriteria set.
+export const DEFAULT_EXIT_CRITERIA: ExitCriteria = {
+  sessions: 3,
+}
+
+/**
+ * One training session's worth of (non-skipped) SetLog rows for the current
+ * progression level's movement. Pass sessions ordered oldest→newest so the
+ * evaluator can count the qualifying streak from the tail.
+ */
+export interface EvalSession {
+  sets: SetLog[]
+}
+
+/**
+ * Returns true when the session meets the given criteria:
+ *
+ * 1. At least one non-skipped set (empty → not qualifying).
+ * 2. If `criteria.sets` is specified: at least that many non-skipped sets.
+ * 3. Every non-skipped set hits its target (`hitsTarget`).
+ * 4. Per-set minimums (minReps / minHoldSeconds) — checked against each set
+ *    of the matching mode.
+ * 5. Last-set effort gates:
+ *    - Reps mode: last set's RIR, if logged, must be >= minRIR (default 2).
+ *    - Time/max mode: last set's SIR, if logged, must be >= minSIR (default 1).
+ *    Absent RIR/SIR is always a non-veto (matching wasCleanHit semantics).
+ */
+function sessionQualifies(session: EvalSession, criteria: ExitCriteria): boolean {
+  const activeSets = session.sets.filter((s) => !s.skipped)
+  if (activeSets.length === 0) return false
+
+  // Gate: minimum set count
+  if (criteria.sets != null && activeSets.length < criteria.sets) return false
+
+  // Gate: all sets must hit their target
+  if (!activeSets.every(hitsTarget)) return false
+
+  // Gate: per-set minimums
+  for (const s of activeSets) {
+    if (criteria.minReps != null && s.targetReps != null) {
+      if ((s.actualReps ?? 0) < criteria.minReps) return false
+    }
+    if (criteria.minHoldSeconds != null && s.targetSeconds != null) {
+      if ((s.actualSeconds ?? 0) < criteria.minHoldSeconds) return false
+    }
+  }
+
+  // Gate: last-set effort (RIR for reps mode, SIR for time/max mode)
+  const lastSet = activeSets[activeSets.length - 1]
+  const minRIR = criteria.minRIR ?? 2
+  const minSIR = criteria.minSIR ?? 1
+
+  if (lastSet.targetReps != null) {
+    // Absent RIR is a non-veto; present RIR below threshold vetoes.
+    if (lastSet.rir != null && lastSet.rir < minRIR) return false
+  }
+  if (lastSet.targetSeconds != null) {
+    // Absent SIR is a non-veto; present SIR below threshold vetoes.
+    if (lastSet.sir != null && lastSet.sir < minSIR) return false
+  }
+
+  return true
+}
+
+/**
+ * Evaluates whether a progression level's exit criteria have been met.
+ *
+ * @param criteria - Level-specific exit criteria. When `undefined`, the
+ *   global DEFAULT_EXIT_CRITERIA is used (3 consecutive qualifying sessions).
+ * @param sessionHistory - Sessions ordered oldest→newest; each element holds
+ *   the pre-filtered, non-skipped SetLog array for the movement at this rung.
+ *   Callers are responsible for filtering to the correct movementId and
+ *   ordering by completedAt.
+ *
+ * @returns `met` — whether the required streak is reached;
+ *   `qualifyingStreak` — consecutive qualifying sessions from the most recent
+ *   session backwards;
+ *   `detail` — human-readable progress string (e.g. "2/3 qualifying sessions").
+ */
+export function evaluateExitCriteria(
+  criteria: ExitCriteria | undefined,
+  sessionHistory: EvalSession[],
+): { met: boolean; qualifyingStreak: number; detail: string } {
+  const effective = criteria ?? DEFAULT_EXIT_CRITERIA
+
+  // Count consecutive qualifying sessions from the most recent backwards.
+  let streak = 0
+  for (let i = sessionHistory.length - 1; i >= 0; i--) {
+    if (sessionQualifies(sessionHistory[i], effective)) {
+      streak++
+    } else {
+      break
+    }
+  }
+
+  const required = effective.sessions
+  const met = streak >= required
+  const detail = met
+    ? `Ready to advance: ${streak}/${required} qualifying sessions`
+    : `${streak}/${required} qualifying sessions`
+
+  return { met, qualifyingStreak: streak, detail }
 }
 
 // ── Reps suggestion derivation ────────────────────────────────────────────────
