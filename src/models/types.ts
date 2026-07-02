@@ -170,6 +170,10 @@ export type WeightUnit = 'kg' | 'lb'
 export interface Settings {
   id: 'singleton'
   weightUnit: WeightUnit
+  // Whether to play audio beeps + haptic pulses at T-3/2/1 and T-0 during
+  // rest and time-mode exercise countdowns. Defaults to true.
+  // Stored as a non-indexed field so no schema-version bump is required.
+  soundCues?: boolean
 }
 
 // A self-set training goal pinned to a specific movement. Progress is

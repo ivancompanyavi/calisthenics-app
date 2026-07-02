@@ -1,6 +1,8 @@
 import { useReducer, useEffect, useCallback, useRef } from 'react'
 import type { InProgressWorkout } from '@/models/types'
 import { inProgressRepository } from '@/repositories'
+import { useSettings } from '@/hooks/useSettings'
+import { CuePlayer, decideCue, type CueSnapshot } from '@/lib/cue-player'
 import {
   executionReducer,
   initialState,
@@ -140,6 +142,71 @@ export function useWorkoutExecution(programDayIndex?: number) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.currentBlockIndex, state.currentRound, state.currentEntryIndex, state.completedSets.length, state.phase, programDayIndex])
 
+  // ─── Audio + Haptic Cues ────────────────────────────────────────────────────
+
+  const { data: settings } = useSettings()
+  // Default to enabled while settings load (avoids a silent first workout).
+  const cuesEnabled = settings?.soundCues ?? true
+
+  // CuePlayer lives for the lifetime of this hook instance.
+  const cuePlayerRef = useRef<CuePlayer | null>(null)
+  if (cuePlayerRef.current === null) {
+    cuePlayerRef.current = new CuePlayer()
+  }
+
+  // Dispose the CuePlayer when this hook unmounts (workout screen exits).
+  useEffect(() => {
+    return () => {
+      cuePlayerRef.current?.dispose()
+    }
+  }, [])
+
+  // Tracks the "previous" timer snapshot so the cue effect can detect
+  // transitions. A SINGLE effect reads and writes this ref (one reader, one
+  // writer) — splitting rest and exercise cues across two effects that share
+  // this ref creates an ordering hazard where the first effect stomps the
+  // `phase` the second reads as its `prev`, killing the time-mode end tone.
+  const cueSnapshotRef = useRef<CueSnapshot>({
+    phase: state.phase,
+    restRemaining: state.restRemaining,
+    exerciseRemaining: state.exerciseTimeRemaining,
+    exerciseMode: currentEntry?.mode,
+  })
+
+  // CUES: countdown beeps at 3 / 2 / 1 and a distinct end tone at 0, for both
+  // rest countdowns and time-mode exercise holds. The pure `decideCue` decides
+  // what (if anything) to play; `max` (count-up) and `reps` are always silent.
+  useEffect(() => {
+    const prev = cueSnapshotRef.current
+    const curr: CueSnapshot = {
+      phase: state.phase,
+      restRemaining: state.restRemaining,
+      exerciseRemaining: state.exerciseTimeRemaining,
+      exerciseMode: currentEntry?.mode,
+    }
+    // Write the ref exactly once, up front, so the next run always sees this
+    // run's `curr` as its `prev` regardless of early return.
+    cueSnapshotRef.current = curr
+
+    if (!cuesEnabled) return
+    const cue = decideCue(prev, curr)
+    if (cue !== null) cuePlayerRef.current?.cue(cue)
+  }, [state.phase, state.restRemaining, state.exerciseTimeRemaining, currentEntry?.mode, cuesEnabled])
+
+  // Wrap dispatch so we can unlock the AudioContext on the START tap (user
+  // gesture) without requiring the calling component to know about cues.
+  const wrappedDispatch = useCallback(
+    (action: Action) => {
+      if (action.type === 'START') {
+        cuePlayerRef.current?.unlock()
+      }
+      dispatch(action)
+    },
+    [],
+  )
+
+  // ────────────────────────────────────────────────────────────────────────────
+
   const totalSets = computeTotalSets(state.blocks)
   const nonSkippedSets = state.completedSets.filter((s) => !s.skipped).length
   const progress = computeProgress(nonSkippedSets, totalSets, state.cancelledEntries.length)
@@ -151,7 +218,7 @@ export function useWorkoutExecution(programDayIndex?: number) {
 
   return {
     state,
-    dispatch,
+    dispatch: wrappedDispatch,
     currentEntry,
     progress,
     totalSets,

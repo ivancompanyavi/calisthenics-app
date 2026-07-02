@@ -6,6 +6,7 @@ const SINGLETON_ID = 'singleton' as const
 const DEFAULT_SETTINGS: Settings = {
   id: SINGLETON_ID,
   weightUnit: 'lb',
+  soundCues: true,
 }
 
 export const settingsRepository = {
