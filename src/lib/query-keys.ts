@@ -7,6 +7,7 @@ export const queryKeys = {
     all: ['progressions'] as const,
     detail: (id: string) => ['progressions', id] as const,
     levels: (progressionId: string) => ['progressionLevels', progressionId] as const,
+    allLevels: ['progressionLevels', 'all'] as const,
     readiness: (progressionIds: string[], setsCount: number) =>
       ['progressionReadiness', progressionIds, setsCount] as const,
     diagnostics: ['progressionDiagnostics'] as const,

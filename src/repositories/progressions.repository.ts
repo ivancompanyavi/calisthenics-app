@@ -31,6 +31,9 @@ export const progressionsRepository = {
     return progressions.map((p) => ({ ...p, levelCount: levelCounts.get(p.id) ?? 0 }))
   },
 
+  // Every progression level across all progressions (for name resolution).
+  getAllLevels: (): Promise<ProgressionLevel[]> => db.progressionLevels.toArray(),
+
   // For each progression, compute how many sessions and days have been spent
   // at the current rung. "At the current rung" = SetLogs where progressionId
   // matches AND the SetLog's movementId equals the current level's movementId

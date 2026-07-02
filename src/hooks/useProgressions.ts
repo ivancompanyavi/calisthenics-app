@@ -26,6 +26,13 @@ export function useProgressionLevels(progressionId: string | undefined) {
   })
 }
 
+export function useAllProgressionLevels() {
+  return useQuery({
+    queryKey: queryKeys.progressions.allLevels,
+    queryFn: () => progressionsRepository.getAllLevels(),
+  })
+}
+
 export function useCreateProgression() {
   const qc = useQueryClient()
   return useMutation({

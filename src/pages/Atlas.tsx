@@ -4,7 +4,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Dialog, DialogTitle } from '@/components/ui/dialog'
 import { useSkillAtlas } from '@/hooks/useSkillAtlas'
-import type { SkillStatus, SkillResult, PrerequisiteResult } from '@/lib/skill-atlas'
+import type { ResolvedSkillResult, ResolvedPrerequisite } from '@/hooks/useSkillAtlas'
+import type { SkillStatus } from '@/lib/skill-atlas'
 import type { Skill } from '@/models/types'
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -52,26 +53,8 @@ function ProgressBar({ progress, met }: { progress: number; met: boolean }) {
 
 // ── Prerequisite row inside the detail sheet ──────────────────────────────────
 
-function PrerequisiteRow({ result }: { result: PrerequisiteResult }) {
-  const { prerequisite: prereq, met, progress } = result
-
-  let label: string
-  let detail: string | null
-
-  if (prereq.kind === 'progression-level') {
-    label = `Progression level ${prereq.levelOrder}`
-    detail = `progression id: ${prereq.progressionId}`
-  } else {
-    // movement-pr
-    if (prereq.minReps !== undefined) {
-      label = `${prereq.minReps} rep PR`
-    } else if (prereq.minSeconds !== undefined) {
-      label = `${prereq.minSeconds}s hold PR`
-    } else {
-      label = 'Any PR'
-    }
-    detail = null
-  }
+function PrerequisiteRow({ result }: { result: ResolvedPrerequisite }) {
+  const { met, progress, label, detail } = result
 
   return (
     <div className="space-y-1.5">
@@ -99,7 +82,7 @@ function PrerequisiteRow({ result }: { result: PrerequisiteResult }) {
 
 interface DetailSheetProps {
   skill: Skill
-  result: SkillResult
+  result: ResolvedSkillResult
   onClose: () => void
 }
 
@@ -138,7 +121,7 @@ function DetailSheet({ skill, result, onClose }: DetailSheetProps) {
 
 interface SkillCardProps {
   skill: Skill
-  result: SkillResult
+  result: ResolvedSkillResult
   onTap: () => void
 }
 
@@ -186,7 +169,7 @@ function SkillCard({ skill, result, onTap }: SkillCardProps) {
 interface SectionProps {
   status: SkillStatus
   skills: Skill[]
-  results: SkillResult[]
+  results: ResolvedSkillResult[]
   onTap: (skillId: string) => void
 }
 
