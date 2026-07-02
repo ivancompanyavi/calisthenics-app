@@ -263,6 +263,7 @@ export function WorkoutExecution() {
             nextBlock={state.blocks[state.currentBlockIndex] ?? null}
             nextBlockIndex={state.currentBlockIndex}
             onSkip={() => dispatch({ type: 'SKIP_REST', now: Date.now() })}
+            onAdjust={(delta) => dispatch({ type: 'ADJUST_REST', delta, now: Date.now() })}
           />
         )}
 
