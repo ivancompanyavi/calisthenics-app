@@ -6,7 +6,15 @@ import { TabLayout } from '@/components/layout/TabLayout'
 import { Toaster } from '@/components/ui/toast'
 import { ConfirmProvider } from '@/components/ui/confirm'
 import { UpdatePrompt } from '@/components/UpdatePrompt'
+import { useWorkoutReminder } from '@/hooks/useWorkoutReminder'
 import { showToast } from '@/lib/toast'
+
+// Null-rendering component: runs the local workout-reminder effect once,
+// inside the QueryClientProvider so its hooks have a client.
+function WorkoutReminder() {
+  useWorkoutReminder()
+  return null
+}
 
 // Lazy-load route components so the initial bundle only ships Home + shell.
 // Named exports are unwrapped via the `then(m => ({ default: m.X }))` form.
@@ -86,6 +94,7 @@ export default function App() {
             <Route path="/execute/:id" element={<RouteBoundary><WorkoutExecution /></RouteBoundary>} />
           </Routes>
         </BrowserRouter>
+        <WorkoutReminder />
         <Toaster />
         <UpdatePrompt />
         </ConfirmProvider>
