@@ -74,6 +74,11 @@ export function MovementsList() {
                     {pr.bestReps != null && pr.bestSeconds != null && ' ·'}
                     {pr.bestSeconds != null && ` ${pr.bestSeconds}s`}
                   </span>
+                  {(pr.bestRepsTestDay || pr.bestSecondsTestDay) && (
+                    <span className="text-[10px] font-medium px-1 rounded bg-amber-400/20 text-amber-400 leading-4">
+                      tested
+                    </span>
+                  )}
                 </p>
               )}
               {movement.referenceUrl && (

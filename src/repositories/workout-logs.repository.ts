@@ -3,13 +3,21 @@ import type { WorkoutLog, SetLog } from '@/models/types'
 import { generateId } from '@/lib/utils'
 import { deriveRepsSuggestion } from '@/lib/progression-metrics'
 
+// Canonical name of the opt-in Test Day workout in seed. Used to flag
+// PRs that were achieved during a dedicated max-testing session.
+const TEST_DAY_WORKOUT_NAME = 'Test Day (Week 6)'
+
 export interface MovementPR {
   movementId: string
   movementName: string
   bestReps?: number
   bestRepsAt?: number
+  // True when the best-reps set was achieved during a Test Day session.
+  bestRepsTestDay?: boolean
   bestSeconds?: number
   bestSecondsAt?: number
+  // True when the best-seconds set was achieved during a Test Day session.
+  bestSecondsTestDay?: boolean
 }
 
 // Auto-progression suggestion for one (workoutId, movementId) tuple. Carries
@@ -90,17 +98,38 @@ export const workoutLogsRepository = {
   // Compute personal records (best reps and best hold time) per movement.
   // Skipped sets and zero-value rows are ignored — a zero-rep "logged" set is
   // not a PR. The completedAt timestamp comes from the parent WorkoutLog.
+  // Each PR carries a testDay flag indicating whether the PR-setting set came
+  // from a Test Day session (match by workout id; name fallback for old logs).
   getAllPRs: async (): Promise<Map<string, MovementPR>> => {
-    const [sets, logs] = await Promise.all([
+    const [sets, logs, workouts] = await Promise.all([
       db.setLogs.toArray(),
       db.workoutLogs.toArray(),
+      db.workouts.toArray(),
     ])
+
+    // Collect DB ids of Test Day workouts for the primary id-based match.
+    const testDayWorkoutIds = new Set(
+      workouts
+        .filter((w) => w.name === TEST_DAY_WORKOUT_NAME)
+        .map((w) => w.id),
+    )
+
     const logById = new Map(logs.map((l) => [l.id, l]))
+
+    // Is this workout log a Test Day session?
+    // Primary: workout id match (works for all seeded logs).
+    // Fallback: name match for logs predating the id link (e.g., after a DB
+    // wipe + reseed that assigned the workout a fresh id).
+    const isTestDayLog = (log: WorkoutLog): boolean =>
+      testDayWorkoutIds.has(log.workoutId) ||
+      log.workoutName === TEST_DAY_WORKOUT_NAME
+
     const prs = new Map<string, MovementPR>()
     for (const set of sets) {
       if (set.skipped) continue
       const log = logById.get(set.workoutLogId)
       const at = log?.completedAt
+      const testDay = log != null && isTestDayLog(log)
       const existing = prs.get(set.movementId) ?? {
         movementId: set.movementId,
         movementName: set.movementName,
@@ -110,10 +139,12 @@ export const workoutLogsRepository = {
       if (reps > 0 && (existing.bestReps == null || reps > existing.bestReps)) {
         existing.bestReps = reps
         existing.bestRepsAt = at
+        existing.bestRepsTestDay = testDay
       }
       if (secs > 0 && (existing.bestSeconds == null || secs > existing.bestSeconds)) {
         existing.bestSeconds = secs
         existing.bestSecondsAt = at
+        existing.bestSecondsTestDay = testDay
       }
       // Keep the most recent movementName in case the movement was renamed.
       existing.movementName = set.movementName
