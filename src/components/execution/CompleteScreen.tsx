@@ -2,7 +2,14 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Trophy, TrendingUp } from 'lucide-react'
-import type { LevelUpCandidate } from '@/models/types'
+import type { LevelUpCandidate, Progression } from '@/models/types'
+import type { ReadinessVerdict } from '@/lib/readiness-engine'
+import { AdvanceSuggestionCard } from '@/components/progressions/AdvanceSuggestionCard'
+
+interface ReadyVerdict {
+  progression: Progression
+  verdict: ReadinessVerdict
+}
 
 interface CompleteScreenProps {
   workoutName: string
@@ -12,10 +19,35 @@ interface CompleteScreenProps {
   onSetNotes: (v: string) => void
   levelUpCandidates: LevelUpCandidate[]
   onLevelUp: (progressionId: string) => void
+  /** Save the workout log. Called when user clicks "Save". */
+  onSave: () => void
+  /** Navigate home. Called when user clicks "Done" (after save). */
   onFinish: () => void
+  /** True while the save mutation is in-flight. */
+  isSaving: boolean
+  /** True once the workout has been saved successfully. */
+  saved: boolean
+  /**
+   * Progressions trained in this session that are now ready-to-advance
+   * (after the session was saved). Shown below the summary once `saved` is true.
+   */
+  readyVerdicts: ReadyVerdict[]
 }
 
-export function CompleteScreen({ workoutName, startedAt, setsCompleted, notes, onSetNotes, levelUpCandidates, onLevelUp, onFinish }: CompleteScreenProps) {
+export function CompleteScreen({
+  workoutName,
+  startedAt,
+  setsCompleted,
+  notes,
+  onSetNotes,
+  levelUpCandidates,
+  onLevelUp,
+  onSave,
+  onFinish,
+  isSaving,
+  saved,
+  readyVerdicts,
+}: CompleteScreenProps) {
   // Snapshot duration at first render — the workout has already ended by the
   // time this screen mounts, so a stable value here matches the displayed UI.
   const [duration] = useState(() => Math.round((Date.now() - startedAt) / 60000))
@@ -73,18 +105,44 @@ export function CompleteScreen({ workoutName, startedAt, setsCompleted, notes, o
         </div>
       )}
 
+      {/* Notes field — editable before save; read-only hint after */}
       <div className="w-full max-w-sm">
         <Textarea
           value={notes}
           onChange={(e) => onSetNotes(e.target.value)}
           placeholder="How did the workout feel? Any notes..."
           className="h-20 resize-none"
+          disabled={saved}
         />
       </div>
 
-      <Button size="lg" className="text-lg px-12 mt-2" onClick={onFinish}>
-        Save & Finish
-      </Button>
+      {/* Post-save readiness cards for progressions trained in this session */}
+      {saved && readyVerdicts.length > 0 && (
+        <div className="w-full max-w-sm space-y-2">
+          {readyVerdicts.map(({ progression, verdict }) => (
+            <AdvanceSuggestionCard
+              key={progression.id}
+              progression={progression}
+              verdict={verdict}
+            />
+          ))}
+        </div>
+      )}
+
+      {!saved ? (
+        <Button
+          size="lg"
+          className="text-lg px-12 mt-2"
+          onClick={onSave}
+          disabled={isSaving}
+        >
+          {isSaving ? 'Saving…' : 'Save & Finish'}
+        </Button>
+      ) : (
+        <Button size="lg" className="text-lg px-12 mt-2" onClick={onFinish}>
+          Done
+        </Button>
+      )}
     </div>
   )
 }

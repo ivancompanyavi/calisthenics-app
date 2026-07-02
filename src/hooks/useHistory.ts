@@ -57,6 +57,10 @@ export function useSaveWorkoutLog() {
       qc.invalidateQueries({ queryKey: queryKeys.prs })
       // Progression diagnostics also depend on set logs (sessions at rung).
       qc.invalidateQueries({ queryKey: queryKeys.progressions.diagnostics })
+      // Readiness verdicts depend on session history; a new session may flip a
+      // progression to ready-to-advance. Invalidate so the post-workout summary
+      // and Home both reflect the just-saved session.
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.verdicts })
     },
   })
 }
