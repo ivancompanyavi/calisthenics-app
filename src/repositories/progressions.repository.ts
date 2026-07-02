@@ -1,16 +1,7 @@
 import { db } from '@/db'
 import type { Movement, Progression, ProgressionLevel, SetLog, SetMode, LevelUpCandidate, WorkoutLog } from '@/models/types'
 import { generateId } from '@/lib/utils'
-
-// "Hit target" predicate, shared between the current-workout check and the
-// prior-workout check. Returns true only if a definite target was met — a
-// set with neither targetReps/actualReps nor targetSeconds/actualSeconds
-// counts as a miss (which matches the old behavior).
-function hitsTarget(s: SetLog): boolean {
-  if (s.actualReps != null && s.targetReps != null) return s.actualReps >= s.targetReps
-  if (s.actualSeconds != null && s.targetSeconds != null) return s.actualSeconds >= s.targetSeconds
-  return false
-}
+import { hitsTarget, computeRungDiagnostic } from '@/lib/progression-metrics'
 
 export interface LevelInput {
   movementId: string
@@ -19,13 +10,6 @@ export interface LevelInput {
   defaultTargetSeconds?: number
   perSide?: boolean
 }
-
-// Heuristic: a progression is "stuck" when the user has trained the current
-// rung for >= STUCK_SESSIONS or >= STUCK_DAYS without leveling up. Either
-// trigger fires the diagnostic — sessions catches frequent trainers, days
-// catches sparse trainers who never quite accumulate volume.
-const STUCK_SESSIONS = 8
-const STUCK_DAYS = 28
 
 export interface ProgressionDiagnostic {
   sessionsAtRung: number
@@ -71,7 +55,6 @@ export const progressionsRepository = {
 
     const completedAtById = new Map(workoutLogs.map((l) => [l.id, l.completedAt]))
     const now = Date.now()
-    const dayMs = 24 * 60 * 60 * 1000
 
     const diagnostics = new Map<string, ProgressionDiagnostic>()
     for (const prog of progressions) {
@@ -85,24 +68,7 @@ export const progressionsRepository = {
           s.movementId === currentMovementId &&
           !s.skipped,
       )
-      if (relevant.length === 0) {
-        diagnostics.set(prog.id, { sessionsAtRung: 0, daysAtRung: 0, stuck: false })
-        continue
-      }
-
-      const sessionIds = new Set(relevant.map((s) => s.workoutLogId))
-      let earliest = Infinity
-      for (const id of sessionIds) {
-        const at = completedAtById.get(id)
-        if (at != null && at < earliest) earliest = at
-      }
-      const daysAtRung = earliest === Infinity ? 0 : Math.floor((now - earliest) / dayMs)
-      const sessionsAtRung = sessionIds.size
-      diagnostics.set(prog.id, {
-        sessionsAtRung,
-        daysAtRung,
-        stuck: sessionsAtRung >= STUCK_SESSIONS || daysAtRung >= STUCK_DAYS,
-      })
+      diagnostics.set(prog.id, computeRungDiagnostic(relevant, completedAtById, now))
     }
     return diagnostics
   },
