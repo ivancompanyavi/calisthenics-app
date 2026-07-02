@@ -419,7 +419,36 @@ describe('executionReducer', () => {
       expect(result.restEndsAt).toBe(0)
     })
 
+    it('TICK_REST with omitted noAutoStart auto-advances at expiry (default/original behavior)', () => {
+      // Default path: waitAfterRest=false → hook passes noAutoStart undefined/false.
+      // The reducer must auto-transition rest→exercise exactly as it always did,
+      // which is also what fires the merged end-of-rest cue.
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 1,
+        restTotal: 60,
+        restEndsAt: T0 + 1_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 1_500 })
+      expect(result.phase).toBe('exercise')
+      expect(result.restRemaining).toBe(0)
+      expect(result.restEndsAt).toBe(0)
+    })
+
+    it('TICK_REST with noAutoStart=false auto-advances at expiry (explicit default)', () => {
+      const state = makeInitializedState({
+        phase: 'resting',
+        restRemaining: 1,
+        restTotal: 60,
+        restEndsAt: T0 + 1_000,
+      })
+      const result = executionReducer(state, { type: 'TICK_REST', now: T0 + 1_500, noAutoStart: false })
+      expect(result.phase).toBe('exercise')
+      expect(result.restRemaining).toBe(0)
+    })
+
     it('TICK_REST with noAutoStart=true clamps restRemaining to 0 without transitioning', () => {
+      // Opt-in wait path: freeze at 0:00, stay in resting until a manual tap.
       const state = makeInitializedState({
         phase: 'resting',
         restRemaining: 1,

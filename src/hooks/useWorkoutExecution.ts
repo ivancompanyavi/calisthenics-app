@@ -83,8 +83,9 @@ export function useWorkoutExecution(programDayIndex?: number) {
   const { data: settings } = useSettings()
   // Default to enabled while settings load (avoids a silent first workout).
   const cuesEnabled = settings?.soundCues ?? true
-  // Default to false: tap-to-continue is the default rest behavior.
-  const autoStartNext = settings?.autoStartNext ?? false
+  // Default false: rest auto-advances at zero (original behavior). Opt-in
+  // true freezes the rest screen at 0:00 until the user taps.
+  const waitAfterRest = settings?.waitAfterRest ?? false
 
   // ─────────────────────────────────────────────────────────────────────────────
 
@@ -95,9 +96,10 @@ export function useWorkoutExecution(programDayIndex?: number) {
       if (needsExerciseTick) {
         dispatch({ type: 'TICK_EXERCISE', now: Date.now() })
       } else {
-        // noAutoStart=true keeps rest at 0:00 (tap-to-continue).
-        // noAutoStart=false lets the timer auto-transition to exercise.
-        dispatch({ type: 'TICK_REST', now: Date.now(), noAutoStart: !autoStartNext })
+        // Default (waitAfterRest=false): auto-advance at zero, as the original
+        // reducer did — this also fires the end-of-rest cue on the transition.
+        // Opt-in (waitAfterRest=true): freeze at 0:00 and wait for a tap.
+        dispatch({ type: 'TICK_REST', now: Date.now(), noAutoStart: waitAfterRest })
       }
     }
 
@@ -129,7 +131,7 @@ export function useWorkoutExecution(programDayIndex?: number) {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', tick)
     }
-  }, [needsExerciseTick, needsRestTick, autoStartNext])
+  }, [needsExerciseTick, needsRestTick, waitAfterRest])
 
   useEffect(() => {
     if (state.phase === 'ready' || state.phase === 'complete' || !state.workoutId) return
