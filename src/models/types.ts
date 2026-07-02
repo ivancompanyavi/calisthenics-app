@@ -8,6 +8,10 @@ export interface Movement {
   // External URL for a form-check reference (YouTube, Instagram, blog post).
   // Stored as a plain string — we don't embed video to keep IndexedDB lean.
   referenceUrl?: string
+  // Classification fields — set by the seed; optional so user-created
+  // movements (which have no seed entry) can omit them without a type error.
+  family?: MovementFamily
+  prepTags?: PrepTag[]
   createdAt: number
 }
 
@@ -161,6 +165,17 @@ export interface BodyweightLog {
   kg: number
   notes?: string
 }
+
+export type MovementFamily = 'push' | 'pull' | 'legs' | 'core'
+
+// Prep-tag set used to derive warm-up needs for a given workout day.
+// wrist-loaded → planche / handstand / parallette skills (require wrist warm-up)
+// scap-pull    → heavy scapular-depression exercises (front lever, back lever, …)
+// overhead     → pressing in the overhead / handstand plane
+// heavy-push   → max-effort horizontal / vertical pressing
+// hinge        → hip-hinge-dominant lower-body exercises
+// grip         → exercises where grip fatigue is a real limiter (rows, pull-ups…)
+export type PrepTag = 'wrist-loaded' | 'scap-pull' | 'overhead' | 'heavy-push' | 'hinge' | 'grip'
 
 export type WeightUnit = 'kg' | 'lb'
 

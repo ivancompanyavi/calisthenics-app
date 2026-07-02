@@ -98,6 +98,8 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
         | "coachingCues"
         | "description"
         | "referenceUrl"
+        | "family"
+        | "prepTags"
       >
     >;
   }> = [];
@@ -121,6 +123,8 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
               seedImagePath,
               description: m.description,
               coachingCues: m.coachingCues,
+              family: m.family,
+              prepTags: m.prepTags,
             },
           });
           movementMap.set(m.name, prevMovement.id);
@@ -138,6 +142,8 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
         description: m.description,
         coachingCues: m.coachingCues,
         referenceUrl: m.referenceUrl,
+        family: m.family,
+        prepTags: m.prepTags,
         seedImagePath,
         createdAt: Date.now(),
       });
@@ -147,7 +153,7 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
     const changes: Partial<
       Pick<
         Movement,
-        "seedImagePath" | "coachingCues" | "description" | "referenceUrl"
+        "seedImagePath" | "coachingCues" | "description" | "referenceUrl" | "family" | "prepTags"
       >
     > = {};
     if (existingMovement.seedImagePath !== seedImagePath) {
@@ -163,6 +169,17 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
     if (m.referenceUrl && !existingMovement.referenceUrl) {
       changes.referenceUrl = m.referenceUrl;
     }
+    // family/prepTags are authoritative from seed — always sync so a
+    // classification change in the seed file propagates to existing rows.
+    if (existingMovement.family !== m.family) {
+      changes.family = m.family;
+    }
+    if (
+      JSON.stringify(existingMovement.prepTags ?? []) !==
+      JSON.stringify(m.prepTags ?? [])
+    ) {
+      changes.prepTags = m.prepTags;
+    }
     if (Object.keys(changes).length > 0) {
       toUpdate.push({ id: existingMovement.id, changes });
     }
@@ -173,7 +190,7 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
     if (!seedNames.has(m.name)) continue;
     const seed = seedByName.get(m.name);
     const changes: Partial<
-      Pick<Movement, "seedImagePath" | "coachingCues" | "referenceUrl">
+      Pick<Movement, "seedImagePath" | "coachingCues" | "referenceUrl" | "family" | "prepTags">
     > = {};
     if (!m.seedImagePath) {
       changes.seedImagePath = seedImagePathFor(m.name);
@@ -183,6 +200,16 @@ async function ensureMovementsExist(): Promise<Map<string, string>> {
     }
     if (seed?.referenceUrl && !m.referenceUrl) {
       changes.referenceUrl = seed.referenceUrl;
+    }
+    // family/prepTags: always sync from seed (authoritative classification).
+    if (seed?.family && m.family !== seed.family) {
+      changes.family = seed.family;
+    }
+    if (
+      seed &&
+      JSON.stringify(m.prepTags ?? []) !== JSON.stringify(seed.prepTags ?? [])
+    ) {
+      changes.prepTags = seed.prepTags;
     }
     if (Object.keys(changes).length > 0) {
       toUpdate.push({ id: m.id, changes });
