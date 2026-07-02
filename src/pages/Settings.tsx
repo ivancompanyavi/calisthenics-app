@@ -15,6 +15,12 @@ export function Settings() {
     update.mutate({ weightUnit: next })
   }
 
+  const soundCues = settings?.soundCues ?? true
+  const setSoundCues = (next: boolean) => {
+    if (next === soundCues) return
+    update.mutate({ soundCues: next })
+  }
+
   return (
     <div>
       <PageHeader title="Settings" />
@@ -35,6 +41,26 @@ export function Settings() {
               </UnitButton>
               <UnitButton active={unit === 'lb'} onClick={() => setUnit('lb')}>
                 lb
+              </UnitButton>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-sm font-semibold">Sound &amp; haptic cues</h2>
+              <p className="text-xs text-muted-foreground">
+                Beeps and vibration at T&#8209;3 / T&#8209;2 / T&#8209;1 and end of rest and
+                time&#8209;mode exercise countdowns. Silenced during count&#8209;up (max) sets.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <UnitButton active={soundCues} onClick={() => setSoundCues(true)}>
+                On
+              </UnitButton>
+              <UnitButton active={!soundCues} onClick={() => setSoundCues(false)}>
+                Off
               </UnitButton>
             </div>
           </div>
