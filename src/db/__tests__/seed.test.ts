@@ -122,7 +122,7 @@ describe('seedDatabase progression sync', () => {
     // with the old 5-level shape, user has currentLevel=1 (Tuck Planche).
     // After seedDatabase() runs against the current 7-level seed, the rows
     // should be rewritten and currentLevel remapped to the new Tuck Planche
-    // index (3).
+    // index (2).
     const movements = [
       { id: 'mv-ppp', name: 'Pseudo Planche Push-Ups', createdAt: 0 },
       { id: 'mv-tuck', name: 'Tuck Planche', createdAt: 0 },
@@ -156,12 +156,13 @@ describe('seedDatabase progression sync', () => {
     const levels = await db.progressionLevels
       .where('progressionId').equals('p-planche').sortBy('order')
 
-    // New seed shape: 6 levels (Frog Stand, Tuck Negs, Tuck, Adv Tuck, Straddle, Full).
-    // PPP was dropped because it's a push-up family exercise, not a planche
-    // skill rung — it lives on the Push-Up Progression ladder instead.
-    expect(levels.length).toBe(6)
+    // New seed shape: 7 levels (Frog Stand, Straight-Arm Frog Stand, Tuck,
+    // Adv Tuck, Straddle, Half-Lay, Full). PPP removed (push-up family, not
+    // planche skill); Straight-Arm Frog Stand and Half-Lay Planche added per
+    // Atlas spec.
+    expect(levels.length).toBe(7)
 
-    // Tuck Planche should now be at index 2 (after Frog Stand, Tuck Planche Negatives).
+    // Tuck Planche should now be at index 2 (after Frog Stand, Straight-Arm Frog Stand).
     const tuckLevel = levels.find((l) => l.movementId === 'mv-tuck')
     expect(tuckLevel).toBeDefined()
     expect(tuckLevel?.order).toBe(2)
