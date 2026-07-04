@@ -1414,4 +1414,834 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       },
     ],
   },
+
+  // ============================================================
+  // PHASE ROUTINES — 4 OG2-tier phase programs.
+  // Prefix "Phase [N]" on all names so they don't collide with Ivan/Isa
+  // workouts. Blocks are progression-bound (auto-evolve with currentLevel).
+  // Sets×reps follow spec §4 per-phase defaults.
+  // NOT on Pull A: Nordic Hamstring Curl per project rule (CLAUDE.md).
+  // ============================================================
+
+  // ── PHASE 1 — Untrained Beginner ───────────────────────────────────────
+  // 3 days/week full-body (M/W/F). Levels 1–4.
+  // All eight base progressions, linear 3×(5→15). Wall HS skill 5–10 min.
+  // No upper-level statics — connective-tissue building phase.
+  {
+    name: "Phase 1 — Full Body",
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      // Push: P1 Push-Up Progression
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Push-Up Progression", targetReps: 10 },
+        ],
+      },
+      // Pull: P9 Pull-Up Progression
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Pull-Up Progression", targetReps: 8 },
+        ],
+      },
+      // Dip: P3 Dip Progression
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Dip Progression", targetReps: 8 },
+        ],
+      },
+      // Horizontal pull: P12 Rowing Progression
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Rowing Progression", targetReps: 8 },
+        ],
+      },
+      // Legs: P18 Squat Progression
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Squat Progression", targetReps: 12 },
+        ],
+      },
+      // Hip hinge: P19 Hip Hinge & Nordic Progression
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Hip Hinge & Nordic Progression", targetReps: 10 },
+        ],
+      },
+      // Core anti-ext: P20
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Core Anti-Extension Progression" },
+        ],
+      },
+      // Core flexion: P21
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Leg Raise Progression", targetReps: 8 },
+        ],
+      },
+      // Skill: Wall Handstand — 5–10 min practice, no load gate
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 60,
+        entries: [
+          { progression: "Handstand Progression" },
+        ],
+      },
+    ],
+  },
+
+  // ── PHASE 2 — Trained Beginner ─────────────────────────────────────────
+  // 4 days/week: Push / Pull / Lower+Core / Full-Body(skill).
+  // Levels 5–6. Introduces statics, rings, lever lead-ins, L-sit, MU prep.
+  // Limit 2–3 concurrent skill goals.
+
+  // Phase 2 Day A — Push
+  {
+    name: "Phase 2 — Push",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      // Planche skill (tuck/adv-tuck): P5
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 120,
+        entries: [
+          { progression: "Planche Progression" },
+        ],
+      },
+      // HSPU press: P7
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Handstand Push-Up Progression", targetReps: 5 },
+        ],
+      },
+      // Push-up ladder: P1
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Push-Up Progression", targetReps: 8 },
+        ],
+      },
+      // Dip: P3
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Dip Progression", targetReps: 8 },
+        ],
+      },
+      // Rings dip entry: P4
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Rings Dip & Maltese Progression" },
+        ],
+      },
+      // Straight-arm press entry: P8
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Straight-Arm Press to Handstand", targetReps: 5 },
+        ],
+      },
+      // Handstand skill: P23
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 60,
+        entries: [
+          { progression: "Handstand Progression" },
+        ],
+      },
+    ],
+  },
+
+  // Phase 2 Day B — Pull
+  {
+    name: "Phase 2 — Pull",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      // Back Lever (German hang gated): P13
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 120,
+        entries: [
+          { progression: "Back Lever Progression" },
+        ],
+      },
+      // Front Lever tuck entry: P14
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Front Lever Progression" },
+        ],
+      },
+      // Pull-up ladder: P9
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Pull-Up Progression", targetReps: 5 },
+        ],
+      },
+      // Weighted pull-up entry: P10
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Weighted Pull-Up Progression", targetReps: 5 },
+        ],
+      },
+      // Rowing: P12
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Rowing Progression", targetReps: 8 },
+        ],
+      },
+      // Muscle-up lead-in (false grip / negatives): P16
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Muscle-Up Progression" },
+        ],
+      },
+    ],
+  },
+
+  // Phase 2 Day C — Lower + Core
+  {
+    name: "Phase 2 — Lower & Core",
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      // Squat/Pistol: P18
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Squat Progression", targetReps: 8 },
+        ],
+      },
+      // Nordic (legs day — NOT pull day per project rule): P19
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Hip Hinge & Nordic Progression", targetReps: 8 },
+        ],
+      },
+      // L-Sit / V-Sit chain: P22
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 60,
+        entries: [
+          { progression: "L-Sit Progression" },
+        ],
+      },
+      // Core anti-extension: P20
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Core Anti-Extension Progression" },
+        ],
+      },
+      // Core flexion / leg raise: P21
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Leg Raise Progression", targetReps: 8 },
+        ],
+      },
+    ],
+  },
+
+  // Phase 2 Day D — Full Body / Skill
+  {
+    name: "Phase 2 — Full Body Skill",
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      // Planche (second weekly exposure): P5
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Planche Progression" },
+        ],
+      },
+      // Front lever (second exposure): P14
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Front Lever Progression" },
+        ],
+      },
+      // Push: P1
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Push-Up Progression", targetReps: 8 },
+        ],
+      },
+      // Pull: P9
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Pull-Up Progression", targetReps: 5 },
+        ],
+      },
+      // L-Sit: P22 (second exposure)
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "L-Sit Progression" },
+        ],
+      },
+      // Squat: P18
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Squat Progression", targetReps: 8 },
+        ],
+      },
+    ],
+  },
+
+  // ── PHASE 3 — Intermediate ─────────────────────────────────────────────
+  // 4–5 days/week. Straight-arm / lever split + bent-arm / press split.
+  // Levels 7–9. Paired: Planche ↔ Front Lever; OAC prep 1–2×/wk.
+
+  // Phase 3 Day A — Straight-Arm / Lever Push
+  {
+    name: "Phase 3 — Straight Arm Push",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      // Planche (adv-tuck → straddle): P5
+      {
+        type: "set",
+        rounds: 5,
+        restSeconds: 120,
+        entries: [
+          { progression: "Planche Progression" },
+        ],
+      },
+      // Planche push-up accessory: P6
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Planche Push-Up Progression", targetReps: 5 },
+        ],
+      },
+      // HSPU (freestanding track): P7
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Handstand Push-Up Progression", targetReps: 5 },
+        ],
+      },
+      // Straight-arm press to HS: P8
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Straight-Arm Press to Handstand", targetReps: 5 },
+        ],
+      },
+      // One-arm push-up track: P2
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "One-Arm Push-Up Progression", targetReps: 5, perSide: true },
+        ],
+      },
+      // Handstand skill: P23
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 60,
+        entries: [
+          { progression: "Handstand Progression" },
+        ],
+      },
+    ],
+  },
+
+  // Phase 3 Day B — Straight-Arm / Lever Pull
+  {
+    name: "Phase 3 — Straight Arm Pull",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      // Front Lever (straddle → full paired with planche): P14
+      {
+        type: "set",
+        rounds: 5,
+        restSeconds: 120,
+        entries: [
+          { progression: "Front Lever Progression" },
+        ],
+      },
+      // Front Lever Rows: P15
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 120,
+        entries: [
+          { progression: "Front Lever Row Progression", targetReps: 6 },
+        ],
+      },
+      // Back lever maintenance: P13
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Back Lever Progression" },
+        ],
+      },
+      // OAC eccentrics (1–2×/wk, assisted only): P11
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Ring Pull-Up & OAC Progression" },
+        ],
+      },
+      // Weighted pull-up: P10
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Weighted Pull-Up Progression", targetReps: 5 },
+        ],
+      },
+    ],
+  },
+
+  // Phase 3 Day C — Bent-Arm Push + Core
+  {
+    name: "Phase 3 — Bent Arm Push",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      // Push-up ladder (upper volume): P1
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 90,
+        entries: [
+          { progression: "Push-Up Progression", targetReps: 6 },
+        ],
+      },
+      // Rings dip ladder: P4
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 90,
+        entries: [
+          { progression: "Rings Dip & Maltese Progression" },
+        ],
+      },
+      // Dip: P3
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Dip Progression", targetReps: 8 },
+        ],
+      },
+      // Elbow lever: P-EL
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Elbow Lever Progression" },
+        ],
+      },
+      // L-Sit / V-Sit: P22
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 60,
+        entries: [
+          { progression: "L-Sit Progression" },
+        ],
+      },
+      // Core anti-extension: P20
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Core Anti-Extension Progression" },
+        ],
+      },
+    ],
+  },
+
+  // Phase 3 Day D — Bent-Arm Pull + Lower
+  {
+    name: "Phase 3 — Bent Arm Pull & Lower",
+    restBetweenBlocksSeconds: 90,
+    blocks: [
+      // Pull-up: P9
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 120,
+        entries: [
+          { progression: "Pull-Up Progression", targetReps: 5 },
+        ],
+      },
+      // Muscle-up: P16
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Muscle-Up Progression", targetReps: 3 },
+        ],
+      },
+      // Rowing: P12
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Rowing Progression", targetReps: 6 },
+        ],
+      },
+      // Human flag: P-HF
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Human Flag Progression" },
+        ],
+      },
+      // Weighted pistol: P18
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Squat Progression", targetReps: 5, perSide: true },
+        ],
+      },
+      // Nordic (legs day): P19
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Hip Hinge & Nordic Progression", targetReps: 8 },
+        ],
+      },
+      // Core flexion: P21
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Leg Raise Progression", targetReps: 6 },
+        ],
+      },
+    ],
+  },
+
+  // ── PHASE 4 — Advanced / Elite SAC ────────────────────────────────────
+  // 4–5 days/week. DUP / push-pull heavy-light. Levels 10+.
+  // Focus: one push goal OR one pull goal at a time. IC, Maltese, Manna.
+
+  // Phase 4 Day A — Heavy Push (Planche / Maltese track)
+  {
+    name: "Phase 4 — Heavy Push",
+    restBetweenBlocksSeconds: 180,
+    blocks: [
+      // Planche at working max: P5 — maintained or advancing to full
+      {
+        type: "set",
+        rounds: 5,
+        restSeconds: 180,
+        entries: [
+          { progression: "Planche Progression" },
+        ],
+      },
+      // Planche push-up accessory: P6
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 180,
+        entries: [
+          { progression: "Planche Push-Up Progression", targetReps: 3 },
+        ],
+      },
+      // One-arm push-up: P2
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 150,
+        entries: [
+          { progression: "One-Arm Push-Up Progression", targetReps: 5, perSide: true },
+        ],
+      },
+      // Maltese progression (full-planche gated): P4
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 180,
+        entries: [
+          { progression: "Rings Dip & Maltese Progression" },
+        ],
+      },
+      // Straight-arm press: P8
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Straight-Arm Press to Handstand", targetReps: 3 },
+        ],
+      },
+    ],
+  },
+
+  // Phase 4 Day B — Heavy Pull (Iron Cross / OAC track)
+  {
+    name: "Phase 4 — Heavy Pull",
+    restBetweenBlocksSeconds: 180,
+    blocks: [
+      // Iron Cross (assisted → block pullouts → weighted): P17
+      {
+        type: "set",
+        rounds: 5,
+        restSeconds: 180,
+        entries: [
+          { progression: "Iron Cross Progression" },
+        ],
+      },
+      // OAC / Ring pull-up track: P11
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 180,
+        entries: [
+          { progression: "Ring Pull-Up & OAC Progression", targetReps: 3, perSide: true },
+        ],
+      },
+      // Weighted pull-up at high %BW: P10
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 180,
+        entries: [
+          { progression: "Weighted Pull-Up Progression", targetReps: 3 },
+        ],
+      },
+      // Front Lever rows at full intensity: P15
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 150,
+        entries: [
+          { progression: "Front Lever Row Progression", targetReps: 5 },
+        ],
+      },
+      // Front lever maintenance: P14
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Front Lever Progression" },
+        ],
+      },
+    ],
+  },
+
+  // Phase 4 Day C — Light Push + Manna / Skill
+  {
+    name: "Phase 4 — Light Push & Skill",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      // Manna / V-Sit / compression: P22 (flexibility-gated)
+      {
+        type: "set",
+        rounds: 5,
+        restSeconds: 90,
+        entries: [
+          { progression: "L-Sit Progression" },
+        ],
+      },
+      // Planche at 5–8 rep range (light-day DUP): P5
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 120,
+        entries: [
+          { progression: "Planche Progression" },
+        ],
+      },
+      // FSPU or freestanding HS (maintained): P7
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Handstand Push-Up Progression", targetReps: 3 },
+        ],
+      },
+      // Handstand skill: P23
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 60,
+        entries: [
+          { progression: "Handstand Progression" },
+        ],
+      },
+      // Core anti-extension: P20
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Core Anti-Extension Progression" },
+        ],
+      },
+    ],
+  },
+
+  // Phase 4 Day D — Light Pull + Lower
+  {
+    name: "Phase 4 — Light Pull & Lower",
+    restBetweenBlocksSeconds: 120,
+    blocks: [
+      // Back lever maintenance + IC lead-in: P13
+      {
+        type: "set",
+        rounds: 4,
+        restSeconds: 120,
+        entries: [
+          { progression: "Back Lever Progression" },
+        ],
+      },
+      // Muscle-up (L-sit MU / volume): P16
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Muscle-Up Progression", targetReps: 3 },
+        ],
+      },
+      // Pull-up volume: P9
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 120,
+        entries: [
+          { progression: "Pull-Up Progression", targetReps: 5 },
+        ],
+      },
+      // Weighted pistol (toward 1.5–2× BW): P18
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Squat Progression", targetReps: 5, perSide: true },
+        ],
+      },
+      // Nordic (legs day, not pull day): P19
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 90,
+        entries: [
+          { progression: "Hip Hinge & Nordic Progression", targetReps: 8 },
+        ],
+      },
+      // Core flexion: P21
+      {
+        type: "set",
+        rounds: 3,
+        restSeconds: 60,
+        entries: [
+          { progression: "Leg Raise Progression", targetReps: 5 },
+        ],
+      },
+    ],
+  },
 ];
