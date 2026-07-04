@@ -42,6 +42,55 @@ const isaWeek: SeedProgram["days"] = [
   null,
 ];
 
+// ── Phase routine week templates ──────────────────────────────────────────
+// Phase 1: 3 days/week full body (M/W/F). 48 h min spacing, 72 h after 3rd.
+const phase1Week: SeedProgram["days"] = [
+  { workout: "Phase 1 — Full Body" }, // Mon
+  null,                                 // Tue rest
+  { workout: "Phase 1 — Full Body" }, // Wed
+  null,                                 // Thu rest
+  { workout: "Phase 1 — Full Body" }, // Fri
+  null,                                 // Sat rest
+  null,                                 // Sun rest
+];
+
+// Phase 2: 4 days/week Push / Pull / Lower+Core / Full-Body-Skill.
+// Mon push, Tue pull, Thu lower+core, Sat full-body.
+const phase2Week: SeedProgram["days"] = [
+  { workout: "Phase 2 — Push" },             // Mon
+  { workout: "Phase 2 — Pull" },             // Tue
+  null,                                       // Wed rest
+  { workout: "Phase 2 — Lower & Core" },    // Thu
+  null,                                       // Fri rest
+  { workout: "Phase 2 — Full Body Skill" }, // Sat
+  null,                                       // Sun rest
+];
+
+// Phase 3: 4 days/week straight-arm/lever + bent-arm/press split.
+// Mon straight-arm push, Tue straight-arm pull, Thu bent-arm push+core,
+// Sat bent-arm pull+lower.
+const phase3Week: SeedProgram["days"] = [
+  { workout: "Phase 3 — Straight Arm Push" },     // Mon
+  { workout: "Phase 3 — Straight Arm Pull" },     // Tue
+  null,                                             // Wed rest
+  { workout: "Phase 3 — Bent Arm Push" },         // Thu
+  null,                                             // Fri rest
+  { workout: "Phase 3 — Bent Arm Pull & Lower" }, // Sat
+  null,                                             // Sun rest
+];
+
+// Phase 4: 4 days/week DUP heavy/light push-pull.
+// Mon heavy push, Tue heavy pull, Thu light push+skill, Sat light pull+lower.
+const phase4Week: SeedProgram["days"] = [
+  { workout: "Phase 4 — Heavy Push" },      // Mon
+  { workout: "Phase 4 — Heavy Pull" },      // Tue
+  null,                                      // Wed rest
+  { workout: "Phase 4 — Light Push & Skill" }, // Thu
+  null,                                      // Fri rest
+  { workout: "Phase 4 — Light Pull & Lower" }, // Sat
+  null,                                      // Sun rest
+];
+
 export const SEED_PROGRAMS: SeedProgram[] = [
   {
     name: "Ivan workout",
@@ -60,5 +109,31 @@ export const SEED_PROGRAMS: SeedProgram[] = [
     name: "Isa pull-up workout",
     totalCycles: 0,
     days: isaWeek,
+  },
+
+  // ── ATLAS Phase Routines ───────────────────────────────────────────────────
+  // 4 OG2-tier programs. Repeating single-week cycles. Athlete transitions
+  // between phases on progression-method exhaustion, not calendar. All
+  // progression slots auto-evolve with currentLevel.
+
+  {
+    name: "Phase 1 — Untrained Beginner",
+    totalCycles: 0,
+    days: phase1Week,
+  },
+  {
+    name: "Phase 2 — Trained Beginner",
+    totalCycles: 0,
+    days: phase2Week,
+  },
+  {
+    name: "Phase 3 — Intermediate",
+    totalCycles: 0,
+    days: phase3Week,
+  },
+  {
+    name: "Phase 4 — Advanced",
+    totalCycles: 0,
+    days: phase4Week,
   },
 ];
