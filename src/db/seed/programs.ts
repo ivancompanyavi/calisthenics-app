@@ -118,21 +118,25 @@ export const SEED_PROGRAMS: SeedProgram[] = [
 
   {
     name: "Phase 1 — Untrained Beginner",
+    description: "3 days/week full-body. Deload every 4–8 weeks: one easier week at reduced volume.",
     totalCycles: 0,
     days: phase1Week,
   },
   {
     name: "Phase 2 — Trained Beginner",
+    description: "4 days/week push/pull/lower/skill split. Deload every 4–8 weeks: one easier week at reduced volume.",
     totalCycles: 0,
     days: phase2Week,
   },
   {
     name: "Phase 3 — Intermediate",
+    description: "4 days/week straight-arm/bent-arm split. Deload every 4–8 weeks: one easier week at reduced volume.",
     totalCycles: 0,
     days: phase3Week,
   },
   {
     name: "Phase 4 — Advanced",
+    description: "4–5 days/week DUP heavy/light push-pull. Deload every 4–8 weeks: one easier week at reduced volume.",
     totalCycles: 0,
     days: phase4Week,
   },

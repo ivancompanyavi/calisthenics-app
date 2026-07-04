@@ -26,12 +26,34 @@ const EccAdv: ExitCriteria = {
 
 export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P1 — Push-Up (family: push) ──────────────────────────────────────────
-  // Rings-based upper ladder (OG2 L3–8). Old ladder (Wall/Incline/Knee/…)
-  // replaced; workouts.ts references "Push-Up Progression" and will now
-  // resolve to whatever the owner's currentLevel is.
+  // Full beginner-to-rings ladder. Rungs 0–2 are true-beginner regressions so
+  // an untrained user (Phase 1 / Isa) is never stranded at a full push-up.
+  // Rings upper ladder (OG2 L3–8) follows at rungs 3–10.
   {
     name: "Push-Up Progression",
     levels: [
+      // rung 0 — true beginner entry
+      {
+        movement: "Wall Push-Ups",
+        mode: "reps",
+        defaultTargetReps: 12,
+        exitCriteria: RepAdv(12),
+      },
+      // rung 1
+      {
+        movement: "Incline Push-Ups",
+        mode: "reps",
+        defaultTargetReps: 10,
+        exitCriteria: RepAdv(10),
+      },
+      // rung 2
+      {
+        movement: "Knee Push-Ups",
+        mode: "reps",
+        defaultTargetReps: 8,
+        exitCriteria: RepAdv(8),
+      },
+      // rung 3 — first full push-up rung (was rung 0 before prepend)
       {
         movement: "Push-Ups",
         mode: "reps",
