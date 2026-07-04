@@ -962,7 +962,7 @@ export const EXERCISES = [
   },
   {
     slug: "straddle-l-sit",
-    pose: "performing a straddle L-sit on the floor, hands flat on the floor either side of the hips with arms locked straight pressing the body up, both legs extended straight forward but spread wide in a straddle parallel to the floor, side profile view",
+    pose: "seated and supporting the whole body on two parallettes, one hand on each parallette beside the hips with arms locked straight, hips lifted off the floor, both legs straight and raised to horizontal in a wide V-shape, a gymnastic L-sit hold, viewed from a high front three-quarter angle",
   },
   {
     slug: "rto-l-sit",
