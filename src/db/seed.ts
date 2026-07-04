@@ -56,6 +56,7 @@ function workoutFingerprint(sw: SeedWorkout): string {
 function programFingerprint(sp: SeedProgram): string {
   return stableStringify({
     name: sp.name,
+    description: sp.description ?? null,
     totalCycles: sp.totalCycles,
     days: sp.days,
   });
@@ -578,6 +579,7 @@ async function ensureProgramsExist() {
           await db.programs.update(existing.id, {
             cycleLengthDays: sp.days.length,
             totalCycles: sp.totalCycles,
+            description: sp.description ?? undefined,
             seedFingerprint: fingerprint,
           });
           await db.programDays
