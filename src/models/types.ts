@@ -289,6 +289,9 @@ export interface Program {
   cycleLengthDays: number
   totalCycles: number
   createdAt: number
+  // Optional human-readable notes (e.g. phase intent, deload guidance).
+  // Non-indexed — no Dexie version bump required.
+  description?: string
   // See Workout.seedFingerprint — same idea for programs.
   seedFingerprint?: string
 }

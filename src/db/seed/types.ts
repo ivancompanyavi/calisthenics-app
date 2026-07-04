@@ -74,6 +74,7 @@ export interface SeedWorkout {
 export interface SeedProgram {
   name: string;
   previousNames?: string[];
+  description?: string;
   totalCycles: number;
   days: Array<{ workout: string } | null>;
 }

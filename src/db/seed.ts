@@ -597,6 +597,7 @@ async function ensureProgramsExist() {
       cycleLengthDays: sp.days.length,
       totalCycles: sp.totalCycles,
       createdAt: Date.now(),
+      ...(sp.description ? { description: sp.description } : {}),
       seedFingerprint: fingerprint,
     };
     const newDays = buildDays(programId);
