@@ -255,7 +255,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   {
     name: 'Iron Cross',
     description:
-      'Straight-arm rings cross hold. CoP B; distal-biceps loading is the injury risk. Full back lever, half-lay front lever, rings adv-tuck planche, and RTO ~75° dips are all mandatory gates.',
+      'Straight-arm rings cross hold. CoP B; distal-biceps loading is the injury risk. Hard prerequisites: full back lever, one-leg/half-lay front lever, RTO ~75° past-parallel dip, and 8 strict pull-ups. Rings planche and rings-strap HSPU are recommended tissue-conditioning work but are not encoded as hard edges.',
     prerequisites: [
       // P17 index 1 = Iron Cross (hold). [book]
       { kind: 'progression-level', progression: 'Iron Cross Progression', levelOrder: 1 },
@@ -275,7 +275,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   {
     name: 'Maltese',
     description:
-      'Straight-arm push cross — rings held wide of the body, beyond the dip position. Full Planche + Iron Cross skill base required.',
+      'Straight-arm push cross — rings held wide of the body, beyond the dip position. Full Planche required; Iron Cross recommended (not a hard prerequisite edge).',
     prerequisites: [
       // P4 index 12 = Full Maltese. [book: L17 — elite beyond-grid rung]
       { kind: 'progression-level', progression: 'Rings Dip & Maltese Progression', levelOrder: 12 },
