@@ -57,6 +57,9 @@ export function ProgramDetail() {
       </PageHeader>
 
       <div className="px-4 space-y-4 pb-24">
+        {program.description && (
+          <p className="text-sm text-muted-foreground leading-relaxed">{program.description}</p>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground">

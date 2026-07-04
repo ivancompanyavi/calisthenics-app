@@ -64,6 +64,11 @@ export function Programs() {
                   {program.totalCycles > 0 ? ` \u00b7 ${program.totalCycles} cycles` : ' \u00b7 Repeats'}
                   {program.completedCount > 0 && ` \u00b7 Completed ${program.completedCount}x`}
                 </p>
+                {program.description && (
+                  <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">
+                    {program.description}
+                  </p>
+                )}
               </button>
               <div className="flex gap-1 items-center">
                 <Button

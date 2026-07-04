@@ -118,25 +118,29 @@ export const SEED_PROGRAMS: SeedProgram[] = [
 
   {
     name: "Phase 1 — Untrained Beginner",
-    description: "3 days/week full-body. Deload every 4–8 weeks: one easier week at reduced volume.",
+    description:
+      "Start here if you're new to training, unsure where to begin, or can't yet do ~10 clean push-ups, a few strict pull-ups, and clean bodyweight squats. 3 days/week full-body. Move to Phase 2 once the basics feel solid — full push-ups, ~5 strict pull-ups, parallel-bar dips, and a steady wall handstand. Deload every 4–8 weeks: one easier week at reduced volume.",
     totalCycles: 0,
     days: phase1Week,
   },
   {
     name: "Phase 2 — Trained Beginner",
-    description: "4 days/week push/pull/lower/skill split. Deload every 4–8 weeks: one easier week at reduced volume.",
+    description:
+      "Start here if your basics are solid — comfortable full push-ups, ~5 strict pull-ups, parallel-bar dips, a steady wall handstand — and you're ready to introduce light skill work. 4 days/week push/pull/lower/skill split. Move to Phase 3 once you can seriously train statics (tuck planche and tuck front lever) and are pressing toward a freestanding handstand. Deload every 4–8 weeks: one easier week at reduced volume.",
     totalCycles: 0,
     days: phase2Week,
   },
   {
     name: "Phase 3 — Intermediate",
-    description: "4 days/week straight-arm/bent-arm split. Deload every 4–8 weeks: one easier week at reduced volume.",
+    description:
+      "Start here with a strong base — roughly 8–12 pull-ups, weighted dips, a solid freestanding handstand — ready to seriously train statics like advanced-tuck/straddle planche and front lever. 4 days/week straight-arm/bent-arm split. Move to Phase 4 once you're holding full statics and beginning one-arm and rings-elite work. Deload every 4–8 weeks: one easier week at reduced volume.",
     totalCycles: 0,
     days: phase3Week,
   },
   {
     name: "Phase 4 — Advanced",
-    description: "4–5 days/week DUP heavy/light push-pull. Deload every 4–8 weeks: one easier week at reduced volume.",
+    description:
+      "For advanced athletes working full planche and levers, one-arm pulling, and rings-elite skills (iron cross, maltese). 4–5 days/week DUP heavy/light push-pull. Progression here is individualized and auto-regulated. Deload every 4–8 weeks: one easier week at reduced volume. Tip: tiers are per-movement — if unsure, pick the phase matching your weakest major pattern and start one lower.",
     totalCycles: 0,
     days: phase4Week,
   },
