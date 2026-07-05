@@ -15,6 +15,12 @@ dist-ssr
 .env.*
 !.env.example
 docs/reference/*
+# Personal/medical files pasted for the coach — they belong in the private
+# data repo (the training-coach skill moves them), never in this public one.
+docs/dexa*
+docs/*.jpg
+docs/*.png
+docs/*.pdf
 
 # Editor directories and files
 .vscode/*
