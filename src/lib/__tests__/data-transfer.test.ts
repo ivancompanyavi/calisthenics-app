@@ -2,7 +2,7 @@ import '../../repositories/__tests__/setup'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '@/db'
 import { clearAllTables } from '../../repositories/__tests__/setup'
-import { exportAllData, importAllData } from '../data-transfer'
+import { exportAllData, exportForSync, importAllData } from '../data-transfer'
 
 describe('data-transfer', () => {
   beforeEach(async () => {
@@ -136,6 +136,49 @@ describe('data-transfer', () => {
       expect(restored?.photo?.type).toBe('image/webp')
       const restoredBytes = new Uint8Array(await restored!.photo!.arrayBuffer())
       expect(Array.from(restoredBytes)).toEqual(Array.from(photoBytes))
+    })
+  })
+
+  describe('exportForSync', () => {
+    it('excludes movement photos entirely (no blob, no base64, no hasPhoto flag)', async () => {
+      const photo = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/webp' })
+      await db.movements.add({ id: 'm1', name: 'WithPhoto', createdAt: 0, photo })
+
+      const json = await exportForSync()
+      const parsed = JSON.parse(json)
+
+      expect(parsed.movements).toHaveLength(1)
+      const movement = parsed.movements[0]
+      expect(movement.id).toBe('m1')
+      expect(movement.name).toBe('WithPhoto')
+      expect(movement).not.toHaveProperty('photo')
+      expect(movement).not.toHaveProperty('photoBase64')
+      expect(movement).not.toHaveProperty('hasPhoto')
+    })
+
+    it('matches exportAllData\'s version and non-movement field shape', async () => {
+      await db.workouts.add({ id: 'w1', name: 'Routine', createdAt: 200, seedFingerprint: 'fp1' })
+      await db.bodyweightLogs.add({ id: 'bw1', date: 1_700_000_000_000, kg: 75.5 })
+
+      const full = JSON.parse(await exportAllData())
+      const sync = JSON.parse(await exportForSync())
+
+      expect(sync.version).toBe(full.version)
+      expect(sync.workouts).toEqual(full.workouts)
+      expect(sync.bodyweightLogs).toEqual(full.bodyweightLogs)
+      expect(typeof sync.exportedAt).toBe('string')
+    })
+
+    it('produces a payload importAllData can still consume (movements just lack photos)', async () => {
+      await db.movements.add({ id: 'm1', name: 'NoPhoto', createdAt: 0 })
+      await db.workouts.add({ id: 'w1', name: 'Routine', createdAt: 200 })
+
+      const json = await exportForSync()
+      await clearAllTables()
+      await importAllData(json)
+
+      expect((await db.movements.get('m1'))?.name).toBe('NoPhoto')
+      expect((await db.workouts.get('w1'))?.name).toBe('Routine')
     })
   })
 })

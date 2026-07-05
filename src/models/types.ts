@@ -244,6 +244,26 @@ export interface Settings {
   // deliberately out of scope (see docs/notifications-spike.md). Default false.
   // Non-indexed — no Dexie version bump required.
   workoutRemindersEnabled?: boolean
+  // One-way mirror of training data to a private GitHub repo (coach sync).
+  // The PAT lives here in plaintext — this is a single-user local-first app
+  // with no server, so there's nowhere safer to put it; the token should be
+  // scoped fine-grained/repo-limited on the GitHub side.
+  // Non-indexed — no Dexie version bump required.
+  githubSync?: {
+    token: string
+    owner: string
+    repo: string
+    enabled: boolean
+    // Set when a push completes successfully; cleared implicitly by absence.
+    lastSyncedAt?: number
+    // True whenever local data has changed since the last confirmed push (or
+    // a push attempt failed). The scheduler treats this as "sync owed" and
+    // retries on next save, app start, and the `online` event.
+    pendingSync?: boolean
+    // Set to the error message of the most recent failed attempt; cleared on
+    // the next successful push. Purely informational for the Settings UI.
+    lastError?: string
+  }
 }
 
 // A self-set training goal pinned to a specific movement. Progress is

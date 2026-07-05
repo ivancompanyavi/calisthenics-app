@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { SetLog } from '@/models/types'
 import { queryKeys } from '@/lib/query-keys'
 import { workoutLogsRepository } from '@/repositories'
+import { requestSync } from '@/lib/sync-scheduler'
 
 export function useWorkoutLogs() {
   return useQuery({
@@ -61,6 +62,12 @@ export function useSaveWorkoutLog() {
       // progression to ready-to-advance. Invalidate so the post-workout summary
       // and Home both reflect the just-saved session.
       qc.invalidateQueries({ queryKey: queryKeys.progressions.verdicts })
+      // Coach sync (GitHub mirror): fire-and-forget, never blocks/breaks the
+      // save this mutation just performed. Re-invalidate settings afterward
+      // so an open Settings screen picks up the new pendingSync/lastSyncedAt.
+      void requestSync('workout').finally(() => {
+        qc.invalidateQueries({ queryKey: queryKeys.settings })
+      })
     },
   })
 }

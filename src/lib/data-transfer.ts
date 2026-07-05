@@ -44,7 +44,8 @@ function base64ToBlob(base64: string, type: string): Blob {
 
 // ───────────────── Export ─────────────────
 
-export async function exportAllData(): Promise<string> {
+// Shared table fetch used by both the full export and the sync-only export.
+async function queryAllTables() {
   const [
     movements,
     progressions,
@@ -76,27 +77,8 @@ export async function exportAllData(): Promise<string> {
     db.goals.toArray(),
     db.skills.toArray(),
   ])
-
-  // Inline photo Blobs as base64 so a JSON export is fully self-contained.
-  // Older exports only carried `hasPhoto: true` and dropped the bytes; this
-  // version captures the real data so a restore can recover the user's
-  // movement photos.
-  const movementsForExport = await Promise.all(
-    movements.map(async ({ photo, ...rest }) => {
-      if (!photo) return { ...rest, hasPhoto: false }
-      return {
-        ...rest,
-        hasPhoto: true,
-        photoBase64: await blobToBase64(photo),
-        photoType: photo.type || 'application/octet-stream',
-      }
-    }),
-  )
-
-  const data = {
-    version: EXPORT_VERSION,
-    exportedAt: new Date().toISOString(),
-    movements: movementsForExport,
+  return {
+    movements,
     progressions,
     progressionLevels,
     workouts,
@@ -111,8 +93,55 @@ export async function exportAllData(): Promise<string> {
     goals,
     skills,
   }
+}
+
+export async function exportAllData(): Promise<string> {
+  const tables = await queryAllTables()
+
+  // Inline photo Blobs as base64 so a JSON export is fully self-contained.
+  // Older exports only carried `hasPhoto: true` and dropped the bytes; this
+  // version captures the real data so a restore can recover the user's
+  // movement photos.
+  const movementsForExport = await Promise.all(
+    tables.movements.map(async ({ photo, ...rest }) => {
+      if (!photo) return { ...rest, hasPhoto: false }
+      return {
+        ...rest,
+        hasPhoto: true,
+        photoBase64: await blobToBase64(photo),
+        photoType: photo.type || 'application/octet-stream',
+      }
+    }),
+  )
+
+  const data = {
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    ...tables,
+    movements: movementsForExport,
+  }
 
   return JSON.stringify(data, null, 2)
+}
+
+// Snapshot used by the GitHub coach-sync mirror (see src/lib/github-sync.ts).
+// Same shape/version as exportAllData, but movement photos are dropped
+// entirely (not even a hasPhoto flag) — they're large base64 blobs and are
+// derivable from the public exercise-image repo, so shipping them on every
+// workout save would be a large, pointless payload over a phone connection.
+export async function exportForSync(): Promise<string> {
+  const tables = await queryAllTables()
+
+  const movementsForSync = tables.movements.map(({ photo: _photo, ...rest }) => rest)
+
+  const data = {
+    version: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+    ...tables,
+    movements: movementsForSync,
+  }
+
+  return JSON.stringify(data)
 }
 
 // ───────────────── Validation ─────────────────

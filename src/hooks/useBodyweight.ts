@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { bodyweightRepository } from '@/repositories'
 import { queryKeys } from '@/lib/query-keys'
+import { requestSync } from '@/lib/sync-scheduler'
 
 export function useBodyweightLogs() {
   return useQuery({
@@ -25,6 +26,11 @@ export function useLogBodyweight() {
       qc.invalidateQueries({ queryKey: queryKeys.bodyweight })
       // Insights overlays bodyweight on the lift trends — keep it in sync.
       qc.invalidateQueries({ queryKey: queryKeys.insights })
+      // Coach sync (GitHub mirror): fire-and-forget, see useHistory.ts's
+      // useSaveWorkoutLog for the same pattern/rationale.
+      void requestSync('bodyweight').finally(() => {
+        qc.invalidateQueries({ queryKey: queryKeys.settings })
+      })
     },
   })
 }
