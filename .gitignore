@@ -27,7 +27,12 @@ docs/reference/*
 *.sln
 *.sw?
 
-# Agent skills / tooling
+# Agent skills / tooling. `.claude/` stays local (installed/user-specific
+# skills, local settings) EXCEPT repo-owned skills we deliberately version —
+# git can't re-include a child of an excluded dir, hence the unignore chain.
 .agents/
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/training-coach/
 skills-lock.json
