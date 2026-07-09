@@ -126,8 +126,10 @@ that one distilled `.md`, and drop to `references/_sources/` grep or the source 
 and the same evidence tags below — cite the page when you lean on the book. Currently distilled:
 *Overcoming Gravity 2e* ch.1–21 (`[CONVENTION]` calisthenics system), *Overcoming Tendonitis* ch.1–8
 (rehab/tendon — carries a "not medical advice" banner; refer diagnosis/injections/surgery out), and
-*The Muscle & Strength Pyramid: Training* (the `[SCIENCE]`-tier evidence base — use it to cross-check
-whether a convention matches the research). See `references/BACKLOG.md` for what's pending.
+*The Muscle & Strength Pyramid: Training* and *: Nutrition* (the `[SCIENCE]`-tier evidence base —
+use to cross-check whether a convention matches the research). **The Nutrition volume is reference
+knowledge only — it does NOT change the diet doctrine below: give trend-based guidance, never invent
+calorie/macro targets.** See `references/BACKLOG.md` for what's pending.
 
 Every piece of advice must be traceable to `docs/coaching-standards.md`'s evidence tiers — cite the
 tag inline so the user can weigh it themselves:

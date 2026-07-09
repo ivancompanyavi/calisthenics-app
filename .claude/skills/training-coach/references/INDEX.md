@@ -50,7 +50,15 @@ numbers are reliable to ±1–2 (occasional drift near chapter boundaries); when
 | Rest periods, supersets, drop/rest-pause sets | MSP Training L5 (`07`) |
 | Lifting tempo | MSP Training L6 (`08`) |
 | Build a whole program step-by-step (evidence-based) | MSP Training — Program Building (`09`) |
-| Does convention X match the science? (cross-check OG2) | MSP Training (the `[SCIENCE]` layer) |
+| Does convention X match the science? (cross-check OG2) | MSP Training / MSP Nutrition (the `[SCIENCE]` layer) |
+| **Diet direction: cut/bulk/recomp, rate of loss, metabolic adaptation** | **MSP Nutrition L1 (`01`)** |
+| Protein / macro targets (evidence-based) | MSP Nutrition L2 (`02`) |
+| Reading the bodyweight trend & when to adjust intake | MSP Nutrition — Adjustments (`06`) |
+| Diet breaks / refeeds / meal timing | MSP Nutrition L4 (`04`) |
+| Which supplements actually have evidence | MSP Nutrition L5 (`05`) |
+| Ending a cut / reverse dieting | MSP Nutrition — Peaking & Post-Diet (`07`) |
+| Adherence / behavior change / motivation | MSP Nutrition — Behavior (`08`); MSP Training L1 |
+| ⚠️ Coach gives **trend-based diet guidance only** — no calorie/macro prescriptions | MSP Nutrition `00-overview` |
 
 ---
 
@@ -95,6 +103,12 @@ The `[SCIENCE]`-tier evidence-based counterweight; organized as a priority pyram
 - **`04`** L3a Progression/Fitness-Fatigue/Deloads · **`05`** L3b Progression Systems & Plateaus
 - **`06`** L4 Exercise Selection · **`07`** L5 Rest Periods · **`08`** L6 Lifting Tempo · **`09`** Program-Building guide
 
+## Muscle & Strength Pyramid: Nutrition — level map
+`muscle-strength-pyramid-nutrition/` · PDF: `docs/reference/The Muscle and Strength Pyramid - Nutrition - PDF v3.1.4.pdf` · see its `00-overview.md`.
+The `[SCIENCE]`-tier nutrition base. **⚠️ Coach applies trend-based-only diet guidance — no calorie/macro prescriptions.**
+- **`00`** intro & tracking · **`01`** L1 Energy Balance (cut/bulk/rates/recomp) · **`02`** L2 Macronutrients
+- **`03`** L3 Micronutrients · **`04`** L4 Nutrient Timing · **`05`** L5 Supplementation
+- **`06`** Making Adjustments & Measuring Progress (weight-trend decision rules) · **`07`** Peaking & Post-Diet (condensed, competition) · **`08`** Behavior & Lifestyle
+
 ## Other books (not yet distilled)
-- **Muscle & Strength Pyramid: Nutrition** (Helms) — in `docs/reference/`; top backlog item (unlocks the deferred nutrition-standards work). See `BACKLOG.md`.
-- **OG Advanced Programming**, **Overcoming Poor Posture** — PDFs in `docs/reference/`.
+- **OG Advanced Programming** (Steven Low), **Overcoming Poor Posture** (Steven Low) — PDFs in `docs/reference/`. See `BACKLOG.md`.
