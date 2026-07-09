@@ -42,6 +42,15 @@ numbers are reliable to ±1–2 (occasional drift near chapter boundaries); when
 | Rehab exercises for a specific region (wrist/elbow, rotator cuff, achilles…) | Tendonitis Ch.7 |
 | Does intervention X work? (cortisone, shockwave, PRP, surgery, bracing…) | Tendonitis Ch.8 |
 | Myths: is rest / ice / NSAIDs good for a tendon? | Tendonitis Ch.3 |
+| **Evidence-based volume/intensity/frequency dosing, RIR/RPE, dose-response** | **MSP Training L2** |
+| How much volume? (sets/muscle/week landmarks) | MSP Training L2 (`02`) |
+| Failure vs RIR, %1RM vs RPE, load for strength vs hypertrophy | MSP Training L2 (`03`) |
+| Progression schemes (double progression, autoregulation), deloads, plateaus | MSP Training L3 (`04`,`05`) |
+| Exercise selection / order (evidence-based) | MSP Training L4 (`06`) |
+| Rest periods, supersets, drop/rest-pause sets | MSP Training L5 (`07`) |
+| Lifting tempo | MSP Training L6 (`08`) |
+| Build a whole program step-by-step (evidence-based) | MSP Training — Program Building (`09`) |
+| Does convention X match the science? (cross-check OG2) | MSP Training (the `[SCIENCE]` layer) |
 
 ---
 
@@ -79,6 +88,13 @@ See `overcoming-gravity/` for one file per chapter. Highlights of what each owns
 - **Ch.6** the core: 5-stage rehab ladder, sample session, ACWR load-management, reinjury prevention (pp.41–58)
 - **Ch.7** rehab exercises by region incl. wrist/elbow (pp.59–80, condensed) · **Ch.8** intervention evidence-grade verdict table (pp.81–132, condensed)
 
+## Muscle & Strength Pyramid: Training — level map
+`muscle-strength-pyramid-training/` · PDF: `docs/reference/The Muscle and Strength Pyramid - Training - PDF v3.1.4.pdf` · see its `00-overview.md`.
+The `[SCIENCE]`-tier evidence-based counterweight; organized as a priority pyramid (lower = higher priority, set first).
+- **`00`** intro & pyramid model · **`01`** L1 Adherence · **`02`** L2a Volume · **`03`** L2b Intensity & Frequency
+- **`04`** L3a Progression/Fitness-Fatigue/Deloads · **`05`** L3b Progression Systems & Plateaus
+- **`06`** L4 Exercise Selection · **`07`** L5 Rest Periods · **`08`** L6 Lifting Tempo · **`09`** Program-Building guide
+
 ## Other books (not yet distilled)
-- **Muscle & Strength Pyramid** (Helms) — Training + Nutrition volumes now in `docs/reference/`. Top backlog item (`[SCIENCE]`-tier + nutrition). See `BACKLOG.md`.
+- **Muscle & Strength Pyramid: Nutrition** (Helms) — in `docs/reference/`; top backlog item (unlocks the deferred nutrition-standards work). See `BACKLOG.md`.
 - **OG Advanced Programming**, **Overcoming Poor Posture** — PDFs in `docs/reference/`.
