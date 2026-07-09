@@ -42,3 +42,6 @@ docs/*.pdf
 .claude/skills/*
 !.claude/skills/training-coach/
 skills-lock.json
+
+# Distilled book KB: raw extracted text stays local (copyrighted); distilled .md is committed
+.claude/skills/training-coach/references/_sources/
