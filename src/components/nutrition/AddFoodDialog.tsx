@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { MealLabelPicker } from '@/components/nutrition/MealLabelPicker'
 import { SearchUsdaFoodForm } from '@/components/nutrition/SearchUsdaFoodForm'
+import { RecentFoodsQuickPick } from '@/components/nutrition/RecentFoodsQuickPick'
 import { useCustomFoods } from '@/hooks/useCustomFoods'
 import { useAddFoodLog } from '@/hooks/useFoodLog'
 import type { CustomFood, MealLabel } from '@/models/types'
@@ -37,6 +38,7 @@ export function AddFoodDialog({
   return (
     <Dialog open={open} onClose={handleClose}>
       <DialogTitle>Add food</DialogTitle>
+      <RecentFoodsQuickPick date={date} mealLabel={mealLabel} onDone={handleClose} />
       <Tabs value={tab} onChange={(v) => setTab(v as 'quick' | 'pick' | 'search')}>
         <TabsList>
           <TabsTrigger value="quick">Quick add</TabsTrigger>

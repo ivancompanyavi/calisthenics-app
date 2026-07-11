@@ -37,6 +37,9 @@ const BodyweightHistoryPage = lazy(() =>
 )
 const AtlasPage = lazy(() => import('@/pages/Atlas').then((m) => ({ default: m.AtlasPage })))
 const NutritionPage = lazy(() => import('@/pages/Nutrition').then((m) => ({ default: m.Nutrition })))
+const NutritionTrendsPage = lazy(() =>
+  import('@/pages/NutritionTrends').then((m) => ({ default: m.NutritionTrends })),
+)
 const MeasurementsPage = lazy(() =>
   import('@/pages/Measurements').then((m) => ({ default: m.Measurements })),
 )
@@ -93,6 +96,7 @@ export default function App() {
               <Route path="/library" element={<RouteBoundary><LibraryPage /></RouteBoundary>} />
               <Route path="/atlas" element={<RouteBoundary><AtlasPage /></RouteBoundary>} />
               <Route path="/nutrition" element={<RouteBoundary><NutritionPage /></RouteBoundary>} />
+              <Route path="/nutrition/trends" element={<RouteBoundary><NutritionTrendsPage /></RouteBoundary>} />
               <Route path="/measurements" element={<RouteBoundary><MeasurementsPage /></RouteBoundary>} />
               <Route path="/settings" element={<RouteBoundary><SettingsPage /></RouteBoundary>} />
               <Route path="/bodyweight" element={<RouteBoundary><BodyweightHistoryPage /></RouteBoundary>} />
