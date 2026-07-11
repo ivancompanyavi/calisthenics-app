@@ -48,6 +48,8 @@ export const queryKeys = {
     day: (date: number) => ['foodLogs', 'day', date] as const,
     recent: (n: number) => ['foodLogs', 'recent', n] as const,
     dayTotals: (date: number) => ['foodLogs', 'dayTotals', date] as const,
+    recentDistinct: (limit: number) => ['foodLogs', 'recentDistinct', limit] as const,
+    range: (startDay: number, endDay: number) => ['foodLogs', 'range', startDay, endDay] as const,
   },
   measurements: ['measurements'] as const,
   nutritionTargets: {

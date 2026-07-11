@@ -25,6 +25,20 @@ export function useDayTotals(date: number) {
   })
 }
 
+export function useFoodLogsInRange(startDate: number, endDate: number) {
+  return useQuery({
+    queryKey: queryKeys.foodLogs.range(startDate, endDate),
+    queryFn: () => foodLogRepository.getInDateRange(startDate, endDate),
+  })
+}
+
+export function useRecentFoods(limit: number = 20) {
+  return useQuery({
+    queryKey: queryKeys.foodLogs.recentDistinct(limit),
+    queryFn: () => foodLogRepository.getRecentDistinctFoods(limit),
+  })
+}
+
 // Every mutation invalidates the whole foodLogs key space (rather than just
 // the affected day) — cheap given expected data volumes, and avoids missing
 // a stale day/dayTotals/recent cache entry when a log's date changes.
@@ -67,6 +81,20 @@ export function useDeleteFoodLog() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => foodLogRepository.delete(id),
+    onSuccess: () => {
+      invalidateFoodLogs(qc)
+      void requestSync('nutrition').finally(() => {
+        qc.invalidateQueries({ queryKey: queryKeys.settings })
+      })
+    },
+  })
+}
+
+export function useCopyDay() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ fromDate, toDate }: { fromDate: number; toDate: number }) =>
+      foodLogRepository.copyDay(fromDate, toDate),
     onSuccess: () => {
       invalidateFoodLogs(qc)
       void requestSync('nutrition').finally(() => {

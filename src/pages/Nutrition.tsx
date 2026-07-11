@@ -4,8 +4,8 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm-context'
-import { ChevronLeft, ChevronRight, Plus, Target, BookOpen, Ruler } from 'lucide-react'
-import { useFoodLogsForDay, useDayTotals, useDeleteFoodLog } from '@/hooks/useFoodLog'
+import { ChevronLeft, ChevronRight, Plus, Target, BookOpen, Ruler, Copy, LineChart } from 'lucide-react'
+import { useFoodLogsForDay, useDayTotals, useDeleteFoodLog, useCopyDay } from '@/hooks/useFoodLog'
 import { useCurrentNutritionTarget } from '@/hooks/useNutritionTargets'
 import { DaySummaryCard } from '@/components/nutrition/DaySummaryCard'
 import { MealSection } from '@/components/nutrition/MealSection'
@@ -42,6 +42,7 @@ export function Nutrition() {
   const { data: totals } = useDayTotals(selectedDate)
   const { data: target } = useCurrentNutritionTarget()
   const deleteFoodLog = useDeleteFoodLog()
+  const copyDay = useCopyDay()
 
   const grouped = useMemo(() => {
     const map: Record<string, FoodLog[]> = {}
@@ -76,10 +77,26 @@ export function Nutrition() {
 
   const isEmpty = (logs?.length ?? 0) === 0
 
+  const handleCopyYesterday = async () => {
+    const fromDate = selectedDate - DAY_MS
+    if (
+      await confirm({
+        title: 'Copy yesterday?',
+        description: "Clone yesterday's entries into this day's log.",
+        confirmLabel: 'Copy',
+      })
+    ) {
+      copyDay.mutate({ fromDate, toDate: selectedDate })
+    }
+  }
+
   return (
     <div>
       <PageHeader title="Nutrition">
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/nutrition/trends')} aria-label="Trends">
+            <LineChart className="h-4 w-4" />
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => setTargetOpen(true)} aria-label="Set target">
             <Target className="h-4 w-4" />
           </Button>
@@ -115,18 +132,40 @@ export function Nutrition() {
 
         <DaySummaryCard totals={totals} target={target} />
 
-        <Button className="w-full" onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> Add food
-        </Button>
+        <div className="flex gap-2">
+          <Button className="flex-1" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" /> Add food
+          </Button>
+          {!isEmpty && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleCopyYesterday}
+              disabled={copyDay.isPending}
+              aria-label="Copy yesterday"
+              title="Copy yesterday"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
 
         {isEmpty ? (
-          <Card className="p-6 text-center space-y-1">
+          <Card className="p-6 text-center space-y-3">
             <p className="text-sm text-muted-foreground">Nothing logged for this day yet.</p>
             {!target && (
               <p className="text-xs text-muted-foreground">
                 Set a target to track progress, or just log what you eat.
               </p>
             )}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleCopyYesterday}
+              disabled={copyDay.isPending}
+            >
+              <Copy className="h-4 w-4 mr-1" /> Copy yesterday
+            </Button>
           </Card>
         ) : (
           MEAL_ORDER.map((meal) => (

@@ -47,6 +47,31 @@ describe('foodLogRepository', () => {
     })
   })
 
+  describe('getInDateRange', () => {
+    it('returns entries whose day is within [start, end] inclusive, excluding outside', async () => {
+      for (const d of [3, 5, 9, 12]) {
+        await foodLogRepository.add({
+          loggedAt: ts(2026, 7, d, 10),
+          source: 'quickadd', name: `Day ${d}`,
+          kcal: 100, proteinG: 10, carbG: 10, fatG: 2, fiberG: 1,
+        })
+      }
+      // Range 5..9 inclusive (bounds given mid-day still match by calendar day).
+      const inRange = await foodLogRepository.getInDateRange(ts(2026, 7, 5, 18), ts(2026, 7, 9, 6))
+      expect(inRange.map((e) => e.name).sort()).toEqual(['Day 5', 'Day 9'])
+    })
+
+    it('returns [] when no entries fall in the range', async () => {
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 1, 10),
+        source: 'quickadd', name: 'Old',
+        kcal: 100, proteinG: 10, carbG: 10, fatG: 2, fiberG: 1,
+      })
+      const inRange = await foodLogRepository.getInDateRange(ts(2026, 7, 10, 0), ts(2026, 7, 20, 0))
+      expect(inRange).toEqual([])
+    })
+  })
+
   describe('getByDay', () => {
     it('groups entries by calendar day regardless of time-of-day', async () => {
       await foodLogRepository.add({
@@ -170,6 +195,138 @@ describe('foodLogRepository', () => {
       await foodLogRepository.delete(entry.id)
 
       expect(await db.foodLogs.get(entry.id)).toBeUndefined()
+    })
+  })
+
+  describe('getRecentDistinctFoods', () => {
+    it('dedupes by refId identity, keeping the most recent occurrence', async () => {
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 7, 8), source: 'custom', refId: 'food-1', name: 'Chicken',
+        quantityG: 100, kcal: 165, proteinG: 31, carbG: 0, fatG: 4, fiberG: 0,
+      })
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 8), source: 'custom', refId: 'food-1', name: 'Chicken',
+        quantityG: 200, kcal: 330, proteinG: 62, carbG: 0, fatG: 8, fiberG: 0,
+      })
+
+      const result = await foodLogRepository.getRecentDistinctFoods()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].key).toBe('custom:food-1')
+      expect(result[0].quantityG).toBe(200)
+      expect(result[0].kcal).toBe(330)
+      expect(result[0].lastLoggedAt).toBe(ts(2026, 7, 9, 8))
+    })
+
+    it('dedupes refId-less quickadd entries by lowercased name', async () => {
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 7, 8), source: 'quickadd', name: 'Protein Shake',
+        kcal: 200, proteinG: 30, carbG: 5, fatG: 3, fiberG: 0,
+      })
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 8), source: 'quickadd', name: 'protein shake',
+        kcal: 250, proteinG: 35, carbG: 5, fatG: 4, fiberG: 0,
+      })
+
+      const result = await foodLogRepository.getRecentDistinctFoods()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].key).toBe('quickadd:protein shake')
+      expect(result[0].kcal).toBe(250)
+    })
+
+    it('orders distinct foods newest-first by their most recent occurrence', async () => {
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 5, 8), source: 'quickadd', name: 'Oldest food',
+        kcal: 100, proteinG: 1, carbG: 1, fatG: 1, fiberG: 1,
+      })
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 8), source: 'quickadd', name: 'Newest food',
+        kcal: 100, proteinG: 1, carbG: 1, fatG: 1, fiberG: 1,
+      })
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 7, 8), source: 'quickadd', name: 'Middle food',
+        kcal: 100, proteinG: 1, carbG: 1, fatG: 1, fiberG: 1,
+      })
+
+      const result = await foodLogRepository.getRecentDistinctFoods()
+
+      expect(result.map((r) => r.name)).toEqual(['Newest food', 'Middle food', 'Oldest food'])
+    })
+
+    it('respects the limit even when more distinct foods exist', async () => {
+      for (let i = 0; i < 5; i++) {
+        await foodLogRepository.add({
+          loggedAt: ts(2026, 7, 1 + i, 8), source: 'quickadd', name: `Food ${i}`,
+          kcal: 100, proteinG: 1, carbG: 1, fatG: 1, fiberG: 1,
+        })
+      }
+
+      const result = await foodLogRepository.getRecentDistinctFoods(3)
+
+      expect(result).toHaveLength(3)
+      expect(result.map((r) => r.name)).toEqual(['Food 4', 'Food 3', 'Food 2'])
+    })
+  })
+
+  describe('copyDay', () => {
+    it('clones entries into the target day with new ids, leaving originals untouched', async () => {
+      const a = await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 8), source: 'quickadd', name: 'Breakfast',
+        kcal: 300, proteinG: 20, carbG: 30, fatG: 10, fiberG: 2,
+      })
+      const b = await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 20), source: 'quickadd', name: 'Dinner',
+        kcal: 500, proteinG: 40, carbG: 50, fatG: 15, fiberG: 5,
+      })
+
+      const created = await foodLogRepository.copyDay(ts(2026, 7, 9, 12), ts(2026, 7, 11, 12))
+
+      expect(created).toHaveLength(2)
+      const createdIds = created.map((e) => e.id)
+      expect(createdIds).not.toContain(a.id)
+      expect(createdIds).not.toContain(b.id)
+      expect(created.every((e) => e.date === ts(2026, 7, 11, 0))).toBe(true)
+
+      // Originals still present, unmodified.
+      const originalDay = await foodLogRepository.getByDay(ts(2026, 7, 9))
+      expect(originalDay).toHaveLength(2)
+      expect(originalDay.map((e) => e.id).sort()).toEqual([a.id, b.id].sort())
+    })
+
+    it('preserves time-of-day offset when cloning', async () => {
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 8), source: 'quickadd', name: 'Breakfast',
+        kcal: 300, proteinG: 20, carbG: 30, fatG: 10, fiberG: 2,
+      })
+
+      const [clone] = await foodLogRepository.copyDay(ts(2026, 7, 9, 12), ts(2026, 7, 11, 12))
+
+      expect(clone.loggedAt).toBe(ts(2026, 7, 11, 8))
+    })
+
+    it('produces a target-day total matching the source day total', async () => {
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 8), source: 'quickadd', name: 'Breakfast',
+        kcal: 300, proteinG: 20, carbG: 30, fatG: 10, fiberG: 2,
+      })
+      await foodLogRepository.add({
+        loggedAt: ts(2026, 7, 9, 20), source: 'quickadd', name: 'Dinner',
+        kcal: 500, proteinG: 40, carbG: 50, fatG: 15, fiberG: 5,
+      })
+
+      await foodLogRepository.copyDay(ts(2026, 7, 9, 12), ts(2026, 7, 11, 12))
+
+      const sourceTotals = await foodLogRepository.dayTotals(ts(2026, 7, 9))
+      const targetTotals = await foodLogRepository.dayTotals(ts(2026, 7, 11))
+      expect(targetTotals).toEqual(sourceTotals)
+    })
+
+    it('returns an empty array and creates nothing when the source day has no entries', async () => {
+      const created = await foodLogRepository.copyDay(ts(2026, 7, 9), ts(2026, 7, 11))
+
+      expect(created).toEqual([])
+      expect(await foodLogRepository.getByDay(ts(2026, 7, 11))).toEqual([])
     })
   })
 })
