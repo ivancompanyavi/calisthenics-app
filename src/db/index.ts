@@ -16,6 +16,10 @@ import type {
   Goal,
   Settings,
   Skill,
+  CustomFood,
+  FoodLog,
+  Measurement,
+  NutritionTarget,
 } from '@/models/types'
 
 const db = new Dexie('CalisthenicsTracker') as Dexie & {
@@ -35,6 +39,10 @@ const db = new Dexie('CalisthenicsTracker') as Dexie & {
   goals: EntityTable<Goal, 'id'>
   settings: EntityTable<Settings, 'id'>
   skills: EntityTable<Skill, 'id'>
+  customFoods: EntityTable<CustomFood, 'id'>
+  foodLogs: EntityTable<FoodLog, 'id'>
+  measurements: EntityTable<Measurement, 'id'>
+  nutritionTargets: EntityTable<NutritionTarget, 'id'>
 }
 
 db.version(1).stores({
@@ -258,6 +266,31 @@ db.version(10).stores({
   goals: 'id, movementId, createdAt',
   settings: 'id',
   skills: 'id, name, createdAt',
+})
+
+// v11: nutrition tracker foundation — customFoods, foodLogs, measurements,
+// nutritionTargets. Additive — no upgrade transform needed.
+db.version(11).stores({
+  movements: 'id, name, createdAt',
+  progressions: 'id, name, createdAt',
+  progressionLevels: 'id, progressionId, movementId, order',
+  workouts: 'id, name, createdAt',
+  workoutBlocks: 'id, workoutId, order',
+  blockEntries: 'id, blockId, progressionId, movementId, kind, order',
+  workoutLogs: 'id, workoutId, startedAt, completedAt',
+  setLogs: 'id, workoutLogId, movementId, progressionId, order',
+  inProgressWorkout: 'id, workoutId',
+  programs: 'id, name, createdAt',
+  programDays: 'id, programId, dayNumber',
+  activePrograms: 'id, programId, status',
+  bodyweightLogs: 'id, date',
+  goals: 'id, movementId, createdAt',
+  settings: 'id',
+  skills: 'id, name, createdAt',
+  customFoods: 'id, name, createdAt',
+  foodLogs: 'id, date, loggedAt',
+  measurements: 'id, date',
+  nutritionTargets: 'id, effectiveDate',
 })
 
 export { db }

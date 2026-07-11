@@ -36,6 +36,10 @@ const BodyweightHistoryPage = lazy(() =>
   import('@/pages/BodyweightHistory').then((m) => ({ default: m.BodyweightHistory })),
 )
 const AtlasPage = lazy(() => import('@/pages/Atlas').then((m) => ({ default: m.AtlasPage })))
+const NutritionPage = lazy(() => import('@/pages/Nutrition').then((m) => ({ default: m.Nutrition })))
+const MeasurementsPage = lazy(() =>
+  import('@/pages/Measurements').then((m) => ({ default: m.Measurements })),
+)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -88,6 +92,8 @@ export default function App() {
               <Route path="/programs/:id/edit" element={<RouteBoundary><ProgramBuilder /></RouteBoundary>} />
               <Route path="/library" element={<RouteBoundary><LibraryPage /></RouteBoundary>} />
               <Route path="/atlas" element={<RouteBoundary><AtlasPage /></RouteBoundary>} />
+              <Route path="/nutrition" element={<RouteBoundary><NutritionPage /></RouteBoundary>} />
+              <Route path="/measurements" element={<RouteBoundary><MeasurementsPage /></RouteBoundary>} />
               <Route path="/settings" element={<RouteBoundary><SettingsPage /></RouteBoundary>} />
               <Route path="/bodyweight" element={<RouteBoundary><BodyweightHistoryPage /></RouteBoundary>} />
             </Route>

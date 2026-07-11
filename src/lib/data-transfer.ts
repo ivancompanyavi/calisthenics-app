@@ -3,8 +3,12 @@ import type {
   ActiveProgram,
   BlockEntry,
   BodyweightLog,
+  CustomFood,
+  FoodLog,
   Goal,
+  Measurement,
   Movement,
+  NutritionTarget,
   Program,
   ProgramDay,
   Progression,
@@ -16,10 +20,11 @@ import type {
   WorkoutLog,
 } from '@/models/types'
 
-const EXPORT_VERSION = 5
-// v5 adds skills. Older v2/v3/v4 files import cleanly because skills is
-// treated as optional (defaults to [] when absent).
-const SUPPORTED_IMPORT_VERSIONS = [2, 3, 4, 5]
+const EXPORT_VERSION = 6
+// v6 adds the nutrition tracker foundation tables (customFoods, foodLogs,
+// measurements, nutritionTargets). Older v2-v5 files import cleanly because
+// all four are treated as optional (default to [] when absent).
+const SUPPORTED_IMPORT_VERSIONS = [2, 3, 4, 5, 6]
 
 // ───────────────── Photo encoding ─────────────────
 
@@ -61,6 +66,10 @@ async function queryAllTables() {
     bodyweightLogs,
     goals,
     skills,
+    customFoods,
+    foodLogs,
+    measurements,
+    nutritionTargets,
   ] = await Promise.all([
     db.movements.toArray(),
     db.progressions.toArray(),
@@ -76,6 +85,10 @@ async function queryAllTables() {
     db.bodyweightLogs.toArray(),
     db.goals.toArray(),
     db.skills.toArray(),
+    db.customFoods.toArray(),
+    db.foodLogs.toArray(),
+    db.measurements.toArray(),
+    db.nutritionTargets.toArray(),
   ])
   return {
     movements,
@@ -92,6 +105,10 @@ async function queryAllTables() {
     bodyweightLogs,
     goals,
     skills,
+    customFoods,
+    foodLogs,
+    measurements,
+    nutritionTargets,
   }
 }
 
@@ -174,6 +191,10 @@ const OPTIONAL_TABLES = [
   'bodyweightLogs',
   'goals',
   'skills',
+  'customFoods',
+  'foodLogs',
+  'measurements',
+  'nutritionTargets',
 ] as const
 
 function isObject(v: unknown): v is Record<string, unknown> {
@@ -210,6 +231,10 @@ interface ValidatedImport {
   bodyweightLogs: Record<string, unknown>[]
   goals: Record<string, unknown>[]
   skills: Record<string, unknown>[]
+  customFoods: Record<string, unknown>[]
+  foodLogs: Record<string, unknown>[]
+  measurements: Record<string, unknown>[]
+  nutritionTargets: Record<string, unknown>[]
 }
 
 function validateImport(parsed: unknown): ValidatedImport {
@@ -290,7 +315,8 @@ export async function importAllData(json: string): Promise<void> {
     [
       db.movements, db.progressions, db.progressionLevels, db.workouts, db.workoutBlocks,
       db.blockEntries, db.workoutLogs, db.setLogs, db.programs, db.programDays, db.activePrograms,
-      db.bodyweightLogs, db.goals, db.skills,
+      db.bodyweightLogs, db.goals, db.skills, db.customFoods, db.foodLogs, db.measurements,
+      db.nutritionTargets,
     ],
     async () => {
       await db.movements.clear()
@@ -307,6 +333,10 @@ export async function importAllData(json: string): Promise<void> {
       await db.bodyweightLogs.clear()
       await db.goals.clear()
       await db.skills.clear()
+      await db.customFoods.clear()
+      await db.foodLogs.clear()
+      await db.measurements.clear()
+      await db.nutritionTargets.clear()
 
       // Casts: validateImport guarantees each row is an object with a string
       // id; per-table schema details are trusted to match because the file
@@ -325,6 +355,10 @@ export async function importAllData(json: string): Promise<void> {
       if (data.bodyweightLogs.length > 0) await db.bodyweightLogs.bulkAdd(data.bodyweightLogs as unknown as BodyweightLog[])
       if (data.goals.length > 0) await db.goals.bulkAdd(data.goals as unknown as Goal[])
       if (data.skills.length > 0) await db.skills.bulkAdd(data.skills as unknown as Skill[])
+      if (data.customFoods.length > 0) await db.customFoods.bulkAdd(data.customFoods as unknown as CustomFood[])
+      if (data.foodLogs.length > 0) await db.foodLogs.bulkAdd(data.foodLogs as unknown as FoodLog[])
+      if (data.measurements.length > 0) await db.measurements.bulkAdd(data.measurements as unknown as Measurement[])
+      if (data.nutritionTargets.length > 0) await db.nutritionTargets.bulkAdd(data.nutritionTargets as unknown as NutritionTarget[])
     },
   )
 }

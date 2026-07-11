@@ -204,6 +204,89 @@ export interface BodyweightLog {
   notes?: string
 }
 
+// User-created food. No bundled USDA database in Phase 1a — every food the
+// user logs against by refId lives here. Macros are per the unit named by
+// `per`: either per 100g (scale by quantityG/100) or per serving (scale by
+// servings, using servingGrams if a gram-quantity is also needed).
+export interface CustomFood {
+  id: string
+  name: string
+  brand?: string
+  per: 'per100g' | 'perServing'
+  servingGrams?: number
+  kcal: number
+  proteinG: number
+  carbG: number
+  fatG: number
+  fiberG: number
+  sodiumMg?: number
+  createdAt: number
+}
+
+// 'usda' is reserved for Phase 1b (bundled USDA database lookups) — not
+// produced by anything in Phase 1a, but included now so FoodLog rows written
+// today remain forward-compatible with that source once it lands.
+export type FoodSource = 'custom' | 'quickadd' | 'usda'
+export type MealLabel = 'breakfast' | 'lunch' | 'dinner' | 'snack'
+
+// One logged food entry. Macros are denormalized — already scaled to the
+// quantity actually eaten — so history/reports never need to re-join against
+// CustomFood (which may since have been edited or deleted).
+export interface FoodLog {
+  id: string
+  date: number // start-of-day epoch ms; the grouping key for daily totals
+  loggedAt: number
+  mealLabel?: MealLabel
+  source: FoodSource
+  refId?: string // CustomFood id this was logged from; undefined for quickadd
+  name: string
+  quantityG?: number
+  servings?: number
+  kcal: number
+  proteinG: number
+  carbG: number
+  fatG: number
+  fiberG: number
+  notes?: string
+}
+
+// Body-measurement snapshot (tape or DEXA). Every field but id/date is
+// optional — a single entry can record just the fields the user measured
+// that day.
+export interface Measurement {
+  id: string
+  date: number
+  waistCm?: number
+  neckCm?: number
+  chestCm?: number
+  leftArmCm?: number
+  rightArmCm?: number
+  leftThighCm?: number
+  rightThighCm?: number
+  hipsCm?: number
+  leftCalfCm?: number
+  rightCalfCm?: number
+  bodyFatPct?: number
+  source?: 'tape' | 'dexa'
+  notes?: string
+}
+
+// Dated nutrition target. Rows are never mutated in place — a change in
+// target inserts a new row so history is preserved; the "current" target is
+// whichever row has the latest effectiveDate.
+export interface NutritionTarget {
+  id: string
+  effectiveDate: number
+  kcal: number
+  proteinG: number
+  carbG?: number
+  fatG?: number
+  fiberG?: number
+  ratePctPerWeek?: number
+  setBy: 'coach' | 'user'
+  notes?: string
+}
+
 export type MovementFamily = 'push' | 'pull' | 'legs' | 'core'
 
 // Prep-tag set used to derive warm-up needs for a given workout day.

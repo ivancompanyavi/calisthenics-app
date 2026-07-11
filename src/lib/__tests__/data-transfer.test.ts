@@ -139,6 +139,99 @@ describe('data-transfer', () => {
     })
   })
 
+  describe('nutrition tracker round-trip (v6)', () => {
+    it('round-trips customFoods, foodLogs, measurements, and nutritionTargets', async () => {
+      await db.customFoods.add({
+        id: 'cf1', name: 'Chicken Breast', per: 'per100g',
+        kcal: 165, proteinG: 31, carbG: 0, fatG: 3.6, fiberG: 0, createdAt: 1_700_000_000_000,
+      })
+      await db.foodLogs.add({
+        id: 'fl1', date: 1_700_000_000_000, loggedAt: 1_700_003_600_000,
+        mealLabel: 'lunch', source: 'custom', refId: 'cf1', name: 'Chicken Breast',
+        quantityG: 150, kcal: 248, proteinG: 46.5, carbG: 0, fatG: 5.4, fiberG: 0,
+      })
+      await db.measurements.add({
+        id: 'ms1', date: 1_700_000_000_000, waistCm: 80, bodyFatPct: 14.5, source: 'tape',
+      })
+      await db.nutritionTargets.add({
+        id: 'nt1', effectiveDate: 1_700_000_000_000, kcal: 2200, proteinG: 160, setBy: 'coach',
+      })
+
+      const json = await exportAllData()
+      await clearAllTables()
+      await importAllData(json)
+
+      expect((await db.customFoods.get('cf1'))?.name).toBe('Chicken Breast')
+      expect((await db.foodLogs.get('fl1'))?.mealLabel).toBe('lunch')
+      expect((await db.foodLogs.get('fl1'))?.quantityG).toBe(150)
+      expect((await db.measurements.get('ms1'))?.waistCm).toBe(80)
+      expect((await db.measurements.get('ms1'))?.bodyFatPct).toBe(14.5)
+      expect((await db.nutritionTargets.get('nt1'))?.proteinG).toBe(160)
+    })
+
+    it('round-trips the same four tables through exportForSync', async () => {
+      await db.customFoods.add({
+        id: 'cf1', name: 'Oats', per: 'per100g',
+        kcal: 389, proteinG: 17, carbG: 66, fatG: 7, fiberG: 10, createdAt: 0,
+      })
+      await db.measurements.add({ id: 'ms1', date: 1_700_000_000_000, waistCm: 80 })
+
+      const json = await exportForSync()
+      await clearAllTables()
+      await importAllData(json)
+
+      expect((await db.customFoods.get('cf1'))?.name).toBe('Oats')
+      expect((await db.measurements.get('ms1'))?.waistCm).toBe(80)
+    })
+
+    it('reports EXPORT_VERSION as 6', async () => {
+      const parsed = JSON.parse(await exportAllData())
+      expect(parsed.version).toBe(6)
+    })
+
+    it('accepts a v6 import payload containing all four nutrition tables', async () => {
+      const payload = JSON.stringify({
+        version: 6,
+        movements: [], progressions: [], progressionLevels: [], workouts: [], workoutBlocks: [],
+        blockEntries: [], workoutLogs: [], setLogs: [],
+        customFoods: [{
+          id: 'cf1', name: 'Rice', per: 'per100g',
+          kcal: 130, proteinG: 3, carbG: 28, fatG: 0, fiberG: 0, createdAt: 0,
+        }],
+        foodLogs: [{
+          id: 'fl1', date: 1_700_000_000_000, loggedAt: 1_700_000_000_000,
+          source: 'usda', name: 'Rice', kcal: 130, proteinG: 3, carbG: 28, fatG: 0, fiberG: 0,
+        }],
+        measurements: [{ id: 'ms1', date: 1_700_000_000_000, waistCm: 81 }],
+        nutritionTargets: [{ id: 'nt1', effectiveDate: 1_700_000_000_000, kcal: 2100, proteinG: 165, setBy: 'user' }],
+      })
+
+      await importAllData(payload)
+
+      expect(await db.customFoods.count()).toBe(1)
+      expect(await db.foodLogs.count()).toBe(1)
+      expect(await db.measurements.count()).toBe(1)
+      expect(await db.nutritionTargets.count()).toBe(1)
+    })
+
+    it('treats nutrition tables as optional when importing a pre-v6 backup', async () => {
+      const payload = JSON.stringify({
+        version: 5,
+        movements: [{ id: 'm1', name: 'Push-Up', createdAt: 0 }],
+        progressions: [], progressionLevels: [], workouts: [], workoutBlocks: [],
+        blockEntries: [], workoutLogs: [], setLogs: [],
+      })
+
+      await importAllData(payload)
+
+      expect(await db.movements.count()).toBe(1)
+      expect(await db.customFoods.count()).toBe(0)
+      expect(await db.foodLogs.count()).toBe(0)
+      expect(await db.measurements.count()).toBe(0)
+      expect(await db.nutritionTargets.count()).toBe(0)
+    })
+  })
+
   describe('exportForSync', () => {
     it('excludes movement photos entirely (no blob, no base64, no hasPhoto flag)', async () => {
       const photo = new Blob([new Uint8Array([1, 2, 3])], { type: 'image/webp' })

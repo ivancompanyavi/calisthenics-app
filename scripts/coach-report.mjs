@@ -18,12 +18,20 @@
 
 import { readFileSync, existsSync } from 'node:fs'
 
-const SUPPORTED_VERSIONS = [2, 3, 4, 5]
+const SUPPORTED_VERSIONS = [2, 3, 4, 5, 6]
 const DAY_MS = 24 * 60 * 60 * 1000
 const WEEK_MS = 7 * DAY_MS
 const WEEKS_TO_SHOW = 8 // weekly set volume window
 const RECENT_SESSIONS_FOR_TREND = 5 // "trend over last ~5 sessions"
 const RECENT_WEEKS_FOR_SKIP_RATE = 4 // skip-rate + RIR "recent period" window
+const NUTRITION_DAYS_TO_SHOW = 14 // daily totals table window
+const NUTRITION_ROLLING_WINDOW_DAYS = 7 // rolling kcal/protein average + adherence window
+const NUTRITION_TDEE_WINDOW_DAYS = 14 // trailing window for the adaptive TDEE estimate
+// How many distinct logged days we require inside the TDEE window before we'll
+// trust the average-kcal side of the estimate. ~70% of the window — sparse
+// logging makes avgDailyKcal unreliable even if the elapsed-days span is long enough.
+const NUTRITION_TDEE_MIN_LOGGED_DAYS = 10
+const KCAL_PER_KG = 7700 // standard energy-density-of-fat approximation used for the TDEE estimate
 // Mirrors the default in src/lib/progression-metrics.ts (sessionQualifies /
 // countGateFailures use `criteria.minRIR ?? 2`). This script does NOT read
 // per-level ExitCriteria overrides — it summarizes with the global default
@@ -84,6 +92,11 @@ function isoDate(ts) {
   return new Date(ts).toISOString().slice(0, 10)
 }
 
+function startOfDayUTC(ts) {
+  const d = new Date(ts)
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+}
+
 // ───────────────────────── indexing ─────────────────────────
 
 function buildIndices(snapshot) {
@@ -93,6 +106,10 @@ function buildIndices(snapshot) {
   const workoutLogs = Array.isArray(snapshot.workoutLogs) ? snapshot.workoutLogs : []
   const setLogs = Array.isArray(snapshot.setLogs) ? snapshot.setLogs : []
   const bodyweightLogs = Array.isArray(snapshot.bodyweightLogs) ? snapshot.bodyweightLogs : []
+  const customFoods = Array.isArray(snapshot.customFoods) ? snapshot.customFoods : []
+  const foodLogs = Array.isArray(snapshot.foodLogs) ? snapshot.foodLogs : []
+  const measurements = Array.isArray(snapshot.measurements) ? snapshot.measurements : []
+  const nutritionTargets = Array.isArray(snapshot.nutritionTargets) ? snapshot.nutritionTargets : []
 
   const movementById = new Map(movements.map((m) => [m.id, m]))
   const workoutLogById = new Map(workoutLogs.map((w) => [w.id, w]))
@@ -115,6 +132,10 @@ function buildIndices(snapshot) {
     workoutLogs,
     setLogs,
     bodyweightLogs,
+    customFoods,
+    foodLogs,
+    measurements,
+    nutritionTargets,
     movementById,
     workoutLogById,
     levelsByProgression,
@@ -381,6 +402,180 @@ function computeSkipRate(idx, now) {
     .sort((a, b) => b.rate - a.rate)
 }
 
+// ───────────────────────── nutrition ─────────────────────────
+
+// foodLogs are already denormalized with a `date` field that the repository
+// buckets to start-of-day (see foodLogRepository.add), but we re-normalize
+// with startOfDayUTC here so this script doesn't depend on that invariant
+// holding across every historical row (e.g. imported/synced data).
+function groupFoodLogsByDay(foodLogs) {
+  const map = new Map()
+  for (const log of foodLogs) {
+    if (typeof log.date !== 'number') continue
+    const day = startOfDayUTC(log.date)
+    const entry = map.get(day) ?? { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0 }
+    entry.kcal += log.kcal ?? 0
+    entry.proteinG += log.proteinG ?? 0
+    entry.carbG += log.carbG ?? 0
+    entry.fatG += log.fatG ?? 0
+    entry.fiberG += log.fiberG ?? 0
+    map.set(day, entry)
+  }
+  return map
+}
+
+function computeNutrition(idx, now) {
+  const { foodLogs, measurements, nutritionTargets, bodyweightLogs } = idx
+
+  if (foodLogs.length === 0 && measurements.length === 0 && nutritionTargets.length === 0) {
+    return { noData: true }
+  }
+
+  const byDay = groupFoodLogsByDay(foodLogs)
+  const sortedDayKeys = [...byDay.keys()].sort((a, b) => a - b)
+
+  const dailyTotals = sortedDayKeys.slice(-NUTRITION_DAYS_TO_SHOW).map((day) => ({
+    date: isoDate(day),
+    ...byDay.get(day),
+  }))
+
+  // Rolling average is computed over *logged* days within the window only —
+  // averaging in unlogged days as zero would understate true intake, since we
+  // have no way to know whether an unlogged day means "didn't eat" or "didn't track".
+  const rollingStart = now - NUTRITION_ROLLING_WINDOW_DAYS * DAY_MS
+  const rollingDayKeys = sortedDayKeys.filter((d) => d >= rollingStart && d <= now)
+  let rollingAvg = null
+  if (rollingDayKeys.length > 0) {
+    let kcalSum = 0
+    let proteinSum = 0
+    for (const d of rollingDayKeys) {
+      const t = byDay.get(d)
+      kcalSum += t.kcal
+      proteinSum += t.proteinG
+    }
+    rollingAvg = {
+      kcal: kcalSum / rollingDayKeys.length,
+      proteinG: proteinSum / rollingDayKeys.length,
+      loggedDays: rollingDayKeys.length,
+    }
+  }
+
+  const sortedTargets = [...nutritionTargets].sort((a, b) => b.effectiveDate - a.effectiveDate)
+  const currentTargetRaw = sortedTargets.find((t) => t.effectiveDate <= now) ?? sortedTargets[0] ?? null
+
+  let adherence = null
+  if (rollingAvg && currentTargetRaw) {
+    adherence = {
+      avgKcal: rollingAvg.kcal,
+      targetKcal: currentTargetRaw.kcal,
+      kcalDelta: rollingAvg.kcal - currentTargetRaw.kcal,
+      avgProteinG: rollingAvg.proteinG,
+      targetProteinG: currentTargetRaw.proteinG,
+      proteinDelta: rollingAvg.proteinG - currentTargetRaw.proteinG,
+      loggedDays: rollingAvg.loggedDays,
+    }
+  }
+
+  // Adaptive TDEE estimate: over a trailing window, estimatedTDEE ≈
+  // avgDailyKcal − (weightChangeKg × 7700 / days). We anchor "days" to the
+  // actual elapsed time between two real bodyweight readings (mirrors
+  // computeBodyweight's fourWeekDelta pattern), not a fixed 14 — a sparser
+  // bodyweight-logging cadence just widens the window. We additionally
+  // require real food-logging coverage inside that same span, since a wide
+  // elapsed-days window with a handful of logged days would produce a
+  // meaningless avgDailyKcal.
+  let tdee = null
+  const sortedBW = [...bodyweightLogs].sort((a, b) => a.date - b.date)
+  if (sortedBW.length > 0) {
+    const windowStart = now - NUTRITION_TDEE_WINDOW_DAYS * DAY_MS
+    const before = sortedBW.filter((l) => l.date <= windowStart)
+    const reference = before.length > 0 ? before[before.length - 1] : sortedBW[0]
+    const latest = sortedBW[sortedBW.length - 1]
+    const actualDays = (latest.date - reference.date) / DAY_MS
+    const loggedDayKeysInWindow = sortedDayKeys.filter((d) => d >= reference.date && d <= latest.date)
+
+    if (actualDays >= NUTRITION_TDEE_WINDOW_DAYS && loggedDayKeysInWindow.length >= NUTRITION_TDEE_MIN_LOGGED_DAYS) {
+      const totalKcalInWindow = loggedDayKeysInWindow.reduce((sum, d) => sum + byDay.get(d).kcal, 0)
+      const avgDailyKcal = totalKcalInWindow / actualDays
+      const weightChangeKg = latest.kg - reference.kg
+      const estimatedTDEE = avgDailyKcal - (weightChangeKg * KCAL_PER_KG) / actualDays
+
+      let targetDeltaKcal = null
+      let suggestion = 'no current nutrition target set — cannot compare against estimated maintenance'
+      if (currentTargetRaw) {
+        targetDeltaKcal = estimatedTDEE - currentTargetRaw.kcal
+        if (Math.abs(targetDeltaKcal) < 100) {
+          suggestion = 'target kcal roughly matches estimated maintenance — actual rate of change should track intent'
+        } else if (targetDeltaKcal > 0) {
+          suggestion =
+            `estimated maintenance (~${Math.round(estimatedTDEE)} kcal) is ${Math.round(targetDeltaKcal)} kcal ` +
+            `above the current target — actual deficit/surplus is larger than intended; consider raising the target`
+        } else {
+          suggestion =
+            `estimated maintenance (~${Math.round(estimatedTDEE)} kcal) is ${Math.round(-targetDeltaKcal)} kcal ` +
+            `below the current target — actual deficit/surplus is smaller than intended; consider lowering the target`
+        }
+      }
+
+      tdee = {
+        estimatedTDEE,
+        avgDailyKcal,
+        weightChangeKg,
+        actualDays: Math.round(actualDays),
+        referenceDate: isoDate(reference.date),
+        latestDate: isoDate(latest.date),
+        loggedDaysInWindow: loggedDayKeysInWindow.length,
+        targetDeltaKcal,
+        suggestion,
+      }
+    } else {
+      tdee = {
+        insufficientData: true,
+        actualDays: Math.round(actualDays),
+        loggedDaysInWindow: loggedDayKeysInWindow.length,
+      }
+    }
+  }
+
+  // Waist trend: latest measurement with waistCm vs. the reading closest to
+  // (now - 4 weeks), same pattern as computeBodyweight's fourWeekDelta.
+  let waistTrend = null
+  const withWaist = measurements.filter((m) => m.waistCm != null).sort((a, b) => a.date - b.date)
+  if (withWaist.length > 0) {
+    const fourWeeksAgo = now - 4 * WEEK_MS
+    const before = withWaist.filter((m) => m.date <= fourWeeksAgo)
+    const reference = before.length > 0 ? before[before.length - 1] : null
+    const latest = withWaist[withWaist.length - 1]
+    waistTrend = {
+      latestWaistCm: latest.waistCm,
+      latestDate: isoDate(latest.date),
+      referenceWaistCm: reference ? reference.waistCm : null,
+      referenceDate: reference ? isoDate(reference.date) : null,
+      delta: reference ? latest.waistCm - reference.waistCm : null,
+    }
+  }
+
+  const currentTarget = currentTargetRaw
+    ? {
+        kcal: currentTargetRaw.kcal,
+        proteinG: currentTargetRaw.proteinG,
+        carbG: currentTargetRaw.carbG ?? null,
+        fatG: currentTargetRaw.fatG ?? null,
+        effectiveDate: isoDate(currentTargetRaw.effectiveDate),
+        setBy: currentTargetRaw.setBy,
+      }
+    : null
+
+  return {
+    dailyTotals,
+    rollingAvg,
+    currentTarget,
+    adherence,
+    tdee,
+    waistTrend,
+  }
+}
+
 // ───────────────────────── report assembly ─────────────────────────
 
 function computeReport(snapshot, now) {
@@ -392,6 +587,7 @@ function computeReport(snapshot, now) {
   const bodyweight = computeBodyweight(idx, now)
   const stallFlags = progressionStatus.filter((p) => p.stalled)
   const skipRate = computeSkipRate(idx, now)
+  const nutrition = computeNutrition(idx, now)
 
   return {
     generatedAt: new Date(now).toISOString(),
@@ -403,6 +599,7 @@ function computeReport(snapshot, now) {
     bodyweight,
     stallFlags,
     skipRate,
+    nutrition,
   }
 }
 
@@ -542,6 +739,112 @@ function renderMarkdown(report, opts) {
     }
   }
   lines.push('')
+
+  lines.push('## Nutrition')
+  lines.push('')
+  if (report.nutrition.noData) {
+    lines.push('no data')
+    lines.push('')
+  } else {
+    const n = report.nutrition
+
+    lines.push(`### Daily Totals (last ${NUTRITION_DAYS_TO_SHOW} logged days)`)
+    lines.push('')
+    if (n.dailyTotals.length === 0) {
+      lines.push('no data')
+    } else {
+      lines.push('| Date | Kcal | Protein (g) | Carb (g) | Fat (g) | Fiber (g) |')
+      lines.push('|---|---|---|---|---|---|')
+      for (const d of n.dailyTotals) {
+        lines.push(
+          `| ${d.date} | ${Math.round(d.kcal)} | ${Math.round(d.proteinG)} | ${Math.round(d.carbG)} | ${Math.round(d.fatG)} | ${Math.round(d.fiberG)} |`,
+        )
+      }
+    }
+    lines.push('')
+
+    lines.push(`### Rolling ${NUTRITION_ROLLING_WINDOW_DAYS}-day Average`)
+    lines.push('')
+    if (!n.rollingAvg) {
+      lines.push('no data')
+    } else {
+      lines.push(
+        `- ${Math.round(n.rollingAvg.kcal)} kcal/day, ${Math.round(n.rollingAvg.proteinG)}g protein/day ` +
+          `(averaged over ${n.rollingAvg.loggedDays} logged day(s) in the window)`,
+      )
+    }
+    lines.push('')
+
+    lines.push('### Current Target')
+    lines.push('')
+    if (!n.currentTarget) {
+      lines.push('no target set')
+    } else {
+      const t = n.currentTarget
+      lines.push(
+        `- ${t.kcal} kcal, ${t.proteinG}g protein` +
+          `${t.carbG != null ? `, ${t.carbG}g carb` : ''}${t.fatG != null ? `, ${t.fatG}g fat` : ''} ` +
+          `— effective ${t.effectiveDate}, set by ${t.setBy}`,
+      )
+    }
+    lines.push('')
+
+    lines.push('### Adherence vs. Target')
+    lines.push('')
+    if (!n.adherence) {
+      lines.push('no data (need both a rolling average and a current target)')
+    } else {
+      const a = n.adherence
+      const kcalSign = a.kcalDelta >= 0 ? '+' : ''
+      const proteinSign = a.proteinDelta >= 0 ? '+' : ''
+      lines.push(
+        `- Kcal: averaging ${Math.round(a.avgKcal)} vs. target ${a.targetKcal} (${kcalSign}${Math.round(a.kcalDelta)})`,
+      )
+      lines.push(
+        `- Protein: averaging ${Math.round(a.avgProteinG)}g vs. target ${a.targetProteinG}g (${proteinSign}${Math.round(a.proteinDelta)}g)`,
+      )
+      lines.push(`- Based on ${a.loggedDays} logged day(s) in the last ${NUTRITION_ROLLING_WINDOW_DAYS} days`)
+    }
+    lines.push('')
+
+    lines.push('### Estimated Maintenance (Adaptive TDEE)')
+    lines.push('')
+    if (!n.tdee) {
+      lines.push('no data (no bodyweight logs)')
+    } else if (n.tdee.insufficientData) {
+      lines.push(
+        `insufficient data — need at least ${NUTRITION_TDEE_WINDOW_DAYS} days of bodyweight history and ` +
+          `${NUTRITION_TDEE_MIN_LOGGED_DAYS}+ logged food days in that span ` +
+          `(have ${n.tdee.actualDays} day(s) of bodyweight history, ${n.tdee.loggedDaysInWindow} logged food day(s))`,
+      )
+    } else {
+      const t = n.tdee
+      lines.push(
+        `- Estimated TDEE: ~${Math.round(t.estimatedTDEE)} kcal (avg intake ${Math.round(t.avgDailyKcal)} kcal/day, ` +
+          `weight change ${t.weightChangeKg >= 0 ? '+' : ''}${t.weightChangeKg.toFixed(1)}kg over ${t.actualDays} days, ` +
+          `${t.referenceDate} → ${t.latestDate})`,
+      )
+      lines.push(`- ${t.suggestion}`)
+    }
+    lines.push('')
+
+    lines.push('### Waist Trend')
+    lines.push('')
+    if (!n.waistTrend) {
+      lines.push('no data')
+    } else {
+      const w = n.waistTrend
+      if (w.delta != null) {
+        const sign = w.delta >= 0 ? '+' : ''
+        lines.push(
+          `- ${w.latestWaistCm}cm on ${w.latestDate} (${sign}${w.delta.toFixed(1)}cm vs. ${w.referenceWaistCm}cm on ${w.referenceDate})`,
+        )
+      } else {
+        lines.push(`- ${w.latestWaistCm}cm on ${w.latestDate} (no reading ~4 weeks old to compare against)`)
+      }
+    }
+    lines.push('')
+  }
 
   return lines.join('\n')
 }
