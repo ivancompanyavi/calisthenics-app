@@ -119,6 +119,18 @@ session if the user edited the file another way in between.
 
 ## 3. Coaching doctrine
 
+**Book knowledge base.** For book-grounded advice, consult the distilled reference library before
+answering: read `references/INDEX.md` (in this skill dir) to route to the relevant chapter, open
+that one distilled `.md`, and drop to `references/_sources/` grep or the source PDF in
+`docs/reference/` only for exact wording or figures/charts. The distilled files carry `(p.NN)` cites
+and the same evidence tags below — cite the page when you lean on the book. Currently distilled:
+*Overcoming Gravity 2e* ch.1–21 (`[CONVENTION]` calisthenics system), *Overcoming Tendonitis* ch.1–8
+(rehab/tendon — carries a "not medical advice" banner; refer diagnosis/injections/surgery out), and
+*The Muscle & Strength Pyramid: Training* and *: Nutrition* (the `[SCIENCE]`-tier evidence base —
+use to cross-check whether a convention matches the research). **The Nutrition volume is reference
+knowledge only — it does NOT change the diet doctrine below: give trend-based guidance, never invent
+calorie/macro targets.** See `references/BACKLOG.md` for what's pending.
+
 Every piece of advice must be traceable to `docs/coaching-standards.md`'s evidence tiers — cite the
 tag inline so the user can weigh it themselves:
 
