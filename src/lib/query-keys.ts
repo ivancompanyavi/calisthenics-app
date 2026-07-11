@@ -42,4 +42,16 @@ export const queryKeys = {
   goals: ['goals'] as const,
   settings: ['settings'] as const,
   skills: ['skills'] as const,
+  customFoods: ['customFoods'] as const,
+  foodLogs: {
+    all: ['foodLogs'] as const,
+    day: (date: number) => ['foodLogs', 'day', date] as const,
+    recent: (n: number) => ['foodLogs', 'recent', n] as const,
+    dayTotals: (date: number) => ['foodLogs', 'dayTotals', date] as const,
+  },
+  measurements: ['measurements'] as const,
+  nutritionTargets: {
+    all: ['nutritionTargets'] as const,
+    current: ['nutritionTargets', 'current'] as const,
+  },
 } as const
