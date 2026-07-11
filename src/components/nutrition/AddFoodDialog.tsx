@@ -5,14 +5,17 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { MealLabelPicker } from '@/components/nutrition/MealLabelPicker'
+import { SearchUsdaFoodForm } from '@/components/nutrition/SearchUsdaFoodForm'
 import { useCustomFoods } from '@/hooks/useCustomFoods'
 import { useAddFoodLog } from '@/hooks/useFoodLog'
 import type { CustomFood, MealLabel } from '@/models/types'
 
-// Two logging paths, tabbed:
+// Three logging paths, tabbed:
 //  - Quick add: freeform name + macros, source: 'quickadd'
 //  - From custom foods: search saved foods, scale by grams or servings,
 //    source: 'custom' with refId pointing back to the CustomFood.
+//  - Search foods: search the bundled offline USDA database, scale by
+//    grams, source: 'usda' with refId pointing back to the fdcId.
 export function AddFoodDialog({
   open,
   onClose,
@@ -22,7 +25,7 @@ export function AddFoodDialog({
   onClose: () => void
   date: number
 }) {
-  const [tab, setTab] = useState<'quick' | 'pick'>('quick')
+  const [tab, setTab] = useState<'quick' | 'pick' | 'search'>('quick')
   const [mealLabel, setMealLabel] = useState<MealLabel | undefined>(undefined)
 
   const handleClose = () => {
@@ -34,16 +37,20 @@ export function AddFoodDialog({
   return (
     <Dialog open={open} onClose={handleClose}>
       <DialogTitle>Add food</DialogTitle>
-      <Tabs value={tab} onChange={(v) => setTab(v as 'quick' | 'pick')}>
+      <Tabs value={tab} onChange={(v) => setTab(v as 'quick' | 'pick' | 'search')}>
         <TabsList>
           <TabsTrigger value="quick">Quick add</TabsTrigger>
           <TabsTrigger value="pick">From custom foods</TabsTrigger>
+          <TabsTrigger value="search">Search foods</TabsTrigger>
         </TabsList>
         <TabsContent value="quick">
           <QuickAddForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
         </TabsContent>
         <TabsContent value="pick">
           <PickCustomFoodForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
+        </TabsContent>
+        <TabsContent value="search">
+          <SearchUsdaFoodForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
         </TabsContent>
       </Tabs>
     </Dialog>
