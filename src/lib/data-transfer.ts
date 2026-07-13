@@ -7,6 +7,7 @@ import type {
   FoodLog,
   Goal,
   Measurement,
+  Meal,
   Movement,
   NutritionTarget,
   Program,
@@ -68,6 +69,7 @@ async function queryAllTables() {
     skills,
     customFoods,
     foodLogs,
+    meals,
     measurements,
     nutritionTargets,
   ] = await Promise.all([
@@ -87,6 +89,7 @@ async function queryAllTables() {
     db.skills.toArray(),
     db.customFoods.toArray(),
     db.foodLogs.toArray(),
+    db.meals.toArray(),
     db.measurements.toArray(),
     db.nutritionTargets.toArray(),
   ])
@@ -107,6 +110,7 @@ async function queryAllTables() {
     skills,
     customFoods,
     foodLogs,
+    meals,
     measurements,
     nutritionTargets,
   }
@@ -193,6 +197,7 @@ const OPTIONAL_TABLES = [
   'skills',
   'customFoods',
   'foodLogs',
+  'meals',
   'measurements',
   'nutritionTargets',
 ] as const
@@ -233,6 +238,7 @@ interface ValidatedImport {
   skills: Record<string, unknown>[]
   customFoods: Record<string, unknown>[]
   foodLogs: Record<string, unknown>[]
+  meals: Record<string, unknown>[]
   measurements: Record<string, unknown>[]
   nutritionTargets: Record<string, unknown>[]
 }
@@ -315,7 +321,7 @@ export async function importAllData(json: string): Promise<void> {
     [
       db.movements, db.progressions, db.progressionLevels, db.workouts, db.workoutBlocks,
       db.blockEntries, db.workoutLogs, db.setLogs, db.programs, db.programDays, db.activePrograms,
-      db.bodyweightLogs, db.goals, db.skills, db.customFoods, db.foodLogs, db.measurements,
+      db.bodyweightLogs, db.goals, db.skills, db.customFoods, db.foodLogs, db.meals, db.measurements,
       db.nutritionTargets,
     ],
     async () => {
@@ -335,6 +341,7 @@ export async function importAllData(json: string): Promise<void> {
       await db.skills.clear()
       await db.customFoods.clear()
       await db.foodLogs.clear()
+      await db.meals.clear()
       await db.measurements.clear()
       await db.nutritionTargets.clear()
 
@@ -357,6 +364,7 @@ export async function importAllData(json: string): Promise<void> {
       if (data.skills.length > 0) await db.skills.bulkAdd(data.skills as unknown as Skill[])
       if (data.customFoods.length > 0) await db.customFoods.bulkAdd(data.customFoods as unknown as CustomFood[])
       if (data.foodLogs.length > 0) await db.foodLogs.bulkAdd(data.foodLogs as unknown as FoodLog[])
+      if (data.meals.length > 0) await db.meals.bulkAdd(data.meals as unknown as Meal[])
       if (data.measurements.length > 0) await db.measurements.bulkAdd(data.measurements as unknown as Measurement[])
       if (data.nutritionTargets.length > 0) await db.nutritionTargets.bulkAdd(data.nutritionTargets as unknown as NutritionTarget[])
     },

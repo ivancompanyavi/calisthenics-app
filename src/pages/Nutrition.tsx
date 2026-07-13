@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm-context'
-import { ChevronLeft, ChevronRight, Plus, Target, BookOpen, Ruler, Copy, LineChart } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Target, BookOpen, Ruler, Copy, LineChart, UtensilsCrossed } from 'lucide-react'
 import { useFoodLogsForDay, useDayTotals, useDeleteFoodLog, useCopyDay } from '@/hooks/useFoodLog'
 import { useCurrentNutritionTarget } from '@/hooks/useNutritionTargets'
 import { DaySummaryCard } from '@/components/nutrition/DaySummaryCard'
@@ -13,6 +13,7 @@ import { MEAL_ORDER } from '@/lib/nutrition'
 import { AddFoodDialog } from '@/components/nutrition/AddFoodDialog'
 import { EditFoodLogDialog } from '@/components/nutrition/EditFoodLogDialog'
 import { CustomFoodsDialog } from '@/components/nutrition/CustomFoodsDialog'
+import { MealsDialog } from '@/components/nutrition/MealsDialog'
 import { TargetDialog } from '@/components/nutrition/TargetDialog'
 import { BodyweightCard } from '@/components/home/BodyweightCard'
 import type { FoodLog } from '@/models/types'
@@ -37,6 +38,7 @@ export function Nutrition() {
   const [addOpen, setAddOpen] = useState(false)
   const [editingLog, setEditingLog] = useState<FoodLog | null>(null)
   const [customFoodsOpen, setCustomFoodsOpen] = useState(false)
+  const [mealsOpen, setMealsOpen] = useState(false)
   const [targetOpen, setTargetOpen] = useState(false)
 
   const { data: logs } = useFoodLogsForDay(selectedDate)
@@ -103,6 +105,9 @@ export function Nutrition() {
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setCustomFoodsOpen(true)} aria-label="Custom foods">
             <BookOpen className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setMealsOpen(true)} aria-label="Meals">
+            <UtensilsCrossed className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => navigate('/measurements')} aria-label="Measurements">
             <Ruler className="h-4 w-4" />
@@ -186,6 +191,7 @@ export function Nutrition() {
       <AddFoodDialog open={addOpen} onClose={() => setAddOpen(false)} date={selectedDate} />
       <EditFoodLogDialog log={editingLog} onClose={() => setEditingLog(null)} />
       <CustomFoodsDialog open={customFoodsOpen} onClose={() => setCustomFoodsOpen(false)} />
+      <MealsDialog open={mealsOpen} onClose={() => setMealsOpen(false)} />
       <TargetDialog open={targetOpen} onClose={() => setTargetOpen(false)} />
     </div>
   )

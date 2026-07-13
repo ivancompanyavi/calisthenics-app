@@ -250,6 +250,38 @@ export interface FoodLog {
   notes?: string
 }
 
+// A reusable meal template — a named set of ingredients (e.g. "Breakfast bowl"
+// = oats + milk + banana). Logging a meal expands into one FoodLog per item.
+//
+// Ingredients are SNAPSHOTTED, not linked to CustomFood by id: each item stores
+// its own name + already-scaled macros. That keeps a meal self-contained — a
+// food being edited or deleted never breaks it, and custom/USDA/quick-add
+// ingredients are all handled uniformly. Mirrors FoodLog's denormalized-macros
+// philosophy. `refId`/`source` are kept for provenance only.
+export interface MealItem {
+  name: string
+  source: FoodSource
+  refId?: string // the food this was captured from; provenance only, may be stale
+  quantityG?: number
+  servings?: number
+  // Macros for this item at the portion above — already scaled, written
+  // verbatim onto the FoodLog when the meal is logged.
+  kcal: number
+  proteinG: number
+  carbG: number
+  fatG: number
+  fiberG: number
+  sodiumMg?: number
+}
+
+export interface Meal {
+  id: string
+  name: string
+  mealLabel?: MealLabel // default label stamped on entries when the meal is logged
+  items: MealItem[]
+  createdAt: number
+}
+
 // Body-measurement snapshot (tape or DEXA). Every field but id/date is
 // optional — a single entry can record just the fields the user measured
 // that day.

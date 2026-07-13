@@ -112,6 +112,66 @@ describe('seedDatabase movement classification', () => {
   })
 })
 
+describe('seedDatabase nutrition (foods + meals)', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+  })
+
+  it('seeds the labelled custom foods and whole-food ingredients', async () => {
+    await seedDatabase()
+    const foods = await db.customFoods.toArray()
+    // The 7 packaged/label foods + 12 whole-food/plan ingredients.
+    expect(foods.length).toBeGreaterThanOrEqual(19)
+    expect(await db.customFoods.get('seed-food-milk')).toBeTruthy()
+    expect(await db.customFoods.get('seed-food-chicken-breast')).toBeTruthy()
+    expect((await db.customFoods.get('seed-food-olive-oil'))?.per).toBe('perServing')
+  })
+
+  it('is idempotent — re-seeding does not duplicate foods or meals', async () => {
+    await seedDatabase()
+    const foodsAfterFirst = await db.customFoods.count()
+    const mealsAfterFirst = await db.meals.count()
+    await seedDatabase()
+    expect(await db.customFoods.count()).toBe(foodsAfterFirst)
+    expect(await db.meals.count()).toBe(mealsAfterFirst)
+  })
+
+  it('does not overwrite a user-edited seeded food on re-seed', async () => {
+    await seedDatabase()
+    await db.customFoods.update('seed-food-milk', { proteinG: 8 }) // user corrects the label
+    await seedDatabase()
+    expect((await db.customFoods.get('seed-food-milk'))?.proteinG).toBe(8)
+  })
+
+  it('seeds the three cut-plan meals (no snacks meal) totalling ~1,815 kcal / ~161 P', async () => {
+    await seedDatabase()
+    const meals = await db.meals.toArray()
+    const cutMeals = meals.filter((m) => m.id.startsWith('seed-meal-'))
+    expect(cutMeals).toHaveLength(3)
+    // Snacks are logged loose, not as a meal template.
+    expect(cutMeals.map((m) => m.mealLabel).sort()).toEqual(['breakfast', 'dinner', 'lunch'])
+
+    // Sum every ingredient across the three meals — guards against a
+    // fat-fingered snapshot value drifting the plan.
+    const total = cutMeals
+      .flatMap((m) => m.items)
+      .reduce(
+        (acc, it) => ({
+          kcal: acc.kcal + it.kcal,
+          proteinG: acc.proteinG + it.proteinG,
+          fatG: acc.fatG + it.fatG,
+        }),
+        { kcal: 0, proteinG: 0, fatG: 0 },
+      )
+
+    expect(total.kcal).toBeGreaterThan(1750)
+    expect(total.kcal).toBeLessThan(1900)
+    expect(total.proteinG).toBeGreaterThan(155)
+    expect(total.proteinG).toBeLessThan(170)
+    expect(total.fatG).toBeLessThan(65)
+  })
+})
+
 describe('seedDatabase progression sync', () => {
   beforeEach(async () => {
     await clearAllTables()

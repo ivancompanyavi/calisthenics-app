@@ -11,12 +11,16 @@ import type {
   ProgramDay,
   Skill,
   SkillPrerequisite,
+  CustomFood,
+  Meal,
 } from "@/models/types";
 import { SEED_MOVEMENTS } from "./seed/movements";
 import { SEED_PROGRESSIONS } from "./seed/progressions";
 import { SEED_WORKOUTS } from "./seed/workouts";
 import { SEED_PROGRAMS } from "./seed/programs";
 import { SEED_SKILLS } from "./seed/skills";
+import { SEED_FOODS } from "./seed/foods";
+import { SEED_MEALS } from "./seed/meals";
 import type {
   SeedBlockDef,
   SeedWorkout,
@@ -697,10 +701,50 @@ async function ensureSkillsExist(
   }
 }
 
+// Seeds the owner's real staple foods as CustomFoods. Idempotent: keyed by a
+// deterministic `seed-food-<slug>` id, and additionally skipped if the user
+// already has a food of the same name (so a hand-entered duplicate isn't
+// created). User edits to an already-seeded row are preserved (we never
+// overwrite an existing id).
+async function ensureFoodsExist(): Promise<void> {
+  const existing = await db.customFoods.toArray();
+  const existingIds = new Set(existing.map((f) => f.id));
+  const existingNames = new Set(existing.map((f) => f.name.toLowerCase()));
+
+  const toAdd: CustomFood[] = [];
+  for (const f of SEED_FOODS) {
+    const id = `seed-food-${f.slug}`;
+    if (existingIds.has(id) || existingNames.has(f.name.toLowerCase())) continue;
+    const { slug: _slug, ...rest } = f;
+    toAdd.push({ id, createdAt: Date.now(), ...rest });
+  }
+  if (toAdd.length > 0) await db.customFoods.bulkAdd(toAdd);
+}
+
+// Seeds the cut-plan meal templates. Same idempotency contract as
+// ensureFoodsExist: keyed by `seed-meal-<slug>`, skipped if the user already
+// has a meal of the same name; existing rows are never overwritten.
+async function ensureMealsExist(): Promise<void> {
+  const existing = await db.meals.toArray();
+  const existingIds = new Set(existing.map((m) => m.id));
+  const existingNames = new Set(existing.map((m) => m.name.toLowerCase()));
+
+  const toAdd: Meal[] = [];
+  for (const m of SEED_MEALS) {
+    const id = `seed-meal-${m.slug}`;
+    if (existingIds.has(id) || existingNames.has(m.name.toLowerCase())) continue;
+    const { slug: _slug, ...rest } = m;
+    toAdd.push({ id, createdAt: Date.now(), ...rest });
+  }
+  if (toAdd.length > 0) await db.meals.bulkAdd(toAdd);
+}
+
 export async function seedDatabase() {
   const movementMap = await ensureMovementsExist();
   const progressionMap = await ensureProgressionsExist(movementMap);
   await ensureWorkoutsExist(progressionMap, movementMap);
   await ensureProgramsExist();
   await ensureSkillsExist(progressionMap, movementMap);
+  await ensureFoodsExist();
+  await ensureMealsExist();
 }

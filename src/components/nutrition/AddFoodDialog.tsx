@@ -7,8 +7,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { MealLabelPicker } from '@/components/nutrition/MealLabelPicker'
 import { SearchUsdaFoodForm } from '@/components/nutrition/SearchUsdaFoodForm'
 import { RecentFoodsQuickPick } from '@/components/nutrition/RecentFoodsQuickPick'
+import { Card } from '@/components/ui/card'
 import { useCustomFoods } from '@/hooks/useCustomFoods'
 import { useAddFoodLog } from '@/hooks/useFoodLog'
+import { useMeals, useLogMeal } from '@/hooks/useMeals'
 import type { CustomFood, MealLabel } from '@/models/types'
 
 // Three logging paths, tabbed:
@@ -26,7 +28,7 @@ export function AddFoodDialog({
   onClose: () => void
   date: number
 }) {
-  const [tab, setTab] = useState<'quick' | 'pick' | 'search'>('quick')
+  const [tab, setTab] = useState<'quick' | 'pick' | 'search' | 'meals'>('quick')
   const [mealLabel, setMealLabel] = useState<MealLabel | undefined>(undefined)
 
   const handleClose = () => {
@@ -39,11 +41,12 @@ export function AddFoodDialog({
     <Dialog open={open} onClose={handleClose}>
       <DialogTitle>Add food</DialogTitle>
       <RecentFoodsQuickPick date={date} mealLabel={mealLabel} onDone={handleClose} />
-      <Tabs value={tab} onChange={(v) => setTab(v as 'quick' | 'pick' | 'search')}>
+      <Tabs value={tab} onChange={(v) => setTab(v as 'quick' | 'pick' | 'search' | 'meals')}>
         <TabsList>
           <TabsTrigger value="quick">Quick add</TabsTrigger>
           <TabsTrigger value="pick">From custom foods</TabsTrigger>
           <TabsTrigger value="search">Search foods</TabsTrigger>
+          <TabsTrigger value="meals">Meals</TabsTrigger>
         </TabsList>
         <TabsContent value="quick">
           <QuickAddForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
@@ -54,8 +57,68 @@ export function AddFoodDialog({
         <TabsContent value="search">
           <SearchUsdaFoodForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
         </TabsContent>
+        <TabsContent value="meals">
+          <LogMealForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
+        </TabsContent>
       </Tabs>
     </Dialog>
+  )
+}
+
+// Logs a whole meal in one tap: expands the chosen meal into one FoodLog per
+// ingredient. The AddFoodDialog's meal-label override (if set) wins; otherwise
+// the meal's own default label is used.
+function LogMealForm({
+  date,
+  mealLabel,
+  setMealLabel,
+  onDone,
+}: {
+  date: number
+  mealLabel: MealLabel | undefined
+  setMealLabel: (v: MealLabel | undefined) => void
+  onDone: () => void
+}) {
+  const { data: meals } = useMeals()
+  const logMeal = useLogMeal()
+
+  const log = async (mealId: string) => {
+    await logMeal.mutateAsync({ mealId, date, mealLabel })
+    onDone()
+  }
+
+  return (
+    <div className="space-y-3 mt-3">
+      <MealLabelPicker value={mealLabel} onChange={setMealLabel} />
+      <p className="text-[11px] text-muted-foreground">
+        Tap a meal to log all its ingredients at once. Leave the label unset to use each meal's own default.
+      </p>
+      <div className="space-y-2 max-h-72 overflow-y-auto">
+        {(!meals || meals.length === 0) && (
+          <p className="text-xs text-muted-foreground py-4 text-center">
+            No meals yet. Build one from the Meals screen.
+          </p>
+        )}
+        {(meals ?? []).map((meal) => {
+          const total = meal.items.reduce((a, it) => a + it.kcal, 0)
+          return (
+            <Card key={meal.id} className="p-0">
+              <button
+                type="button"
+                disabled={logMeal.isPending || meal.items.length === 0}
+                onClick={() => log(meal.id)}
+                className="w-full text-left p-3 disabled:opacity-50"
+              >
+                <p className="text-sm font-medium">{meal.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {meal.items.length} item{meal.items.length === 1 ? '' : 's'} · {Math.round(total)} kcal
+                </p>
+              </button>
+            </Card>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
