@@ -39,6 +39,7 @@ export function RecentFoodsQuickPick({
         carbG: food.carbG,
         fatG: food.fatG,
         fiberG: food.fiberG,
+        sodiumMg: food.sodiumMg,
       })
       onDone()
     } finally {

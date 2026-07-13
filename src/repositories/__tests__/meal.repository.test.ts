@@ -12,7 +12,7 @@ function ts(year: number, month: number, day: number, hour = 12): number {
 
 const ITEMS: MealItem[] = [
   { name: 'Oats', source: 'quickadd', quantityG: 40, kcal: 154, proteinG: 5, carbG: 27, fatG: 3, fiberG: 4 },
-  { name: 'Milk', source: 'custom', refId: 'seed-food-milk', servings: 1, kcal: 110, proteinG: 18, carbG: 9, fatG: 0, fiberG: 0 },
+  { name: 'Milk', source: 'custom', refId: 'seed-food-milk', servings: 1, kcal: 110, proteinG: 18, carbG: 9, fatG: 0, fiberG: 0, sodiumMg: 70 },
 ]
 
 describe('mealRepository', () => {
@@ -66,6 +66,35 @@ describe('mealRepository', () => {
       const created = await mealRepository.logMeal('nope', ts(2026, 7, 13))
       expect(created).toEqual([])
       expect(await db.foodLogs.count()).toBe(0)
+    })
+
+    it('stamps every entry with one shared mealInstanceId and carries sodium through', async () => {
+      const meal = await mealRepository.create({ name: 'Bowl', items: ITEMS })
+      const created = await mealRepository.logMeal(meal.id, ts(2026, 7, 13))
+
+      const ids = new Set(created.map((l) => l.mealInstanceId))
+      expect(ids.size).toBe(1)
+      expect([...ids][0]).toBeTruthy()
+      // Sodium (dropped before the fix) now lands on the FoodLog + day totals.
+      const milk = created.find((l) => l.name === 'Milk')
+      expect(milk?.sodiumMg).toBe(70)
+      const totals = await foodLogRepository.dayTotals(ts(2026, 7, 13))
+      expect(totals.sodiumMg).toBe(70)
+    })
+
+    it('deleteByMealInstance removes exactly the entries from one logged meal', async () => {
+      const meal = await mealRepository.create({ name: 'Bowl', items: ITEMS })
+      const created = await mealRepository.logMeal(meal.id, ts(2026, 7, 13))
+      // An unrelated standalone entry on the same day should survive.
+      await foodLogRepository.add({
+        date: ts(2026, 7, 13), source: 'quickadd', name: 'Apple',
+        kcal: 95, proteinG: 0, carbG: 25, fatG: 0, fiberG: 4,
+      })
+
+      const removed = await foodLogRepository.deleteByMealInstance(created[0].mealInstanceId!)
+      expect(removed).toBe(2)
+      const remaining = await foodLogRepository.getByDay(ts(2026, 7, 13))
+      expect(remaining.map((l) => l.name)).toEqual(['Apple'])
     })
   })
 })

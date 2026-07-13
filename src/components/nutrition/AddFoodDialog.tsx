@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { MealLabelPicker } from '@/components/nutrition/MealLabelPicker'
 import { SearchUsdaFoodForm } from '@/components/nutrition/SearchUsdaFoodForm'
+import { BarcodeScanForm } from '@/components/nutrition/BarcodeScanForm'
 import { RecentFoodsQuickPick } from '@/components/nutrition/RecentFoodsQuickPick'
 import { Card } from '@/components/ui/card'
 import { useCustomFoods } from '@/hooks/useCustomFoods'
@@ -28,7 +29,7 @@ export function AddFoodDialog({
   onClose: () => void
   date: number
 }) {
-  const [tab, setTab] = useState<'quick' | 'pick' | 'search' | 'meals'>('quick')
+  const [tab, setTab] = useState<'quick' | 'pick' | 'search' | 'scan' | 'meals'>('quick')
   const [mealLabel, setMealLabel] = useState<MealLabel | undefined>(undefined)
 
   const handleClose = () => {
@@ -41,11 +42,12 @@ export function AddFoodDialog({
     <Dialog open={open} onClose={handleClose}>
       <DialogTitle>Add food</DialogTitle>
       <RecentFoodsQuickPick date={date} mealLabel={mealLabel} onDone={handleClose} />
-      <Tabs value={tab} onChange={(v) => setTab(v as 'quick' | 'pick' | 'search' | 'meals')}>
+      <Tabs value={tab} onChange={(v) => setTab(v as 'quick' | 'pick' | 'search' | 'scan' | 'meals')}>
         <TabsList>
           <TabsTrigger value="quick">Quick add</TabsTrigger>
           <TabsTrigger value="pick">From custom foods</TabsTrigger>
           <TabsTrigger value="search">Search foods</TabsTrigger>
+          <TabsTrigger value="scan">Scan</TabsTrigger>
           <TabsTrigger value="meals">Meals</TabsTrigger>
         </TabsList>
         <TabsContent value="quick">
@@ -56,6 +58,9 @@ export function AddFoodDialog({
         </TabsContent>
         <TabsContent value="search">
           <SearchUsdaFoodForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
+        </TabsContent>
+        <TabsContent value="scan">
+          <BarcodeScanForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
         </TabsContent>
         <TabsContent value="meals">
           <LogMealForm date={date} mealLabel={mealLabel} setMealLabel={setMealLabel} onDone={handleClose} />
@@ -140,6 +145,7 @@ function QuickAddForm({
   const [carbG, setCarbG] = useState('')
   const [fatG, setFatG] = useState('')
   const [fiberG, setFiberG] = useState('')
+  const [sodiumMg, setSodiumMg] = useState('')
   const [notes, setNotes] = useState('')
 
   const valid = name.trim().length > 0 && Number.isFinite(Number(kcal)) && kcal !== ''
@@ -156,6 +162,7 @@ function QuickAddForm({
       carbG: Number(carbG) || 0,
       fatG: Number(fatG) || 0,
       fiberG: Number(fiberG) || 0,
+      sodiumMg: sodiumMg !== '' ? Number(sodiumMg) : undefined,
       notes: notes.trim() || undefined,
     })
     onDone()
@@ -170,6 +177,7 @@ function QuickAddForm({
         <LabeledNumberInput label="Carbs (g)" value={carbG} onChange={setCarbG} />
         <LabeledNumberInput label="Fat (g)" value={fatG} onChange={setFatG} />
         <LabeledNumberInput label="Fiber (g)" value={fiberG} onChange={setFiberG} />
+        <LabeledNumberInput label="Sodium (mg, optional)" value={sodiumMg} onChange={setSodiumMg} />
       </div>
       <MealLabelPicker value={mealLabel} onChange={setMealLabel} />
       <Textarea placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -219,6 +227,7 @@ function PickCustomFoodForm({
         carbG: selected.carbG * scale,
         fatG: selected.fatG * scale,
         fiberG: selected.fiberG * scale,
+        sodiumMg: selected.sodiumMg != null ? selected.sodiumMg * scale : undefined,
       }
     : null
 
@@ -241,6 +250,7 @@ function PickCustomFoodForm({
       carbG: preview!.carbG,
       fatG: preview!.fatG,
       fiberG: preview!.fiberG,
+      sodiumMg: preview!.sodiumMg,
     })
     onDone()
   }

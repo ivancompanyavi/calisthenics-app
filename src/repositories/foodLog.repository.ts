@@ -16,6 +16,7 @@ export interface DayTotals {
   carbG: number
   fatG: number
   fiberG: number
+  sodiumMg: number
 }
 
 // A distinct previously-logged food, deduped by identity (source+refId, or
@@ -35,6 +36,7 @@ export interface RecentDistinctFood {
   carbG: number
   fatG: number
   fiberG: number
+  sodiumMg?: number
   lastLoggedAt: number
 }
 
@@ -66,6 +68,12 @@ export const foodLogRepository = {
 
   delete: (id: string) => db.foodLogs.delete(id),
 
+  // Deletes every entry logged together from one meal template (shared
+  // mealInstanceId). mealInstanceId isn't indexed — filter in JS, which is fine
+  // at these data volumes. Returns the number of rows removed.
+  deleteByMealInstance: (mealInstanceId: string): Promise<number> =>
+    db.foodLogs.filter((l) => l.mealInstanceId === mealInstanceId).delete(),
+
   // All entries whose grouping day matches the calendar day of `date`.
   getByDay: (date: number = Date.now()): Promise<FoodLog[]> => {
     const day = startOfDay(date)
@@ -96,8 +104,9 @@ export const foodLogRepository = {
         carbG: acc.carbG + e.carbG,
         fatG: acc.fatG + e.fatG,
         fiberG: acc.fiberG + e.fiberG,
+        sodiumMg: acc.sodiumMg + (e.sodiumMg ?? 0),
       }),
-      { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0 },
+      { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0, sodiumMg: 0 },
     )
   },
 
@@ -127,6 +136,7 @@ export const foodLogRepository = {
         carbG: log.carbG,
         fatG: log.fatG,
         fiberG: log.fiberG,
+        sodiumMg: log.sodiumMg,
         lastLoggedAt: log.loggedAt,
       })
       if (result.length >= limit) break

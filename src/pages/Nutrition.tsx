@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { ChevronLeft, ChevronRight, Plus, Target, BookOpen, Ruler, Copy, LineChart, UtensilsCrossed } from 'lucide-react'
-import { useFoodLogsForDay, useDayTotals, useDeleteFoodLog, useCopyDay } from '@/hooks/useFoodLog'
+import { useFoodLogsForDay, useDayTotals, useDeleteFoodLog, useDeleteMealInstance, useCopyDay } from '@/hooks/useFoodLog'
 import { useCurrentNutritionTarget } from '@/hooks/useNutritionTargets'
 import { DaySummaryCard } from '@/components/nutrition/DaySummaryCard'
 import { MealSection } from '@/components/nutrition/MealSection'
@@ -45,6 +45,7 @@ export function Nutrition() {
   const { data: totals } = useDayTotals(selectedDate)
   const { data: target } = useCurrentNutritionTarget()
   const deleteFoodLog = useDeleteFoodLog()
+  const deleteMealInstance = useDeleteMealInstance()
   const copyDay = useCopyDay()
 
   const grouped = useMemo(() => {
@@ -75,6 +76,19 @@ export function Nutrition() {
       })
     ) {
       deleteFoodLog.mutate(log.id)
+    }
+  }
+
+  const handleDeleteGroup = async (mealInstanceId: string, count: number) => {
+    if (
+      await confirm({
+        title: 'Remove this meal?',
+        description: `Delete all ${count} entries logged together as one meal? This can't be undone.`,
+        confirmLabel: 'Remove all',
+        destructive: true,
+      })
+    ) {
+      deleteMealInstance.mutate(mealInstanceId)
     }
   }
 
@@ -183,6 +197,7 @@ export function Nutrition() {
               logs={grouped[meal] ?? []}
               onEdit={setEditingLog}
               onDelete={handleDelete}
+              onDeleteGroup={handleDeleteGroup}
             />
           ))
         )}

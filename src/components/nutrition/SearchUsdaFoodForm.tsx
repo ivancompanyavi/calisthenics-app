@@ -66,6 +66,7 @@ export function SearchUsdaFoodForm({
         carbG: round1(selected.carbG * scale),
         fatG: round1(selected.fatG * scale),
         fiberG: round1(selected.fiberG * scale),
+        sodiumMg: selected.sodiumMg != null ? round1(selected.sodiumMg * scale) : undefined,
       }
     : null
 
@@ -85,6 +86,7 @@ export function SearchUsdaFoodForm({
       carbG: preview.carbG,
       fatG: preview.fatG,
       fiberG: preview.fiberG,
+      sodiumMg: preview.sodiumMg,
     })
     onDone()
   }

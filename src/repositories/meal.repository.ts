@@ -34,11 +34,15 @@ export const mealRepository = {
     const meal = await db.meals.get(mealId)
     if (!meal) return []
     const label = mealLabel ?? meal.mealLabel
+    // One id shared by every entry from this logging, so they can later be
+    // removed/edited as a unit (see foodLogRepository.deleteByMealInstance).
+    const mealInstanceId = generateId()
     const created: FoodLog[] = []
     for (const item of meal.items) {
       const log = await foodLogRepository.add({
         date,
         mealLabel: label,
+        mealInstanceId,
         source: item.source,
         refId: item.refId,
         name: item.name,
@@ -49,6 +53,7 @@ export const mealRepository = {
         carbG: item.carbG,
         fatG: item.fatG,
         fiberG: item.fiberG,
+        sodiumMg: item.sodiumMg,
       })
       created.push(log)
     }
