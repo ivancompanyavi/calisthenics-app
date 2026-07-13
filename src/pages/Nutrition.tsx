@@ -14,6 +14,7 @@ import { AddFoodDialog } from '@/components/nutrition/AddFoodDialog'
 import { EditFoodLogDialog } from '@/components/nutrition/EditFoodLogDialog'
 import { CustomFoodsDialog } from '@/components/nutrition/CustomFoodsDialog'
 import { TargetDialog } from '@/components/nutrition/TargetDialog'
+import { BodyweightCard } from '@/components/home/BodyweightCard'
 import type { FoodLog } from '@/models/types'
 
 function startOfDay(date: number): number {
@@ -131,6 +132,8 @@ export function Nutrition() {
         </div>
 
         <DaySummaryCard totals={totals} target={target} />
+
+        <BodyweightCard />
 
         <div className="flex gap-2">
           <Button className="flex-1" onClick={() => setAddOpen(true)}>

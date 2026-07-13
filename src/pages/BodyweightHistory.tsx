@@ -44,7 +44,7 @@ export function BodyweightHistory() {
         {!logs || logs.length === 0 ? (
           <Card className="p-6 text-center">
             <p className="text-sm text-muted-foreground">
-              No weigh-ins yet. Log one from the Home card to start tracking.
+              No weigh-ins yet. Log one from the Nutrition page to start tracking.
             </p>
           </Card>
         ) : (
