@@ -16,6 +16,10 @@ export function BarcodeScanner({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<string | null>(null)
+  // Surfaces the "we're not getting a read" case: if no barcode decodes within
+  // a few seconds, show guidance so the user knows it's the scan (not the
+  // lookup) that's stuck.
+  const [stalled, setStalled] = useState(false)
 
   // Keep the latest callback in a ref so the camera effect can run exactly once
   // on mount (an inline onDetected changes every render and would otherwise
@@ -28,6 +32,9 @@ export function BarcodeScanner({
   useEffect(() => {
     let controls: IScannerControls | null = null
     let cancelled = false
+    const stallTimer = setTimeout(() => {
+      if (!cancelled) setStalled(true)
+    }, 6000)
 
     void (async () => {
       try {
@@ -51,6 +58,7 @@ export function BarcodeScanner({
 
     return () => {
       cancelled = true
+      clearTimeout(stallTimer)
       controls?.stop()
     }
   }, [])
@@ -63,6 +71,11 @@ export function BarcodeScanner({
       </div>
       {error ? (
         <p className="text-sm text-destructive text-center">{error}</p>
+      ) : stalled ? (
+        <p className="text-xs text-amber-500 text-center">
+          No barcode read yet — center it in the frame, hold steady with good light, and avoid glare.
+          Still nothing? Cancel and type the number in manually.
+        </p>
       ) : (
         <p className="text-xs text-muted-foreground text-center">Point the rear camera at a barcode.</p>
       )}

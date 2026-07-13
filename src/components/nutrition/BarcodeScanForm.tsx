@@ -11,7 +11,9 @@ import type { MealLabel } from '@/models/types'
 
 // Fourth logging path: scan a barcode → look it up on Open Food Facts → review
 // the product + portion → log (and optionally save it as a reusable custom
-// food). Online lookup; graceful messages for not-found / unreachable.
+// food). Online lookup; the UI distinguishes "couldn't read a barcode" (scan
+// problem) from "read it, but it's not in the database" (coverage gap), and
+// offers manual barcode entry as both a workaround and a way to tell them apart.
 type Phase = 'idle' | 'scanning' | 'looking-up' | 'review' | 'not-found' | 'error'
 
 export function BarcodeScanForm({
@@ -28,15 +30,22 @@ export function BarcodeScanForm({
   const addFoodLog = useAddFoodLog()
   const createCustomFood = useCreateCustomFood()
   const [phase, setPhase] = useState<Phase>('idle')
+  const [barcode, setBarcode] = useState('')
+  const [manualInput, setManualInput] = useState('')
   const [scanned, setScanned] = useState<ScannedFood | null>(null)
   const [grams, setGrams] = useState('100')
   const [saveToFoods, setSaveToFoods] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const onDetected = async (barcode: string) => {
+  // Shared by the scanner callback and manual entry — both feed the same
+  // lookup. Reaching 'not-found'/'review' here proves the code was read.
+  const lookup = async (code: string) => {
+    const trimmed = code.trim()
+    if (!trimmed) return
+    setBarcode(trimmed)
     setPhase('looking-up')
     try {
-      const food = await lookupBarcode(barcode)
+      const food = await lookupBarcode(trimmed)
       if (!food) {
         setPhase('not-found')
         return
@@ -97,26 +106,52 @@ export function BarcodeScanForm({
     onDone()
   }
 
+  // Manual barcode entry — a workaround when the camera won't read the code,
+  // and a diagnostic: if a typed number is found, the earlier failure was the
+  // scan, not the database.
+  const manualEntry = (
+    <div className="flex gap-2">
+      <Input
+        type="text"
+        inputMode="numeric"
+        placeholder="Barcode number"
+        value={manualInput}
+        onChange={(e) => setManualInput(e.target.value)}
+      />
+      <Button variant="outline" disabled={!manualInput.trim()} onClick={() => lookup(manualInput)}>
+        Look up
+      </Button>
+    </div>
+  )
+
   if (phase === 'scanning') {
-    return <BarcodeScanner onDetected={onDetected} onCancel={() => setPhase('idle')} />
+    return <BarcodeScanner onDetected={lookup} onCancel={() => setPhase('idle')} />
   }
 
   if (phase === 'looking-up') {
     return (
-      <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Looking up product…
+      <div className="flex flex-col items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>Looking up {barcode}…</span>
       </div>
     )
   }
 
   if (phase === 'not-found' || phase === 'error') {
     return (
-      <div className="space-y-3 text-center py-4">
-        <p className="text-sm text-muted-foreground">
-          {phase === 'not-found'
-            ? "That barcode isn't in the Open Food Facts database (or has no nutrition data). Try Search or Quick add instead."
-            : `Couldn't reach the product database: ${errorMsg}. Check your connection and try again.`}
-        </p>
+      <div className="space-y-3 py-2">
+        {phase === 'not-found' ? (
+          <p className="text-sm text-muted-foreground text-center">
+            Read barcode <span className="text-foreground tabular-nums">{barcode}</span> — the scan
+            worked, but it isn&#39;t in the Open Food Facts database. Add it via Quick add or Search,
+            or try another number below.
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground text-center">
+            Couldn&#39;t reach the product database: {errorMsg}. Check your connection and try again.
+          </p>
+        )}
+        {manualEntry}
         <Button variant="outline" className="w-full" onClick={() => setPhase('scanning')}>
           Scan again
         </Button>
@@ -131,7 +166,7 @@ export function BarcodeScanForm({
           <p className="text-sm font-medium">{scanned.name}</p>
           {scanned.brand && <p className="text-xs text-muted-foreground">{scanned.brand}</p>}
           <p className="text-[11px] text-muted-foreground tabular-nums mt-0.5">
-            Per 100 g: {Math.round(scanned.kcal)} kcal · P{Math.round(scanned.proteinG)}/C
+            #{barcode} · Per 100 g: {Math.round(scanned.kcal)} kcal · P{Math.round(scanned.proteinG)}/C
             {Math.round(scanned.carbG)}/F{Math.round(scanned.fatG)}
           </p>
         </div>
@@ -163,14 +198,16 @@ export function BarcodeScanForm({
 
   // idle
   return (
-    <div className="space-y-3 mt-3 text-center py-2">
-      <p className="text-xs text-muted-foreground">
+    <div className="space-y-3 mt-3 py-2">
+      <p className="text-xs text-muted-foreground text-center">
         Scan a packaged product&#39;s barcode to look up its nutrition (via Open Food Facts). Needs a
         connection and camera access.
       </p>
       <Button className="w-full" onClick={() => setPhase('scanning')}>
         <ScanBarcode className="h-4 w-4 mr-1" /> Scan barcode
       </Button>
+      <p className="text-[11px] text-muted-foreground text-center">or enter the barcode number</p>
+      {manualEntry}
     </div>
   )
 }

@@ -57,6 +57,19 @@ select option {
   color: var(--color-foreground);
 }
 
+/* iOS Safari auto-zooms the page when a form control with font-size < 16px is
+   focused, and the zoom sticks after blur. Force >= 16px on touch devices to
+   prevent it — preferred over disabling pinch-zoom via the viewport tag, which
+   hurts accessibility. Desktop keeps the smaller (text-sm) sizing; !important
+   is needed to beat Tailwind's per-input text-sm utility. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 input[type="number"] {
   -moz-appearance: textfield;
 }
