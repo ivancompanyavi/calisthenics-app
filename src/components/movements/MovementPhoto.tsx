@@ -49,6 +49,12 @@ export function MovementPhoto({
       <img
         src={src}
         alt={name}
+        // Lazy + async decode so a long list (e.g. the ~200+ Library movements)
+        // doesn't fire every image request on mount — offscreen thumbnails load
+        // as they approach the viewport. The box size is fixed by sizeClasses,
+        // so this adds no layout shift.
+        loading="lazy"
+        decoding="async"
         onError={() => {
           if (!photoUrl && seedImagePath) setFailedSeedPath(seedImagePath)
         }}

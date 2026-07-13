@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMovements, useDeleteMovement } from '@/hooks/useMovements'
 import { useMovementPRs } from '@/hooks/useHistory'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,11 @@ import { Plus, Pencil, Trash2, Trophy, Video } from 'lucide-react'
 import type { Movement } from '@/models/types'
 import { MovementPhoto } from './MovementPhoto'
 
+// How many rows to render initially and to reveal per "load more" step. The
+// full seed is ~230 movements; rendering all at once (each with its own image)
+// is what made the Library tab lag on mobile.
+const BATCH = 40
+
 export function MovementsList() {
   const { data: movements, isLoading } = useMovements()
   const { data: prs } = useMovementPRs()
@@ -19,10 +24,42 @@ export function MovementsList() {
   const [editingMovement, setEditingMovement] = useState<Movement | null>(null)
   const [creating, setCreating] = useState(false)
   const [search, setSearch] = useState('')
+  const [visibleCount, setVisibleCount] = useState(BATCH)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
+  // Reset the window whenever the search query changes so results start at the
+  // top rather than mid-list. Done during render (React's supported pattern for
+  // resetting state on a derived change) rather than in an effect.
+  const [prevSearch, setPrevSearch] = useState(search)
+  if (search !== prevSearch) {
+    setPrevSearch(search)
+    setVisibleCount(BATCH)
+  }
 
   const filtered = movements?.filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase())
   )
+
+  const total = filtered?.length ?? 0
+  const shown = filtered ? filtered.slice(0, visibleCount) : []
+  const hasMore = total > shown.length
+
+  // Infinite scroll: reveal the next batch as the sentinel approaches the
+  // viewport. Re-runs as the window grows so the (re-rendered, lower) sentinel
+  // is re-observed. rootMargin prefetches just before it scrolls into view.
+  useEffect(() => {
+    if (!hasMore) return
+    const el = sentinelRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) setVisibleCount((c) => c + BATCH)
+      },
+      { rootMargin: '400px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, shown.length])
 
   if (isLoading) {
     return <div className="py-8 text-center text-muted-foreground">Loading...</div>
@@ -49,7 +86,7 @@ export function MovementsList() {
         </div>
       )}
 
-      {filtered?.map((movement) => {
+      {shown.map((movement) => {
         const pr = prs?.get(movement.id)
         return (
         <Card key={movement.id} className="p-3">
@@ -124,6 +161,14 @@ export function MovementsList() {
         </Card>
         )
       })}
+
+      {hasMore && (
+        <div ref={sentinelRef} className="pt-1 pb-3 flex justify-center">
+          <Button variant="outline" size="sm" onClick={() => setVisibleCount((c) => c + BATCH)}>
+            Load more ({total - shown.length})
+          </Button>
+        </div>
+      )}
 
       <Dialog open={creating} onClose={() => setCreating(false)}>
         <MovementForm onDone={() => setCreating(false)} />
