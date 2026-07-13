@@ -90,7 +90,7 @@ export function NutritionTrends() {
             </Card>
           ) : (
             <Card className="p-3">
-              <Sparkline points={bwPoints} />
+              <Sparkline points={bwPoints} formatValue={(y) => formatWeight(y, unit)} />
               <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums mt-1">
                 <span>{formatWeight(Math.min(...bwPoints.map((p) => p.y)), unit)}</span>
                 <span>{formatWeight(Math.max(...bwPoints.map((p) => p.y)), unit)}</span>
@@ -109,7 +109,7 @@ export function NutritionTrends() {
             </Card>
           ) : (
             <Card className="p-3">
-              <Sparkline points={waistPoints} colorClassName="text-sky-500" />
+              <Sparkline points={waistPoints} colorClassName="text-sky-500" formatValue={(y) => `${y.toFixed(1)} cm`} />
               <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums mt-1">
                 <span>{Math.min(...waistPoints.map((p) => p.y)).toFixed(1)} cm</span>
                 <span>{Math.max(...waistPoints.map((p) => p.y)).toFixed(1)} cm</span>

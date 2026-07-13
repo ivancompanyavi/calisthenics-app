@@ -7,7 +7,14 @@ import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings'
 import { queryKeys } from '@/lib/query-keys'
-import { syncNow } from '@/lib/sync-scheduler'
+import {
+  syncNow,
+  resolveConflictKeepLocal,
+  resolveConflictUseRemote,
+  type SyncNowResult,
+} from '@/lib/sync-scheduler'
+import { showToast } from '@/lib/toast'
+import { SyncConflictDialog } from '@/components/settings/SyncConflictDialog'
 import type { WeightUnit } from '@/models/types'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +68,8 @@ export function Settings() {
   const [repoInput, setRepoInput] = useState(DEFAULT_SYNC_REPO)
   const [tokenInput, setTokenInput] = useState('')
   const [syncingNow, setSyncingNow] = useState(false)
+  const [conflict, setConflict] = useState<{ sha: string; json: string; exportedAt?: string } | null>(null)
+  const [resolving, setResolving] = useState(false)
 
   // useSettings() resolves asynchronously (IndexedDB read), so the useState
   // initializers above never see a real settings value on first render.
@@ -81,15 +90,17 @@ export function Settings() {
     const owner = ownerInput.trim() || DEFAULT_SYNC_OWNER
     const repo = repoInput.trim() || DEFAULT_SYNC_REPO
     const token = tokenInput.trim().length > 0 ? tokenInput.trim() : (githubSync?.token ?? '')
+    // Pointing at a different repo invalidates the base sha — a new repo has an
+    // unrelated snapshot.json history, so the old divergence base is meaningless.
+    const connectionChanged = !!githubSync && (githubSync.owner !== owner || githubSync.repo !== repo)
     update.mutate({
       githubSync: {
+        ...(githubSync ?? { enabled: false }),
         token,
         owner,
         repo,
         enabled: githubSync?.enabled ?? false,
-        lastSyncedAt: githubSync?.lastSyncedAt,
-        pendingSync: githubSync?.pendingSync,
-        lastError: githubSync?.lastError,
+        ...(connectionChanged ? { lastSyncedSha: undefined, needsAttention: false } : {}),
         ...patch,
       },
     })
@@ -101,13 +112,65 @@ export function Settings() {
     saveConnection({ enabled: next })
   }
 
+  const applySyncResult = (res: SyncNowResult) => {
+    switch (res.status) {
+      case 'in-sync':
+        showToast('Already up to date', 'success')
+        break
+      case 'pushed':
+        showToast('Synced to cloud', 'success')
+        break
+      case 'pulled':
+        showToast('Updated from cloud', 'success')
+        // Local data was replaced wholesale — refresh every query.
+        qc.invalidateQueries()
+        break
+      case 'conflict':
+        setConflict(res.remote)
+        break
+      case 'error':
+        showToast(`Sync failed: ${res.message}`, 'error')
+        break
+      case 'disabled':
+        break
+    }
+  }
+
   const handleSyncNow = async () => {
     setSyncingNow(true)
     try {
-      await syncNow()
+      applySyncResult(await syncNow())
     } finally {
       setSyncingNow(false)
       qc.invalidateQueries({ queryKey: queryKeys.settings })
+    }
+  }
+
+  const handleKeepLocal = async () => {
+    setResolving(true)
+    try {
+      const res = await resolveConflictKeepLocal()
+      if (res.status === 'error') showToast(`Sync failed: ${res.message}`, 'error')
+      else showToast('Cloud replaced with this device', 'success')
+    } finally {
+      setResolving(false)
+      setConflict(null)
+      qc.invalidateQueries({ queryKey: queryKeys.settings })
+    }
+  }
+
+  const handleUseRemote = async () => {
+    if (!conflict) return
+    setResolving(true)
+    try {
+      const res = await resolveConflictUseRemote({ sha: conflict.sha, json: conflict.json })
+      if (res.status === 'error') showToast(`Sync failed: ${res.message}`, 'error')
+      else showToast('This device replaced with cloud data', 'success')
+    } finally {
+      setResolving(false)
+      setConflict(null)
+      // Local data was replaced wholesale — refresh every query.
+      qc.invalidateQueries()
     }
   }
 
@@ -211,15 +274,17 @@ export function Settings() {
               <div>
                 <h2 className="text-sm font-semibold">Coach sync</h2>
                 <p className="text-xs text-muted-foreground">
-                  Mirrors your training data (no photos) to a private GitHub repo as{' '}
-                  <code className="text-[11px]">snapshot.json</code>, one&#8209;way, pushed
-                  from this device after every workout or bodyweight log.
+                  Syncs your training data (no photos) to a private GitHub repo as{' '}
+                  <code className="text-[11px]">snapshot.json</code>. Auto&#8209;pushes after each
+                  log; <span className="text-foreground">Sync now</span> reconciles another device
+                  and resolves conflicts.
                 </p>
               </div>
               <SyncStatusIcon
                 enabled={syncEnabled}
                 pending={githubSync?.pendingSync ?? false}
                 hasError={!!githubSync?.lastError}
+                needsAttention={githubSync?.needsAttention ?? false}
               />
             </div>
 
@@ -296,12 +361,26 @@ export function Settings() {
                 )}
               </Button>
             </div>
+            {githubSync?.needsAttention && !githubSync?.lastError && (
+              <p className="text-xs text-amber-500">
+                Cloud changed on another device — Sync now to review and resolve.
+              </p>
+            )}
             {githubSync?.lastError && (
               <p className="text-xs text-destructive">{githubSync.lastError}</p>
             )}
           </div>
         </Card>
       </div>
+
+      <SyncConflictDialog
+        open={!!conflict}
+        remoteExportedAt={conflict?.exportedAt}
+        busy={resolving}
+        onKeepLocal={handleKeepLocal}
+        onUseRemote={handleUseRemote}
+        onCancel={() => setConflict(null)}
+      />
     </div>
   )
 }
@@ -310,16 +389,21 @@ function SyncStatusIcon({
   enabled,
   pending,
   hasError,
+  needsAttention,
 }: {
   enabled: boolean
   pending: boolean
   hasError: boolean
+  needsAttention: boolean
 }) {
   if (!enabled) {
     return <CloudOff className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
   }
   if (hasError) {
     return <CloudAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+  }
+  if (needsAttention) {
+    return <CloudAlert className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
   }
   if (pending) {
     return <Loader2 className="h-4 w-4 text-muted-foreground animate-spin shrink-0 mt-0.5" />

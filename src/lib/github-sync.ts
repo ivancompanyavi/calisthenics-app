@@ -52,6 +52,16 @@ function utf8ToBase64(str: string): string {
   return btoa(binary)
 }
 
+// UTF-8-safe base64 DECODE, counterpart to utf8ToBase64. GitHub's contents
+// API returns `content` as base64 with embedded newlines, so strip whitespace
+// before decoding.
+function base64ToUtf8(base64: string): string {
+  const binary = atob(base64.replace(/\s/g, ''))
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new TextDecoder().decode(bytes)
+}
+
 function authHeaders(token: string): HeadersInit {
   return {
     Authorization: `Bearer ${token}`,
@@ -67,7 +77,7 @@ function contentsUrl(config: GithubSyncConfig): string {
 // Resolves the current sha of the snapshot file, or undefined if it doesn't
 // exist yet (first push). Throws GithubSyncError for auth failures and wraps
 // any other fetch failure as a network error.
-async function getFileSha(config: GithubSyncConfig): Promise<string | undefined> {
+export async function getFileSha(config: GithubSyncConfig): Promise<string | undefined> {
   let res: Response
   try {
     res = await fetch(contentsUrl(config), { headers: authHeaders(config.token) })
@@ -90,6 +100,42 @@ async function getFileSha(config: GithubSyncConfig): Promise<string | undefined>
   return body.sha
 }
 
+export interface FetchedSnapshot {
+  /** Current git blob sha of snapshot.json — the base for divergence checks. */
+  sha: string
+  /** Decoded JSON payload (the same string a push would have written). */
+  json: string
+}
+
+// Reads the full snapshot content AND its sha, or null if the file doesn't
+// exist yet. Unlike getFileSha, this decodes the base64 `content` so callers
+// can compare / import it. Same auth/network error mapping as getFileSha.
+export async function fetchSnapshot(config: GithubSyncConfig): Promise<FetchedSnapshot | null> {
+  let res: Response
+  try {
+    res = await fetch(contentsUrl(config), { headers: authHeaders(config.token) })
+  } catch (err) {
+    throw new GithubSyncError(
+      'network',
+      err instanceof Error ? err.message : 'Network error while reading snapshot.json',
+    )
+  }
+
+  if (res.status === 404) return null
+  if (res.status === 401 || res.status === 403) {
+    throw new GithubSyncError('auth', `GitHub rejected the token while reading snapshot.json (${res.status})`)
+  }
+  if (!res.ok) {
+    throw new GithubSyncError('unknown', `Unexpected GitHub response while reading snapshot.json (${res.status})`)
+  }
+
+  const body = (await res.json()) as { sha?: string; content?: string }
+  if (!body.sha || typeof body.content !== 'string') {
+    throw new GithubSyncError('unknown', 'GitHub returned snapshot.json without a sha/content')
+  }
+  return { sha: body.sha, json: base64ToUtf8(body.content) }
+}
+
 // Pushes a full snapshot to the configured repo/path. `message` should be a
 // short commit message (caller supplies it, e.g. "sync: 2026-07-05T18:30
 // (workout)") — this module doesn't know why the caller is syncing.
@@ -97,8 +143,13 @@ export async function pushSnapshot(
   config: GithubSyncConfig,
   json: string,
   message: string,
+  // When the caller already knows the current remote sha (e.g. it just fetched
+  // it to decide whether to push), pass it here to skip a redundant GET.
+  // `knownSha: null` means "the file doesn't exist yet" (first push, omit sha);
+  // omitting the option entirely falls back to fetching the sha ourselves.
+  opts?: { knownSha: string | null },
 ): Promise<PushResult> {
-  const sha = await getFileSha(config)
+  const sha = opts ? (opts.knownSha ?? undefined) : await getFileSha(config)
 
   let res: Response
   try {

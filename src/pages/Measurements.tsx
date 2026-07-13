@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { ArrowLeft, Trash2, Ruler } from 'lucide-react'
 import { useMeasurements, useLogMeasurement, useDeleteMeasurement } from '@/hooks/useMeasurements'
+import { toLocalDateKey, fromLocalDateKey } from '@/lib/heatmap'
 import type { Measurement } from '@/models/types'
 
 const FIELDS: { key: keyof Omit<Measurement, 'id' | 'date' | 'source' | 'notes'>; label: string }[] = [
@@ -32,6 +33,11 @@ export function Measurements() {
 
   const [form, setForm] = useState<Record<string, string>>({})
   const [logging, setLogging] = useState(false)
+  // Which day this measurement is for. Defaults to today but can be backdated
+  // (e.g. a scale/tape reading you didn't get around to entering same-day).
+  // Snapshot "now" once per mount — Date.now() in render is impure.
+  const [todayKey] = useState(() => toLocalDateKey(Date.now()))
+  const [dateKey, setDateKey] = useState(todayKey)
 
   const hasAnyValue = Object.values(form).some((v) => v.trim() !== '')
 
@@ -43,8 +49,9 @@ export function Measurements() {
         ;(data as Record<string, number>)[key] = Number(raw)
       }
     }
-    await logMeasurement.mutateAsync({ data })
+    await logMeasurement.mutateAsync({ data, date: dateKey ? fromLocalDateKey(dateKey) : undefined })
     setForm({})
+    setDateKey(todayKey)
     setLogging(false)
   }
 
@@ -85,6 +92,15 @@ export function Measurements() {
         ) : (
           <Card className="p-4 space-y-3">
             <p className="text-sm font-medium">New measurement</p>
+            <label className="block">
+              <span className="text-xs text-muted-foreground mb-1 block">Date</span>
+              <Input
+                type="date"
+                value={dateKey}
+                max={todayKey}
+                onChange={(e) => setDateKey(e.target.value)}
+              />
+            </label>
             <div className="grid grid-cols-2 gap-2">
               {FIELDS.map(({ key, label }) => (
                 <label key={key} className="block">
@@ -108,6 +124,7 @@ export function Measurements() {
                 onClick={() => {
                   setLogging(false)
                   setForm({})
+                  setDateKey(todayKey)
                 }}
               >
                 Cancel

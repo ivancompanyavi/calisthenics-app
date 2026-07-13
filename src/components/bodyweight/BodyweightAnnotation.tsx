@@ -5,7 +5,7 @@ import { useWeightUnit } from '@/hooks/useSettings'
 
 interface BodyweightAnnotationProps {
   annotation: Annotation | null
-  // The "small" variant is for the Home card (single dense line). The default
+  // The "small" variant is for the weigh-in card (single dense line). The default
   // variant is for the History page where we have room to breathe.
   small?: boolean
 }
