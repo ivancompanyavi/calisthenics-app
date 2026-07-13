@@ -1,10 +1,39 @@
 import { describe, it, expect } from 'vitest'
 import {
   toLocalDateKey,
+  fromLocalDateKey,
   toIntensity,
   buildHeatmapGrid,
   type HeatmapDay,
 } from '../heatmap'
+
+// ---------------------------------------------------------------------------
+// fromLocalDateKey — parses a date-input value to local midnight
+// ---------------------------------------------------------------------------
+
+describe('fromLocalDateKey', () => {
+  it('parses YYYY-MM-DD to a timestamp at LOCAL midnight, not UTC midnight', () => {
+    const ts = fromLocalDateKey('2024-01-15')
+    const d = new Date(ts)
+    expect(d.getFullYear()).toBe(2024)
+    expect(d.getMonth()).toBe(0)
+    expect(d.getDate()).toBe(15)
+    expect(d.getHours()).toBe(0)
+    expect(d.getMinutes()).toBe(0)
+  })
+
+  it('round-trips with toLocalDateKey', () => {
+    for (const key of ['2023-12-31', '2025-03-05', '2024-02-29']) {
+      expect(toLocalDateKey(fromLocalDateKey(key))).toBe(key)
+    }
+  })
+
+  it('lands on the correct local calendar day (guards against UTC-parse drift)', () => {
+    // new Date('2024-01-15') would parse as UTC midnight; west of UTC that is
+    // still Jan 14 locally. fromLocalDateKey must give the local Jan 15 bucket.
+    expect(toLocalDateKey(fromLocalDateKey('2024-01-15'))).toBe('2024-01-15')
+  })
+})
 
 // ---------------------------------------------------------------------------
 // toLocalDateKey — timezone-safety

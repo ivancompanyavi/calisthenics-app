@@ -20,8 +20,8 @@ export function useMostRecentBodyweight() {
 export function useLogBodyweight() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ kg, notes }: { kg: number; notes?: string }) =>
-      bodyweightRepository.log(kg, notes),
+    mutationFn: ({ kg, notes, date }: { kg: number; notes?: string; date?: number }) =>
+      bodyweightRepository.log(kg, notes, date),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.bodyweight })
       // Insights overlays bodyweight on the lift trends — keep it in sync.

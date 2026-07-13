@@ -9,6 +9,7 @@ import { useWeightUnit } from '@/hooks/useSettings'
 import { fromKg, toKg, formatWeight } from '@/lib/units'
 import { analyzeBodyweightTrend } from '@/lib/bodyweight-trend'
 import { BodyweightAnnotation } from '@/components/bodyweight/BodyweightAnnotation'
+import { toLocalDateKey, fromLocalDateKey } from '@/lib/heatmap'
 
 // Saturday weigh-in card. The program prescribes weekly weigh-ins to decode
 // pull-up regressions (mass-vs-recovery-vs-programming). Surfaces:
@@ -29,6 +30,10 @@ export function BodyweightCard() {
   // the prompt to need re-evaluation (e.g., crossing midnight), and re-running
   // Date.now() on every render is impure under React's rules.
   const [now] = useState(() => Date.now())
+  const todayKey = toLocalDateKey(now)
+  // Which calendar day this weigh-in is for. Defaults to today; a scale that
+  // logged the value earlier lets you backdate to the day you actually weighed.
+  const [dateKey, setDateKey] = useState(todayKey)
   const oneWeekMs = 7 * 24 * 60 * 60 * 1000
   const isSaturday = new Date(now).getDay() === 6
   const recentDate = recent?.date
@@ -42,8 +47,10 @@ export function BodyweightCard() {
     if (!Number.isFinite(value) || value <= 0) return
     // User types in their preferred unit; storage is always kg.
     const kg = toKg(value, unit)
-    await logBw.mutateAsync({ kg })
+    const date = dateKey ? fromLocalDateKey(dateKey) : now
+    await logBw.mutateAsync({ kg, date })
     setDraft('')
+    setDateKey(todayKey)
     setEditing(false)
   }
 
@@ -69,31 +76,44 @@ export function BodyweightCard() {
         <Scale className={shouldPrompt ? 'h-4 w-4 text-amber-500' : 'h-4 w-4 text-muted-foreground'} />
         <div className="flex-1 min-w-0">
           {editing ? (
-            <div className="flex gap-2 items-center">
-              <Input
-                type="number"
-                inputMode="decimal"
-                step="0.1"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder={unit}
-                className="h-8 text-sm w-24"
-                autoFocus
-              />
-              <Button size="sm" className="h-8" onClick={submit} disabled={!draft}>
-                <Check className="h-4 w-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8"
-                onClick={() => {
-                  setEditing(false)
-                  setDraft('')
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.1"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={unit}
+                  className="h-8 text-sm w-20"
+                  autoFocus
+                />
+                <Input
+                  type="date"
+                  value={dateKey}
+                  max={todayKey}
+                  onChange={(e) => setDateKey(e.target.value)}
+                  aria-label="Weigh-in date"
+                  className="h-8 text-sm flex-1 min-w-0"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" className="h-8" onClick={submit} disabled={!draft}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8"
+                  onClick={() => {
+                    setEditing(false)
+                    setDraft('')
+                    setDateKey(todayKey)
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ) : (
             <button

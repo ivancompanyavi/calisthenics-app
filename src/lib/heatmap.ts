@@ -40,6 +40,19 @@ export function toLocalDateKey(d: Date | number): string {
 }
 
 /**
+ * Inverse of toLocalDateKey: parse a YYYY-MM-DD key (e.g. from an
+ * <input type="date">) to a timestamp at LOCAL midnight.
+ *
+ * IMPORTANT: uses the numeric Date constructor (local time) rather than
+ * new Date('YYYY-MM-DD'), which parses the string as UTC midnight and can
+ * land on the wrong local calendar day for users west of UTC.
+ */
+export function fromLocalDateKey(key: string): number {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, m - 1, d).getTime()
+}
+
+/**
  * Map a completed-set count to a display-intensity bucket.
  *
  * Bucket thresholds are calibrated to typical calisthenics volumes
