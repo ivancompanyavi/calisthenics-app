@@ -189,6 +189,50 @@ describe('data-transfer', () => {
       expect(parsed.version).toBe(6)
     })
 
+    it('round-trips meals (with their snapshotted items) through export/import', async () => {
+      await db.meals.add({
+        id: 'meal1',
+        name: 'Breakfast bowl',
+        mealLabel: 'breakfast',
+        items: [
+          { name: 'Oats', source: 'quickadd', quantityG: 40, kcal: 154, proteinG: 5, carbG: 27, fatG: 3, fiberG: 4 },
+          { name: 'Milk', source: 'custom', refId: 'seed-food-milk', servings: 1, kcal: 110, proteinG: 18, carbG: 9, fatG: 0, fiberG: 0 },
+        ],
+        createdAt: 1_700_000_000_000,
+      })
+
+      const json = await exportAllData()
+      // meals must actually be in the payload, not silently dropped.
+      expect(JSON.parse(json).meals).toHaveLength(1)
+
+      await clearAllTables()
+      await importAllData(json)
+
+      const restored = await db.meals.get('meal1')
+      expect(restored?.name).toBe('Breakfast bowl')
+      expect(restored?.items).toHaveLength(2)
+      expect(restored?.items[1]).toMatchObject({ name: 'Milk', refId: 'seed-food-milk', kcal: 110 })
+    })
+
+    it('round-trips meals through exportForSync too', async () => {
+      await db.meals.add({ id: 'm2', name: 'Snack', items: [{ name: 'Shake', source: 'custom', kcal: 120, proteinG: 27, carbG: 1, fatG: 1, fiberG: 0 }], createdAt: 0 })
+      const json = await exportForSync()
+      await clearAllTables()
+      await importAllData(json)
+      expect((await db.meals.get('m2'))?.name).toBe('Snack')
+    })
+
+    it('imports an older snapshot with no meals key as an empty meals table', async () => {
+      await db.meals.add({ id: 'stale', name: 'To be wiped', items: [], createdAt: 0 })
+      const payload = JSON.stringify({
+        version: 6,
+        movements: [], progressions: [], progressionLevels: [], workouts: [], workoutBlocks: [],
+        blockEntries: [], workoutLogs: [], setLogs: [],
+      })
+      await importAllData(payload)
+      expect(await db.meals.count()).toBe(0)
+    })
+
     it('accepts a v6 import payload containing all four nutrition tables', async () => {
       const payload = JSON.stringify({
         version: 6,
