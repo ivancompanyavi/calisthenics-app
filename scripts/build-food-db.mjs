@@ -21,8 +21,9 @@
  *     nuts/seeds, cereal grains/pasta, basic breads within Baked Products,
  *     fats/oils, beverages), with branded/restaurant/fast-food/baby-food
  *     entries excluded, then de-duplicated by a "base name" (first two
- *     comma-separated description segments) capped at 2 variants per base
- *     (e.g. keep "raw" + "cooked" but not every trim/grade/cut combination)
+ *     comma-separated description segments) capped at 2 variants per base,
+ *     prioritising raw then plain cooked forms (so "raw" + "cooked" survive,
+ *     not every trim/grade/cut combination)
  *     to avoid the extreme cut/trim/grade duplication inherent to SR Legacy
  *     (e.g. "Beef, rib, shortribs, separable lean only, choice, raw" has
  *     dozens of near-identical siblings).
@@ -92,11 +93,18 @@ const KEYWORD_BLOCKLIST = [
 // and modern datasets (nutrient.id, number). Each entry lists both, in
 // preference order (we want the kcal energy nutrient, not the kJ one).
 const NUTRIENT_SPECS = {
-  kcal: { numbers: ['208'], ids: [1008] },
+  // Energy: prefer the plain "Energy" (kcal) nutrient, then Atwater General /
+  // Specific factor kcal. Many Foundation Foods report energy ONLY under the
+  // Atwater ids (2047/2048), so without them those foods get dropped for
+  // "missing energy" — that's why raw strawberries/blueberries disappeared.
+  kcal: { numbers: ['208'], ids: [1008, 2047, 2048] },
   proteinG: { numbers: ['203'], ids: [1003] },
   fatG: { numbers: ['204'], ids: [1004] },
   carbG: { numbers: ['205'], ids: [1005] },
-  fiberG: { numbers: ['291'], ids: [1079] },
+  // Fiber: classic "Fiber, total dietary" (1079), falling back to the AOAC
+  // 2011.25 method (2033) that many Foundation Foods report instead — without
+  // it, recovered Foundation whole foods show 0 g fibre.
+  fiberG: { numbers: ['291'], ids: [1079, 2033] },
   sodiumMg: { numbers: ['307'], ids: [1093] },
 }
 
@@ -256,6 +264,17 @@ function baseKey(description) {
   return key.toLowerCase()
 }
 
+// Rank preparation forms within a base group so the plain whole-food variants
+// win over heavily-qualified cut/trim/grade ones: raw first, then simple cooked
+// forms, then everything else. Prevents the length-only sort from dropping a
+// "raw" staple in favour of two over-qualified variants (the failure mode that
+// left, e.g., only canned/frozen forms of some fruits in the bundle).
+function prepRank(descLower) {
+  if (/\braw\b/.test(descLower)) return 0
+  if (/\b(cooked|boiled|roasted|grilled|baked|steamed|dry|dried)\b/.test(descLower)) return 1
+  return 2
+}
+
 function dedupeSrLegacy(foods) {
   const groups = new Map()
   for (const f of foods) {
@@ -265,10 +284,15 @@ function dedupeSrLegacy(foods) {
   }
   const result = []
   for (const group of groups.values()) {
-    // Prefer shorter descriptions (tends to surface plain "raw"/"cooked"
-    // forms over heavily-qualified cut/trim/grade variants); cap at 2 per
-    // base food so both a raw and a cooked variant can usually survive.
-    group.sort((a, b) => a.description.length - b.description.length)
+    // Prioritise raw, then plain cooked forms, breaking ties by shorter
+    // description (surfaces plain forms over qualified variants). Cap at 2 per
+    // base food so a raw + a cooked variant survive without the full
+    // cut/trim/grade explosion.
+    group.sort((a, b) => {
+      const rankDiff = prepRank(a.description.toLowerCase()) - prepRank(b.description.toLowerCase())
+      if (rankDiff !== 0) return rankDiff
+      return a.description.length - b.description.length
+    })
     result.push(...group.slice(0, 2))
   }
   return result
@@ -342,6 +366,24 @@ async function main() {
     extracted.sort((a, b) => a.name.localeCompare(b.name))
 
     log(`Final food count: ${extracted.length}`)
+
+    // Surface whether common raw whole-food staples made it in. A silent gap
+    // here is exactly how "no raw strawberry" slipped through — now it's
+    // visible on every build. (Warn-only; doesn't fail the build.)
+    const STAPLE_CHECKS = [
+      'strawberries, raw', 'blueberries, raw', 'banana', 'apple', 'orange',
+      'broccoli, raw', 'spinach, raw', 'carrot', 'potato', 'sweet potato',
+      'chicken', 'egg', 'rice', 'oat', 'salmon',
+    ]
+    const missingStaples = STAPLE_CHECKS.filter(
+      (s) => !extracted.some((f) => f.name.toLowerCase().includes(s)),
+    )
+    if (missingStaples.length > 0) {
+      log(`⚠️  staple check — MISSING: ${missingStaples.join(', ')}`)
+    } else {
+      log('staple check — all present')
+    }
+
     if (extracted.length < 1000 || extracted.length > 4000) {
       throw new Error(
         `Final food count ${extracted.length} is outside the expected 1000-4000 sanity range. Aborting without writing output.`,
