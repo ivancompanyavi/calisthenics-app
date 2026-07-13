@@ -90,6 +90,21 @@ export function useDeleteFoodLog() {
   })
 }
 
+// Removes every entry logged together from one meal template (shared
+// mealInstanceId) in a single action.
+export function useDeleteMealInstance() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (mealInstanceId: string) => foodLogRepository.deleteByMealInstance(mealInstanceId),
+    onSuccess: () => {
+      invalidateFoodLogs(qc)
+      void requestSync('nutrition').finally(() => {
+        qc.invalidateQueries({ queryKey: queryKeys.settings })
+      })
+    },
+  })
+}
+
 export function useCopyDay() {
   const qc = useQueryClient()
   return useMutation({

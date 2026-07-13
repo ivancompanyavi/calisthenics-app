@@ -10,7 +10,7 @@ export function DaySummaryCard({
   totals: DayTotals | undefined
   target: NutritionTarget | undefined
 }) {
-  const t = totals ?? { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0 }
+  const t = totals ?? { kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0, sodiumMg: 0 }
 
   return (
     <Card className="p-4 space-y-3">
@@ -35,6 +35,11 @@ export function DaySummaryCard({
         <NutrientBar label="Fat" value={t.fatG} target={target?.fatG} unit="g" colorClass="bg-amber-500" />
         <NutrientBar label="Fiber" value={t.fiberG} target={target?.fiberG} unit="g" colorClass="bg-violet-500" />
       </div>
+      {t.sodiumMg > 0 && (
+        <p className="text-xs text-muted-foreground tabular-nums pt-1">
+          Sodium: {Math.round(t.sodiumMg)} mg
+        </p>
+      )}
       {!target && (
         <p className="text-xs text-muted-foreground pt-1">
           No target set — showing totals only.

@@ -35,4 +35,9 @@ export const SEED_FOODS: SeedFood[] = [
   { slug: 'broccoli', name: 'Broccoli', per: 'per100g', kcal: 34, proteinG: 2.8, carbG: 6.6, fatG: 0.4, fiberG: 2.6 },
   { slug: 'cauliflower', name: 'Cauliflower', per: 'per100g', kcal: 25, proteinG: 1.9, carbG: 5, fatG: 0.3, fiberG: 2 },
   { slug: 'bell-pepper', name: 'Bell pepper', per: 'per100g', kcal: 31, proteinG: 1, carbG: 6, fatG: 0.3, fiberG: 2.1 },
+
+  // Prepared dish — homemade mashed potato (boiled potato + skim milk + skyr).
+  // Per-100g values derived from the recipe total (433 kcal / 610 g); log
+  // whatever portion you actually scoop.
+  { slug: 'mashed-potato', name: 'Mashed potato (homemade)', per: 'per100g', kcal: 71, proteinG: 4.4, carbG: 13.7, fatG: 0.1, fiberG: 2.4, sodiumMg: 192 },
 ]

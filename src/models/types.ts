@@ -226,7 +226,7 @@ export interface CustomFood {
 // 'usda' is reserved for Phase 1b (bundled USDA database lookups) — not
 // produced by anything in Phase 1a, but included now so FoodLog rows written
 // today remain forward-compatible with that source once it lands.
-export type FoodSource = 'custom' | 'quickadd' | 'usda'
+export type FoodSource = 'custom' | 'quickadd' | 'usda' | 'barcode'
 export type MealLabel = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 
 // One logged food entry. Macros are denormalized — already scaled to the
@@ -247,6 +247,11 @@ export interface FoodLog {
   carbG: number
   fatG: number
   fiberG: number
+  sodiumMg?: number
+  // Groups entries logged together from one Meal template (see mealRepository
+  // .logMeal) so they can later be edited/removed as a unit. Absent for
+  // individually-logged foods.
+  mealInstanceId?: string
   notes?: string
 }
 

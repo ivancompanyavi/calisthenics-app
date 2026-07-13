@@ -110,12 +110,12 @@ describe('foodLogRepository', () => {
       await foodLogRepository.add({
         loggedAt: ts(2026, 7, 9, 8),
         source: 'quickadd', name: 'A',
-        kcal: 300, proteinG: 20, carbG: 30, fatG: 10, fiberG: 2,
+        kcal: 300, proteinG: 20, carbG: 30, fatG: 10, fiberG: 2, sodiumMg: 120,
       })
       await foodLogRepository.add({
         loggedAt: ts(2026, 7, 9, 20),
         source: 'quickadd', name: 'B',
-        kcal: 500, proteinG: 40, carbG: 50, fatG: 15, fiberG: 5,
+        kcal: 500, proteinG: 40, carbG: 50, fatG: 15, fiberG: 5, sodiumMg: 200,
       })
       // Different day — must not be included.
       await foodLogRepository.add({
@@ -125,12 +125,12 @@ describe('foodLogRepository', () => {
       })
 
       const totals = await foodLogRepository.dayTotals(ts(2026, 7, 9, 12))
-      expect(totals).toEqual({ kcal: 800, proteinG: 60, carbG: 80, fatG: 25, fiberG: 7 })
+      expect(totals).toEqual({ kcal: 800, proteinG: 60, carbG: 80, fatG: 25, fiberG: 7, sodiumMg: 320 })
     })
 
     it('returns all-zero totals for a day with no entries', async () => {
       const totals = await foodLogRepository.dayTotals(ts(2026, 7, 9))
-      expect(totals).toEqual({ kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0 })
+      expect(totals).toEqual({ kcal: 0, proteinG: 0, carbG: 0, fatG: 0, fiberG: 0, sodiumMg: 0 })
     })
   })
 
