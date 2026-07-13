@@ -3,7 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '@/db'
 import { clearAllTables } from '../../repositories/__tests__/setup'
 import { settingsRepository } from '@/repositories'
-import { requestSync, retrySyncIfNeeded, syncNow } from '../sync-scheduler'
+import {
+  requestSync,
+  retrySyncIfNeeded,
+  syncNow,
+  decideSyncAction,
+  resolveConflictKeepLocal,
+  resolveConflictUseRemote,
+} from '../sync-scheduler'
+import { exportForSync } from '../data-transfer'
 
 const SINGLETON_ID = 'singleton' as const
 
@@ -12,6 +20,12 @@ function jsonResponse(status: number, body: unknown): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+// Mimics GitHub's contents API GET response, which base64-encodes the file
+// content alongside its sha.
+function contentResponse(status: number, sha: string, json: string): Response {
+  return jsonResponse(status, { sha, content: btoa(json) })
 }
 
 async function seedEnabledSync(overrides: Partial<NonNullable<import('@/models/types').Settings['githubSync']>> = {}) {
@@ -156,17 +170,171 @@ describe('sync-scheduler dirty-flag behavior', () => {
     })
   })
 
-  it('syncNow always attempts a push regardless of the pending flag', async () => {
-    await seedEnabledSync({ pendingSync: false, lastSyncedAt: 999 })
+  it('automatic sync backs off (needsAttention) instead of clobbering a diverged remote', async () => {
+    await seedEnabledSync({ pendingSync: true, lastSyncedSha: 'base' })
+    const fetchMock = vi.mocked(fetch)
+    // getFileSha sees a sha that differs from our base → remote moved.
+    fetchMock.mockResolvedValueOnce(jsonResponse(200, { sha: 'moved' }))
+
+    await requestSync('workout')
+
+    // Only the GET happened — no PUT, so the diverged remote is untouched.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const settings = await settingsRepository.get()
+    expect(settings.githubSync?.needsAttention).toBe(true)
+    expect(settings.githubSync?.pendingSync).toBe(true)
+  })
+})
+
+describe('decideSyncAction', () => {
+  it('pushes when there is no remote file yet', () => {
+    expect(decideSyncAction({ remoteExists: false, localDirty: true })).toBe('push')
+    expect(decideSyncAction({ remoteExists: false, localDirty: false })).toBe('push')
+  })
+
+  it('is a noop when remote is unchanged and local is clean', () => {
+    expect(decideSyncAction({ remoteExists: true, remoteSha: 'a', baseSha: 'a', localDirty: false })).toBe('noop')
+  })
+
+  it('fast-forward pushes when remote is unchanged and local is dirty', () => {
+    expect(decideSyncAction({ remoteExists: true, remoteSha: 'a', baseSha: 'a', localDirty: true })).toBe('push')
+  })
+
+  it('fast-forward pulls when remote moved and local is clean', () => {
+    expect(decideSyncAction({ remoteExists: true, remoteSha: 'b', baseSha: 'a', localDirty: false })).toBe('pull')
+  })
+
+  it('conflicts when both remote and local moved', () => {
+    expect(decideSyncAction({ remoteExists: true, remoteSha: 'b', baseSha: 'a', localDirty: true })).toBe('conflict')
+  })
+
+  it('treats a missing base sha (never synced) as remote-moved', () => {
+    expect(decideSyncAction({ remoteExists: true, remoteSha: 'b', baseSha: undefined, localDirty: false })).toBe('pull')
+    expect(decideSyncAction({ remoteExists: true, remoteSha: 'b', baseSha: undefined, localDirty: true })).toBe('conflict')
+  })
+})
+
+describe('syncNow (manual, interactive)', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+    vi.stubGlobal('fetch', vi.fn())
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('pushes and records the new sha when there is no remote file', async () => {
+    await seedEnabledSync({ pendingSync: true })
     const fetchMock = vi.mocked(fetch)
     fetchMock
-      .mockResolvedValueOnce(jsonResponse(200, { sha: 'existing' }))
-      .mockResolvedValueOnce(jsonResponse(200, { content: { sha: 'newer' } }))
+      .mockResolvedValueOnce(jsonResponse(404, {})) // fetchSnapshot: no file
+      .mockResolvedValueOnce(jsonResponse(201, { content: { sha: 'xyz' } })) // PUT
 
-    await syncNow()
+    const res = await syncNow()
 
+    expect(res.status).toBe('pushed')
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const settings = await settingsRepository.get()
-    expect(settings.githubSync?.lastSyncedAt).not.toBe(999)
+    expect(settings.githubSync?.lastSyncedSha).toBe('xyz')
+    expect(settings.githubSync?.pendingSync).toBe(false)
+  })
+
+  it('reports in-sync (no push) when remote matches base and local is clean', async () => {
+    await seedEnabledSync({ pendingSync: false, lastSyncedSha: 'abc' })
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockResolvedValueOnce(contentResponse(200, 'abc', '{}'))
+
+    const res = await syncNow()
+
+    expect(res.status).toBe('in-sync')
+    expect(fetchMock).toHaveBeenCalledTimes(1) // GET only, no PUT
+    const settings = await settingsRepository.get()
+    expect(settings.githubSync?.lastSyncedSha).toBe('abc')
+  })
+
+  it('fast-forward pushes when remote matches base and local is dirty', async () => {
+    await seedEnabledSync({ pendingSync: true, lastSyncedSha: 'abc' })
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockResolvedValueOnce(contentResponse(200, 'abc', '{}')) // fetchSnapshot
+      .mockResolvedValueOnce(jsonResponse(200, { content: { sha: 'def' } })) // PUT
+
+    const res = await syncNow()
+
+    expect(res.status).toBe('pushed')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const settings = await settingsRepository.get()
+    expect(settings.githubSync?.lastSyncedSha).toBe('def')
+  })
+
+  it('returns a conflict (no write) when both sides diverged', async () => {
+    await seedEnabledSync({ pendingSync: true, lastSyncedSha: 'old' })
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockResolvedValueOnce(
+      contentResponse(200, 'new', '{"exportedAt":"2026-07-01T00:00:00.000Z"}'),
+    )
+
+    const res = await syncNow()
+
+    expect(res.status).toBe('conflict')
+    if (res.status === 'conflict') {
+      expect(res.remote.sha).toBe('new')
+      expect(res.remote.exportedAt).toBe('2026-07-01T00:00:00.000Z')
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1) // GET only, nothing overwritten
+    const settings = await settingsRepository.get()
+    expect(settings.githubSync?.lastSyncedSha).toBe('old') // base untouched
+    expect(settings.githubSync?.pendingSync).toBe(true)
+  })
+
+  it('pulls (imports remote) when remote moved and local is clean', async () => {
+    await seedEnabledSync({ pendingSync: false, lastSyncedSha: 'base' })
+    const validSnapshot = await exportForSync() // valid empty snapshot from this DB
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockResolvedValueOnce(contentResponse(200, 'ahead', validSnapshot))
+
+    const res = await syncNow()
+
+    expect(res.status).toBe('pulled')
+    expect(fetchMock).toHaveBeenCalledTimes(1) // GET only; import is local
+    const settings = await settingsRepository.get()
+    expect(settings.githubSync?.lastSyncedSha).toBe('ahead')
+    expect(settings.githubSync?.pendingSync).toBe(false)
+  })
+})
+
+describe('conflict resolution', () => {
+  beforeEach(async () => {
+    await clearAllTables()
+    vi.stubGlobal('fetch', vi.fn())
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('resolveConflictKeepLocal overwrites the remote with local data', async () => {
+    await seedEnabledSync({ pendingSync: true, lastSyncedSha: 'old', needsAttention: true })
+    const fetchMock = vi.mocked(fetch)
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(200, { sha: 'new' })) // getFileSha for the overwrite
+      .mockResolvedValueOnce(jsonResponse(200, { content: { sha: 'newer' } })) // PUT
+
+    const res = await resolveConflictKeepLocal()
+
+    expect(res.status).toBe('pushed')
+    const settings = await settingsRepository.get()
+    expect(settings.githubSync?.lastSyncedSha).toBe('newer')
+    expect(settings.githubSync?.pendingSync).toBe(false)
+    expect(settings.githubSync?.needsAttention).toBe(false)
+  })
+
+  it('resolveConflictUseRemote imports the supplied snapshot without any network write', async () => {
+    await seedEnabledSync({ pendingSync: true, lastSyncedSha: 'old', needsAttention: true })
+    const validSnapshot = await exportForSync()
+    const fetchMock = vi.mocked(fetch)
+
+    const res = await resolveConflictUseRemote({ sha: 'chosen', json: validSnapshot })
+
+    expect(res.status).toBe('pulled')
+    expect(fetchMock).not.toHaveBeenCalled()
+    const settings = await settingsRepository.get()
+    expect(settings.githubSync?.lastSyncedSha).toBe('chosen')
+    expect(settings.githubSync?.needsAttention).toBe(false)
   })
 })

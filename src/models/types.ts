@@ -346,6 +346,14 @@ export interface Settings {
     // Set to the error message of the most recent failed attempt; cleared on
     // the next successful push. Purely informational for the Settings UI.
     lastError?: string
+    // The git blob sha of snapshot.json this device last synced with (pushed
+    // or pulled) — the "base" for divergence detection. If the remote sha
+    // differs from this, another device wrote since we last synced.
+    lastSyncedSha?: string
+    // Set when an automatic sync found the remote had diverged and backed off
+    // instead of clobbering it. Signals the user to run a manual sync (which
+    // surfaces the conflict resolver). Cleared once any sync resolves cleanly.
+    needsAttention?: boolean
   }
 }
 
