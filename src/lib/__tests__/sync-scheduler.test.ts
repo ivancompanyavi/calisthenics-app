@@ -10,8 +10,10 @@ import {
   decideSyncAction,
   resolveConflictKeepLocal,
   resolveConflictUseRemote,
+  onSyncStatusChange,
 } from '../sync-scheduler'
 import { exportForSync } from '../data-transfer'
+import { toastListeners, type Toast } from '../toast'
 
 const SINGLETON_ID = 'singleton' as const
 
@@ -183,6 +185,44 @@ describe('sync-scheduler dirty-flag behavior', () => {
     const settings = await settingsRepository.get()
     expect(settings.githubSync?.needsAttention).toBe(true)
     expect(settings.githubSync?.pendingSync).toBe(true)
+  })
+
+  it('toasts once on the transition into needsAttention, not on repeat back-offs', async () => {
+    const toasts: Toast[] = []
+    const listener = (t: Toast) => toasts.push(t)
+    toastListeners.add(listener)
+    try {
+      await seedEnabledSync({ pendingSync: true, lastSyncedSha: 'base' })
+      const fetchMock = vi.mocked(fetch)
+      // Remote is diverged on both attempts.
+      fetchMock.mockResolvedValue(jsonResponse(200, { sha: 'moved' }))
+
+      await requestSync('workout')
+      // A second save while still flagged must not re-toast.
+      await requestSync('bodyweight')
+
+      const errorToasts = toasts.filter((t) => t.type === 'error')
+      expect(errorToasts).toHaveLength(1)
+      expect(errorToasts[0].message).toMatch(/Sync paused/)
+    } finally {
+      toastListeners.delete(listener)
+    }
+  })
+
+  it('notifies status-change subscribers when it flips a flag', async () => {
+    const notify = vi.fn()
+    const unsubscribe = onSyncStatusChange(notify)
+    try {
+      await seedEnabledSync({ pendingSync: true, lastSyncedSha: 'base' })
+      const fetchMock = vi.mocked(fetch)
+      fetchMock.mockResolvedValueOnce(jsonResponse(200, { sha: 'moved' }))
+
+      await requestSync('workout')
+
+      expect(notify).toHaveBeenCalled()
+    } finally {
+      unsubscribe()
+    }
   })
 })
 

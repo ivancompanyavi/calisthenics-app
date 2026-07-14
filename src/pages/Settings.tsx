@@ -1,19 +1,11 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { CloudCheck, CloudAlert, CloudOff, Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
 import { useSettings, useUpdateSettings } from '@/hooks/useSettings'
-import { queryKeys } from '@/lib/query-keys'
-import {
-  syncNow,
-  resolveConflictKeepLocal,
-  resolveConflictUseRemote,
-  type SyncNowResult,
-} from '@/lib/sync-scheduler'
-import { showToast } from '@/lib/toast'
+import { useSyncResolution } from '@/hooks/useSyncResolution'
 import { SyncConflictDialog } from '@/components/settings/SyncConflictDialog'
 import type { WeightUnit } from '@/models/types'
 import { cn } from '@/lib/utils'
@@ -24,7 +16,15 @@ const DEFAULT_SYNC_REPO = 'calisthenics-data'
 export function Settings() {
   const { data: settings } = useSettings()
   const update = useUpdateSettings()
-  const qc = useQueryClient()
+  const {
+    syncingNow,
+    conflict,
+    resolving,
+    setConflict,
+    handleSyncNow,
+    handleKeepLocal,
+    handleUseRemote,
+  } = useSyncResolution()
 
   const unit = settings?.weightUnit ?? 'kg'
   const setUnit = (next: WeightUnit) => {
@@ -67,9 +67,6 @@ export function Settings() {
   const [ownerInput, setOwnerInput] = useState(DEFAULT_SYNC_OWNER)
   const [repoInput, setRepoInput] = useState(DEFAULT_SYNC_REPO)
   const [tokenInput, setTokenInput] = useState('')
-  const [syncingNow, setSyncingNow] = useState(false)
-  const [conflict, setConflict] = useState<{ sha: string; json: string; exportedAt?: string } | null>(null)
-  const [resolving, setResolving] = useState(false)
 
   // useSettings() resolves asynchronously (IndexedDB read), so the useState
   // initializers above never see a real settings value on first render.
@@ -110,68 +107,6 @@ export function Settings() {
   const setSyncEnabled = (next: boolean) => {
     if (next === syncEnabled) return
     saveConnection({ enabled: next })
-  }
-
-  const applySyncResult = (res: SyncNowResult) => {
-    switch (res.status) {
-      case 'in-sync':
-        showToast('Already up to date', 'success')
-        break
-      case 'pushed':
-        showToast('Synced to cloud', 'success')
-        break
-      case 'pulled':
-        showToast('Updated from cloud', 'success')
-        // Local data was replaced wholesale — refresh every query.
-        qc.invalidateQueries()
-        break
-      case 'conflict':
-        setConflict(res.remote)
-        break
-      case 'error':
-        showToast(`Sync failed: ${res.message}`, 'error')
-        break
-      case 'disabled':
-        break
-    }
-  }
-
-  const handleSyncNow = async () => {
-    setSyncingNow(true)
-    try {
-      applySyncResult(await syncNow())
-    } finally {
-      setSyncingNow(false)
-      qc.invalidateQueries({ queryKey: queryKeys.settings })
-    }
-  }
-
-  const handleKeepLocal = async () => {
-    setResolving(true)
-    try {
-      const res = await resolveConflictKeepLocal()
-      if (res.status === 'error') showToast(`Sync failed: ${res.message}`, 'error')
-      else showToast('Cloud replaced with this device', 'success')
-    } finally {
-      setResolving(false)
-      setConflict(null)
-      qc.invalidateQueries({ queryKey: queryKeys.settings })
-    }
-  }
-
-  const handleUseRemote = async () => {
-    if (!conflict) return
-    setResolving(true)
-    try {
-      const res = await resolveConflictUseRemote({ sha: conflict.sha, json: conflict.json })
-      if (res.status === 'error') showToast(`Sync failed: ${res.message}`, 'error')
-      else showToast('This device replaced with cloud data', 'success')
-    } finally {
-      setResolving(false)
-      setConflict(null)
-      // Local data was replaced wholesale — refresh every query.
-      qc.invalidateQueries()
-    }
   }
 
   return (
