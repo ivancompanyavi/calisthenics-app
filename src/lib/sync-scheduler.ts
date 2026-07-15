@@ -47,6 +47,30 @@ function configOf(gs: GithubSyncSettings): GithubSyncConfig {
   return { token: gs.token, owner: gs.owner, repo: gs.repo }
 }
 
+// ───────────────── Status-change pub-sub ─────────────────
+//
+// The scheduler writes settings.githubSync directly through settingsRepository,
+// bypassing React Query — so the settings query has no idea when this module
+// flips needsAttention/lastError/pendingSync (e.g. an automatic back-off after
+// a save). React surfaces (the attention banner, the Settings status icon)
+// subscribe here and invalidate the settings query when notified, so the UI
+// reacts immediately instead of waiting up to staleTime for a refetch. Mirrors
+// the toastListeners pattern in lib/toast.ts.
+
+type SyncStatusListener = () => void
+const statusListeners = new Set<SyncStatusListener>()
+
+export function onSyncStatusChange(listener: SyncStatusListener): () => void {
+  statusListeners.add(listener)
+  return () => {
+    statusListeners.delete(listener)
+  }
+}
+
+function notifySyncStatusChange(): void {
+  statusListeners.forEach((fn) => fn())
+}
+
 function formatCommitMessage(reason: string): string {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -88,6 +112,7 @@ async function patchSync(patch: Partial<GithubSyncSettings>): Promise<void> {
   const latest = await settingsRepository.get()
   if (latest.githubSync) {
     await settingsRepository.update({ githubSync: { ...latest.githubSync, ...patch } })
+    notifySyncStatusChange()
   }
 }
 
@@ -108,6 +133,7 @@ async function markDirty(): Promise<void> {
   const latest = await settingsRepository.get()
   if (latest.githubSync && !latest.githubSync.pendingSync) {
     await settingsRepository.update({ githubSync: { ...latest.githubSync, pendingSync: true } })
+    notifySyncStatusChange()
   }
 }
 
@@ -139,7 +165,14 @@ async function runSync(reason: string): Promise<void> {
     if (action === 'conflict' || action === 'pull') {
       // The remote diverged from our base. Automatic sync never overwrites and
       // never auto-imports — flag it so the next manual sync resolves it.
+      const wasFlagged = settings.githubSync.needsAttention ?? false
       await patchSync({ pendingSync: true, needsAttention: true })
+      // Toast only on the transition into the flagged state, not on every
+      // subsequent save while it stays flagged — the persistent banner carries
+      // the ongoing signal; this is just the immediate heads-up.
+      if (!wasFlagged) {
+        showToast('Sync paused — the cloud changed on another device. Tap the banner to resolve.', 'error')
+      }
       return
     }
 
@@ -194,6 +227,7 @@ export async function requestSync(reason: string): Promise<void> {
       await settingsRepository.update({
         githubSync: { ...settings.githubSync, pendingSync: true },
       })
+      notifySyncStatusChange()
     }
     await attemptSync(reason)
   } catch {
