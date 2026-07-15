@@ -1,19 +1,20 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MealLabelPicker } from '@/components/nutrition/MealLabelPicker'
 import { BarcodeScanner } from '@/components/nutrition/BarcodeScanner'
 import { useAddFoodLog } from '@/hooks/useFoodLog'
-import { useCreateCustomFood } from '@/hooks/useCustomFoods'
+import { useCreateCustomFood, useCustomFoods } from '@/hooks/useCustomFoods'
 import { lookupBarcode, type ScannedFood } from '@/lib/open-food-facts'
-import { ScanBarcode, Loader2 } from 'lucide-react'
+import { ScanBarcode, Loader2, Check } from 'lucide-react'
 import type { MealLabel } from '@/models/types'
 
 // Fourth logging path: scan a barcode → look it up on Open Food Facts → review
 // the product + portion → log (and optionally save it as a reusable custom
-// food). Online lookup; the UI distinguishes "couldn't read a barcode" (scan
-// problem) from "read it, but it's not in the database" (coverage gap), and
-// offers manual barcode entry as both a workaround and a way to tell them apart.
+// food), or save it to the library without logging anything. Online lookup;
+// the UI distinguishes "couldn't read a barcode" (scan problem) from "read it,
+// but it's not in the database" (coverage gap), and offers manual barcode
+// entry as both a workaround and a way to tell them apart.
 type Phase = 'idle' | 'scanning' | 'looking-up' | 'review' | 'not-found' | 'error'
 
 export function BarcodeScanForm({
@@ -29,13 +30,29 @@ export function BarcodeScanForm({
 }) {
   const addFoodLog = useAddFoodLog()
   const createCustomFood = useCreateCustomFood()
+  const { data: customFoods } = useCustomFoods()
   const [phase, setPhase] = useState<Phase>('idle')
   const [barcode, setBarcode] = useState('')
   const [manualInput, setManualInput] = useState('')
   const [scanned, setScanned] = useState<ScannedFood | null>(null)
   const [grams, setGrams] = useState('100')
   const [saveToFoods, setSaveToFoods] = useState(true)
+  const [savedThisScan, setSavedThisScan] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+
+  // CustomFood has no barcode field, so "already in the library" is matched by
+  // name + brand (case-insensitive) — good enough to stop re-scans of the same
+  // product from piling up duplicate library entries.
+  const inLibrary = useMemo(() => {
+    if (!scanned) return false
+    const name = scanned.name.trim().toLowerCase()
+    const brand = (scanned.brand ?? '').trim().toLowerCase()
+    return (customFoods ?? []).some(
+      (f) =>
+        f.name.trim().toLowerCase() === name && (f.brand ?? '').trim().toLowerCase() === brand
+    )
+  }, [customFoods, scanned])
+  const alreadySaved = inLibrary || savedThisScan
 
   // Shared by the scanner callback and manual entry — both feed the same
   // lookup. Reaching 'not-found'/'review' here proves the code was read.
@@ -52,6 +69,7 @@ export function BarcodeScanForm({
       }
       setScanned(food)
       setGrams('100')
+      setSavedThisScan(false)
       setPhase('review')
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : 'Lookup failed')
@@ -74,20 +92,26 @@ export function BarcodeScanForm({
         }
       : null
 
+  const saveToLibrary = async () => {
+    if (!scanned || alreadySaved) return
+    await createCustomFood.mutateAsync({
+      name: scanned.name,
+      brand: scanned.brand,
+      per: 'per100g',
+      kcal: scanned.kcal,
+      proteinG: scanned.proteinG,
+      carbG: scanned.carbG,
+      fatG: scanned.fatG,
+      fiberG: scanned.fiberG,
+      sodiumMg: scanned.sodiumMg,
+    })
+    setSavedThisScan(true)
+  }
+
   const submit = async () => {
     if (!scanned || !preview) return
     if (saveToFoods) {
-      await createCustomFood.mutateAsync({
-        name: scanned.name,
-        brand: scanned.brand,
-        per: 'per100g',
-        kcal: scanned.kcal,
-        proteinG: scanned.proteinG,
-        carbG: scanned.carbG,
-        fatG: scanned.fatG,
-        fiberG: scanned.fiberG,
-        sodiumMg: scanned.sodiumMg,
-      })
+      await saveToLibrary()
     }
     await addFoodLog.mutateAsync({
       date,
@@ -182,13 +206,29 @@ export function BarcodeScanForm({
           </p>
         )}
         <MealLabelPicker value={mealLabel} onChange={setMealLabel} />
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={saveToFoods} onChange={(e) => setSaveToFoods(e.target.checked)} />
-          Save to my foods (log it offline next time)
-        </label>
+        {alreadySaved ? (
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Check className="h-3.5 w-3.5" /> In your custom foods — log it offline next time
+          </p>
+        ) : (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={saveToFoods} onChange={(e) => setSaveToFoods(e.target.checked)} />
+            Save to my foods (log it offline next time)
+          </label>
+        )}
         <Button className="w-full" onClick={submit} disabled={scale <= 0 || addFoodLog.isPending}>
           Add food
         </Button>
+        {!alreadySaved && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={saveToLibrary}
+            disabled={createCustomFood.isPending}
+          >
+            Save to my foods without logging
+          </Button>
+        )}
         <button type="button" className="w-full text-xs text-muted-foreground underline" onClick={() => setPhase('scanning')}>
           Scan a different item
         </button>
