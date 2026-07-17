@@ -38,9 +38,35 @@ export interface SeedProgression {
   entryPrerequisites?: SeedSkillPrerequisite[];
 }
 
+// A pattern-slot references a movement pattern (e.g. "vertical-pull") that
+// resolves at runtime to the hardest UNLOCKED progression in its candidate
+// chain — the adaptive-program primitive. Not yet consumed by the resolver
+// (that wiring lands with the first adaptive program); the type + data + pure
+// resolver ship first so nothing in production depends on it.
+export type PatternGroup = "pull" | "push" | "legs" | "core" | "skill";
+
+export interface SeedPattern {
+  // Stable key referenced by a block entry's `pattern` field.
+  key: string;
+  // Human label for the slot (shown where the resolved movement is prescribed).
+  label: string;
+  group: PatternGroup;
+  // When true, the slot is omitted if the athlete has unlocked none of the
+  // candidates (skill/static work a beginner shouldn't be handed). When false,
+  // the last candidate MUST be an ungated foundational progression, so the slot
+  // always resolves to something (enforced by patterns.test.ts).
+  optional?: boolean;
+  // Candidate progressions by name, HARDEST → EASIEST. Resolves to the hardest
+  // whose entry gate is unlocked.
+  candidates: string[];
+}
+
 export interface SeedEntryDef {
   progression?: string;
   movement?: string;
+  // Pattern-slot key (resolves to the hardest unlocked progression). Mutually
+  // exclusive with `progression` / `movement`.
+  pattern?: string;
   mode?: SetMode;
   targetReps?: number;
   targetSeconds?: number;
