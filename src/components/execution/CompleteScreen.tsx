@@ -5,6 +5,7 @@ import { Trophy, TrendingUp } from 'lucide-react'
 import type { LevelUpCandidate, Progression } from '@/models/types'
 import type { ReadinessVerdict } from '@/lib/readiness-engine'
 import { AdvanceSuggestionCard } from '@/components/progressions/AdvanceSuggestionCard'
+import { UnlockCelebration } from '@/components/execution/UnlockCelebration'
 
 interface ReadyVerdict {
   progression: Progression
@@ -115,6 +116,9 @@ export function CompleteScreen({
           disabled={saved}
         />
       </div>
+
+      {/* Post-save skill-unlock celebration (fires once per newly-achieved node) */}
+      {saved && <UnlockCelebration />}
 
       {/* Post-save readiness cards for progressions trained in this session */}
       {saved && readyVerdicts.length > 0 && (

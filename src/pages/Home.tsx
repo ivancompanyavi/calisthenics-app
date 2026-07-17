@@ -50,6 +50,24 @@ export function Home() {
     navigate(`/execute/${workoutId}?slot=${slotIndex}`)
   }
 
+  // Home shows only the workouts of the program you're currently on (the phase
+  // you're at), not the whole catalog — the full list lives on the Workouts
+  // tab ("View All"). Falls back to all workouts when no program is active.
+  const programWorkoutIds = useMemo(() => {
+    if (!currentSlot?.cycleSlots) return null
+    const ids = new Set<string>()
+    for (const slot of currentSlot.cycleSlots) {
+      if (slot.workoutId) ids.add(slot.workoutId)
+    }
+    return ids.size > 0 ? ids : null
+  }, [currentSlot])
+
+  const shownWorkouts = useMemo(() => {
+    if (!workouts) return []
+    if (!programWorkoutIds) return workouts
+    return workouts.filter((w) => programWorkoutIds.has(w.id))
+  }, [workouts, programWorkoutIds])
+
   return (
     <div>
       <PageHeader title="Calisthenics">
@@ -123,7 +141,10 @@ export function Home() {
         )}
 
         <GoalsCard />
-        <WorkoutsList workouts={workouts ?? []} />
+        <WorkoutsList
+          workouts={shownWorkouts}
+          title={programWorkoutIds ? currentSlot?.programName ?? 'This Program' : 'Your Workouts'}
+        />
         <RecentActivityList logs={recentLogs?.slice(0, 3) ?? []} />
         <DataIOSection />
       </div>

@@ -367,6 +367,11 @@ export interface Settings {
   // When false (or absent), the warm-up is skipped. Last choice persists.
   // Non-indexed — no Dexie version bump required.
   warmupEnabled?: boolean
+  // Skill-atlas node ids whose "unlocked!" celebration has already been shown,
+  // so the post-workout reward only fires for genuinely-new unlocks. Seeded
+  // silently with whatever's already achieved on first encounter (no flood).
+  // Non-indexed — no Dexie version bump required.
+  celebratedSkillIds?: string[]
   // When true, opening the app on a scheduled-workout day fires a local
   // notification naming today's workout (requires Notification permission).
   // Local-first only — true background/push delivery needs a server, which is

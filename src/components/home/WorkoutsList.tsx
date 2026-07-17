@@ -6,15 +6,16 @@ import type { Workout } from '@/models/types'
 
 interface WorkoutsListProps {
   workouts: Workout[]
+  title?: string
 }
 
-export function WorkoutsList({ workouts }: WorkoutsListProps) {
+export function WorkoutsList({ workouts, title = 'Your Workouts' }: WorkoutsListProps) {
   const navigate = useNavigate()
 
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Your Workouts</h2>
+        <h2 className="text-lg font-semibold">{title}</h2>
         <Button variant="ghost" size="sm" onClick={() => navigate('/workouts')}>
           View All
         </Button>
