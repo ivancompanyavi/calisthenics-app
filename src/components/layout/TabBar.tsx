@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Clock, Dumbbell, CalendarDays, Library, Map, Utensils } from 'lucide-react'
+import { Home, Clock, Library, Map, Utensils } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+// Workouts + Programs are no longer top-level tabs — they live under Library as
+// sub-tabs (with Movements + Progressions), the authoring hub. Their routes
+// still exist for deep links (Home "View All", edit screens).
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/history', icon: Clock, label: 'History' },
-  { to: '/workouts', icon: Dumbbell, label: 'Workouts' },
-  { to: '/programs', icon: CalendarDays, label: 'Programs' },
   { to: '/nutrition', icon: Utensils, label: 'Nutrition' },
   { to: '/library', icon: Library, label: 'Library' },
   { to: '/atlas', icon: Map, label: 'Atlas' },
