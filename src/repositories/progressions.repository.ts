@@ -151,6 +151,22 @@ export const progressionsRepository = {
   },
 
   /**
+   * "Unblock anyway": mark a still-gated progression as manually unlocked so it
+   * becomes trainable despite unmet entry prerequisites. Stamped with a
+   * timestamp so the UI can flag it as opened manually rather than earned.
+   */
+  setManuallyUnlocked: async (id: string): Promise<void> => {
+    await db.progressions.update(id, { manuallyUnlockedAt: Date.now() })
+  },
+
+  /**
+   * Re-lock a progression that was manually unblocked (clears the override).
+   */
+  clearManuallyUnlocked: async (id: string): Promise<void> => {
+    await db.progressions.update(id, { manuallyUnlockedAt: undefined })
+  },
+
+  /**
    * Decrement currentLevel by 1, flooring at 0 (never goes below the first rung).
    */
   decrementCurrentLevel: async (id: string, currentLevel: number): Promise<void> => {

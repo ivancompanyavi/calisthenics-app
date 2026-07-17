@@ -109,6 +109,12 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P2 — One-Arm Push-Up (family: push) ──────────────────────────────────
   {
     name: "One-Arm Push-Up Progression",
+    // Chart-adjacent substitution rule: own the full push-up base before the
+    // unilateral line (OG2 Ch.3 p.28). [CONVENTION]
+    entryPrerequisites: [
+      { kind: "progression-level", progression: "Push-Up Progression", levelOrder: 3 },
+      { kind: "movement-pr", movement: "Push-Ups", minReps: 20 },
+    ],
     levels: [
       {
         movement: "Hands-Elevated One-Arm Push-Up",
@@ -202,6 +208,10 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P4 — Rings Dip → Maltese (family: push) ──────────────────────────────
   {
     name: "Rings Dip & Maltese Progression",
+    // Stable bar dips before unstable rings dips. [CONVENTION]
+    entryPrerequisites: [
+      { kind: "progression-level", progression: "Dip Progression", levelOrder: 2 },
+    ],
     levels: [
       {
         movement: "Rings Support Hold",
@@ -335,6 +345,11 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P6 — Planche Push-Up (family: push) ──────────────────────────────────
   {
     name: "Planche Push-Up Progression",
+    // Must own the static tuck-planche hold before pressing in it — the
+    // push-up lags one level behind the isometric. [CONVENTION/SCIENCE]
+    entryPrerequisites: [
+      { kind: "progression-level", progression: "Planche Progression", levelOrder: 2 },
+    ],
     levels: [
       {
         movement: "Tuck Planche Push-Up",
@@ -415,6 +430,11 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P8 — Straight-Arm Press to Handstand (family: push) ──────────────────
   {
     name: "Straight-Arm Press to Handstand",
+    // Own the overhead/inverted position the press lands in first. [SCIENCE]
+    // (overhead mobility) + [CONVENTION].
+    entryPrerequisites: [
+      { kind: "movement-pr", movement: "Wall Handstand Hold", minSeconds: 30 },
+    ],
     levels: [
       {
         movement: "Wall Straddle Press Eccentric",
@@ -501,6 +521,10 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P10 — Weighted Pull-Up (family: pull) — strength axis ────────────────
   {
     name: "Weighted Pull-Up Progression",
+    // No external load until a solid bodyweight pull-up base exists. [CONVENTION]
+    entryPrerequisites: [
+      { kind: "movement-pr", movement: "Pull-Ups", minReps: 8 },
+    ],
     levels: [
       {
         movement: "Weighted Pull-Up +25% BW",
@@ -532,6 +556,12 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P11 — Ring Pull-Up → One-Arm Chin-Up (family: pull) ──────────────────
   {
     name: "Ring Pull-Up & OAC Progression",
+    // Pull base + back lever first (connective-tissue safety for the one-arm
+    // rungs, OG2 Ch.3 p.28). [CONVENTION]
+    entryPrerequisites: [
+      { kind: "movement-pr", movement: "Pull-Ups", minReps: 8 },
+      { kind: "progression-level", progression: "Back Lever Progression", levelOrder: 6 },
+    ],
     levels: [
       {
         movement: "Rings L-Sit Pull-Up",
@@ -618,6 +648,14 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P13 — Back Lever (family: pull) ──────────────────────────────────────
   {
     name: "Back Lever Progression",
+    // German hang (rung 0) is a deep loaded shoulder-extension position, NOT a
+    // universal beginner move — forcing it risks shoulder impingement / biceps
+    // tendon strain. Gate on a hang-comfort floor (imperfect proxy for the real
+    // shoulder-mobility limiter; "unblock anyway" + a mobility cue cover the
+    // gap). OG2 treats a 30s german hang as the mobility safety gate. [CONVENTION]
+    entryPrerequisites: [
+      { kind: "movement-pr", movement: "Dead Hang", minSeconds: 45 },
+    ],
     levels: [
       {
         movement: "German Hang",
@@ -673,6 +711,11 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P14 — Front Lever (family: pull) ─────────────────────────────────────
   {
     name: "Front Lever Progression",
+    // Back lever before front lever (OG2 Ch.3 p.28). Gate on back lever
+    // meaningfully underway (advanced tuck), not the full hold. [CONVENTION]
+    entryPrerequisites: [
+      { kind: "progression-level", progression: "Back Lever Progression", levelOrder: 3 },
+    ],
     levels: [
       {
         movement: "Front Lever Tuck Hold",
@@ -716,6 +759,11 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P15 — Front Lever Row (family: pull) — accessory line ────────────────
   {
     name: "Front Lever Row Progression",
+    // Own the tuck front-lever hold before rowing in it; transitively inherits
+    // the back-lever ordering. [CONVENTION]
+    entryPrerequisites: [
+      { kind: "progression-level", progression: "Front Lever Progression", levelOrder: 0 },
+    ],
     levels: [
       {
         movement: "Tuck Front Lever Row",
@@ -741,6 +789,12 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P16 — Muscle-Up (family: pull) ───────────────────────────────────────
   {
     name: "Muscle-Up Progression",
+    // Combined pull-to-support: needs a pull-up base and a ring-dip base.
+    // [CONVENTION]
+    entryPrerequisites: [
+      { kind: "movement-pr", movement: "Pull-Ups", minReps: 8 },
+      { kind: "movement-pr", movement: "Ring Dips", minReps: 5 },
+    ],
     levels: [
       {
         movement: "False-Grip Hang",
@@ -784,6 +838,16 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P17 — Iron Cross (family: pull) ──────────────────────────────────────
   {
     name: "Iron Cross Progression",
+    // Hard, mandatory gate even for the assisted rung: both levers first, plus
+    // deep rings-dip strength and a pull base (OG2 Ch.3 p.28). Rings adv-tuck
+    // planche + rings-strap HSPU stay advisory, not hard edges (per skills.ts).
+    // [book]
+    entryPrerequisites: [
+      { kind: "progression-level", progression: "Back Lever Progression", levelOrder: 6 },
+      { kind: "progression-level", progression: "Front Lever Progression", levelOrder: 3 },
+      { kind: "progression-level", progression: "Rings Dip & Maltese Progression", levelOrder: 7 },
+      { kind: "movement-pr", movement: "Pull-Ups", minReps: 8 },
+    ],
     levels: [
       {
         movement: "Iron Cross (assisted)",
@@ -1091,6 +1155,11 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   // ── P-HF — Human Flag (family: pull — push/pull couple) ──────────────────
   {
     name: "Human Flag Progression",
+    // Pull base to begin the tuck-flag rungs; push-side requirement stays
+    // qualitative (no clean single-number movement to key it to). [CONVENTION]
+    entryPrerequisites: [
+      { kind: "movement-pr", movement: "Pull-Ups", minReps: 8 },
+    ],
     levels: [
       {
         movement: "Tuck Human Flag",

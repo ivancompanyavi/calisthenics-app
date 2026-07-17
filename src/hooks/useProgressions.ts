@@ -85,6 +85,33 @@ export function useUpdateCurrentLevel() {
 }
 
 /**
+ * "Unblock anyway": mark a gated progression as manually unlocked so it becomes
+ * trainable despite unmet entry prerequisites.
+ */
+export function useSetManuallyUnlocked() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => progressionsRepository.setManuallyUnlocked(id),
+    onSuccess: (_res, id) => {
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.detail(id) })
+    },
+  })
+}
+
+/** Re-lock a manually-unblocked progression (clears the override). */
+export function useClearManuallyUnlocked() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => progressionsRepository.clearManuallyUnlocked(id),
+    onSuccess: (_res, id) => {
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.all })
+      qc.invalidateQueries({ queryKey: queryKeys.progressions.detail(id) })
+    },
+  })
+}
+
+/**
  * Checks which progressions are ready to level up.
  * A progression is ready if it hit targets in the current session AND
  * the most recent previous session for the same movement.

@@ -7,6 +7,7 @@ import { useMovements } from '@/hooks/useMovements'
 import { useMovementPRs } from '@/hooks/useHistory'
 import { evaluateSkills } from '@/lib/skill-atlas'
 import type { SkillStatus } from '@/lib/skill-atlas'
+import { buildPrereqLabelMaps, labelPrerequisite } from '@/lib/prerequisite-labels'
 import type { Skill } from '@/models/types'
 
 /** A prerequisite with its progress and human-readable labels resolved. */
@@ -51,43 +52,16 @@ export function useSkillAtlas(): { data: SkillAtlasData | null; isLoading: boole
     // that doesn't affect the evaluator, which only reads `id` and `currentLevel`.
     const results = evaluateSkills(skills, progressions, prs)
 
-    // Name-resolution maps for turning ids into human-readable prerequisite labels.
-    const progressionNameById = new Map(progressions.map((p) => [p.id, p.name]))
-    const movementNameById = new Map(movements.map((m) => [m.id, m.name]))
-    // (progressionId, order) → movement name, for "reach <rung>" detail text.
-    const rungMovementName = new Map<string, string>()
-    for (const lvl of levels) {
-      const mv = movementNameById.get(lvl.movementId)
-      if (mv) rungMovementName.set(`${lvl.progressionId}:${lvl.order}`, mv)
-    }
+    const maps = buildPrereqLabelMaps(progressions, levels, movements)
 
     const resolved: ResolvedSkillResult[] = results.map((r) => ({
       skillId: r.skillId,
       status: r.status,
-      prerequisites: r.prerequisites.map((pr): ResolvedPrerequisite => {
-        const { prerequisite, met, progress } = pr
-        if (prerequisite.kind === 'progression-level') {
-          const progName = progressionNameById.get(prerequisite.progressionId) ?? 'Progression'
-          const rung = rungMovementName.get(
-            `${prerequisite.progressionId}:${prerequisite.levelOrder}`,
-          )
-          return {
-            met,
-            progress,
-            label: progName,
-            detail: rung ? `Reach ${rung}` : `Reach level ${prerequisite.levelOrder + 1}`,
-          }
-        }
-        // movement-pr
-        const mvName = movementNameById.get(prerequisite.movementId) ?? 'Movement'
-        const target =
-          prerequisite.minReps != null
-            ? `${prerequisite.minReps} reps`
-            : prerequisite.minSeconds != null
-              ? `Hold ${prerequisite.minSeconds}s`
-              : 'Any PR'
-        return { met, progress, label: mvName, detail: target }
-      }),
+      prerequisites: r.prerequisites.map((pr): ResolvedPrerequisite => ({
+        met: pr.met,
+        progress: pr.progress,
+        ...labelPrerequisite(pr.prerequisite, maps),
+      })),
     }))
 
     return { skills, results: resolved }

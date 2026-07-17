@@ -6,7 +6,7 @@ import { Dialog, DialogTitle } from '@/components/ui/dialog'
 import { useSkillAtlas } from '@/hooks/useSkillAtlas'
 import type { ResolvedSkillResult, ResolvedPrerequisite } from '@/hooks/useSkillAtlas'
 import type { SkillStatus } from '@/lib/skill-atlas'
-import type { Skill } from '@/models/types'
+import type { Skill, SkillTier } from '@/models/types'
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 
@@ -164,38 +164,76 @@ function SkillCard({ skill, result, onTap }: SkillCardProps) {
   )
 }
 
-// ── Section ───────────────────────────────────────────────────────────────────
+// ── Tier grouping ───────────────────────────────────────────────────────────
 
-interface SectionProps {
-  status: SkillStatus
+const TIER_ORDER: SkillTier[] = ['foundation', 'intermediate', 'advanced', 'elite']
+const TIER_LABEL: Record<SkillTier, string> = {
+  foundation: 'Foundation',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+  elite: 'Elite',
+}
+// Legacy rows without a tier fall into 'intermediate'.
+const tierOf = (s: Skill): SkillTier => s.tier ?? 'intermediate'
+// Within a tier, surface what's next-up before what's done.
+const STATUS_SORT: Record<SkillStatus, number> = { 'in-reach': 0, blocked: 1, achieved: 2 }
+
+interface TierSectionProps {
+  tier: SkillTier
   skills: Skill[]
   results: ResolvedSkillResult[]
   onTap: (skillId: string) => void
 }
 
-function Section({ status, skills, results, onTap }: SectionProps) {
+function TierSection({ tier, skills, results, onTap }: TierSectionProps) {
   if (skills.length === 0) return null
-  const config = STATUS_CONFIG[status]
+  const statusOf = (id: string) => results.find((r) => r.skillId === id)?.status ?? 'blocked'
+  const achieved = skills.filter((s) => statusOf(s.id) === 'achieved').length
+  const sorted = [...skills].sort(
+    (a, b) => STATUS_SORT[statusOf(a.id)] - STATUS_SORT[statusOf(b.id)],
+  )
 
   return (
     <section className="mb-6">
-      <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-1">
-        {config.label} ({skills.length})
+      <h2 className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 px-1">
+        <span>{TIER_LABEL[tier]}</span>
+        <span className="tabular-nums">
+          {achieved}/{skills.length}
+        </span>
       </h2>
       <div className="space-y-2">
-        {skills.map((skill) => {
-          const result = results.find((r) => r.skillId === skill.id)!
-          return (
-            <SkillCard
-              key={skill.id}
-              skill={skill}
-              result={result}
-              onTap={() => onTap(skill.id)}
-            />
-          )
-        })}
+        {sorted.map((skill) => (
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            result={results.find((r) => r.skillId === skill.id)!}
+            onTap={() => onTap(skill.id)}
+          />
+        ))}
       </div>
     </section>
+  )
+}
+
+// ── Overall unlock summary ────────────────────────────────────────────────────
+
+function UnlockSummary({ achieved, total }: { achieved: number; total: number }) {
+  const pct = total === 0 ? 0 : Math.round((achieved / total) * 100)
+  return (
+    <div className="mb-6 mt-1">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-sm font-medium">Skills unlocked</span>
+        <span className="text-sm tabular-nums text-muted-foreground">
+          {achieved} / {total}
+        </span>
+      </div>
+      <div className="h-2 bg-secondary rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full bg-emerald-400 transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -208,13 +246,8 @@ export function AtlasPage() {
   const selectedSkill = data?.skills.find((s) => s.id === selectedId)
   const selectedResult = data?.results.find((r) => r.skillId === selectedId)
 
-  // Partition skills by status.
-  const byStatus = (status: SkillStatus): Skill[] => {
-    if (!data) return []
-    return data.skills.filter(
-      (s) => data.results.find((r) => r.skillId === s.id)?.status === status,
-    )
-  }
+  const achievedCount =
+    data?.results.filter((r) => r.status === 'achieved').length ?? 0
 
   return (
     <div>
@@ -224,26 +257,18 @@ export function AtlasPage() {
           <p className="text-muted-foreground text-sm mt-8 text-center">Loading…</p>
         )}
 
-        {!isLoading && data && (
+        {!isLoading && data && data.skills.length > 0 && (
           <>
-            <Section
-              status="achieved"
-              skills={byStatus('achieved')}
-              results={data.results}
-              onTap={setSelectedId}
-            />
-            <Section
-              status="in-reach"
-              skills={byStatus('in-reach')}
-              results={data.results}
-              onTap={setSelectedId}
-            />
-            <Section
-              status="blocked"
-              skills={byStatus('blocked')}
-              results={data.results}
-              onTap={setSelectedId}
-            />
+            <UnlockSummary achieved={achievedCount} total={data.skills.length} />
+            {TIER_ORDER.map((tier) => (
+              <TierSection
+                key={tier}
+                tier={tier}
+                skills={data.skills.filter((s) => tierOf(s) === tier)}
+                results={data.results}
+                onTap={setSelectedId}
+              />
+            ))}
           </>
         )}
 

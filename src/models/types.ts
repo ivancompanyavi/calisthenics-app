@@ -23,6 +23,15 @@ export interface Progression {
   // See Workout.seedFingerprint — same idea for progressions. Lets the seed
   // loop skip the levels rewrite when nothing changed.
   seedFingerprint?: string
+  // Entry gate: prerequisites that must be met before this progression is
+  // "unlocked" (trainable). Resolved to ids at seed time from the seed's
+  // name-based list (same shape as Skill.prerequisites). Absent/empty = no
+  // gate (foundational progression, always unlocked). Evaluated by
+  // src/lib/progression-gate.ts.
+  entryPrerequisites?: SkillPrerequisite[]
+  // "Unblock anyway" override: timestamp of when the user chose to train this
+  // progression despite unmet entry prerequisites. Present = manually unlocked.
+  manuallyUnlockedAt?: number
   // Snooze fields for the readiness suggest-and-confirm card.
   // Non-indexed — no Dexie version bump required.
   // Set when the user dismisses the "ready to advance" card; cleared when they
@@ -531,6 +540,10 @@ export type SkillPrerequisite =
       minSeconds?: number
     }
 
+// Difficulty tier for grouping skills in the Atlas as a climbable tree.
+// Roughly maps to OG2's population bands (beginner→elite, Ch.3 p.22).
+export type SkillTier = 'foundation' | 'intermediate' | 'advanced' | 'elite'
+
 // A skill node in the atlas. Prerequisites are stored with resolved ids so
 // the evaluator never needs to do name lookups at evaluation time.
 export interface Skill {
@@ -538,6 +551,9 @@ export interface Skill {
   name: string
   description?: string
   prerequisites: SkillPrerequisite[]
+  // Difficulty tier for Atlas grouping. Absent on legacy rows (treated as
+  // 'intermediate' by the UI).
+  tier?: SkillTier
   // Content fingerprint — same semantics as Workout.seedFingerprint.
   seedFingerprint?: string
   createdAt: number

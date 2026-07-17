@@ -1,8 +1,9 @@
-import { ArrowLeft, ArrowUp, ArrowDown, Play, TrendingUp, Flame } from 'lucide-react'
+import { ArrowLeft, ArrowUp, ArrowDown, Play, TrendingUp, Flame, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { formatTime, formatTempo } from '@/lib/utils'
+import { useProgressionGates } from '@/hooks/useProgressionGates'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 
 interface SessionPreviewScreenProps {
@@ -50,6 +51,7 @@ export function SessionPreviewScreen({
   onBack,
   onReorderEntry,
 }: SessionPreviewScreenProps) {
+  const { data: gates } = useProgressionGates()
   return (
     <div className="min-h-dvh flex flex-col bg-background safe-top">
       {/* Header */}
@@ -175,6 +177,13 @@ export function SessionPreviewScreen({
                                 ⚠ gated
                               </span>
                             )}
+                            {entry.progressionId &&
+                              gates?.get(entry.progressionId) &&
+                              !gates.get(entry.progressionId)!.unlocked && (
+                                <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
+                                  <Lock className="h-2.5 w-2.5" /> locked
+                                </span>
+                              )}
                             {entry.suggestedReps != null && entry.suggestedReps !== entry.targetReps && (
                               <span className="text-[10px] text-primary">
                                 ↑ from {entry.targetReps}

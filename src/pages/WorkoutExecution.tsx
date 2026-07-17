@@ -7,7 +7,9 @@ import {
   useProgressionReadiness,
   useProgressions,
   useProgressionVerdicts,
+  useSetManuallyUnlocked,
 } from '@/hooks/useProgressions'
+import { useProgressionGates } from '@/hooks/useProgressionGates'
 import { useAdvanceWithAudit } from '@/hooks/useAdvanceWithAudit'
 import { useInProgressWorkout } from '@/hooks/useInProgressWorkout'
 import { useMarkSlotDone } from '@/hooks/usePrograms'
@@ -20,6 +22,7 @@ import { RestScreen } from '@/components/execution/RestScreen'
 import { AdjustScreen } from '@/components/execution/AdjustScreen'
 import { CompleteScreen } from '@/components/execution/CompleteScreen'
 import { GatePrompt } from '@/components/execution/GatePrompt'
+import { LockedPrompt } from '@/components/execution/LockedPrompt'
 import { SessionPreviewScreen } from '@/components/execution/SessionPreviewScreen'
 import { Button } from '@/components/ui/button'
 import { useConfirm } from '@/components/ui/confirm-context'
@@ -95,11 +98,22 @@ export function WorkoutExecution() {
     setGateAcknowledged(new Set())
   }
 
+  // Entry-gate lock: if the current entry is progression-bound and that
+  // progression is still locked, show the LockedPrompt instead of prescribing
+  // the exercise. Takes precedence over the readiness gate.
+  const { data: gates } = useProgressionGates()
+  const setUnlocked = useSetManuallyUnlocked()
+  const currentGate = currentEntry?.progressionId
+    ? gates?.get(currentEntry.progressionId)
+    : undefined
+  const showLock = state.phase === 'exercise' && !!currentGate && !currentGate.unlocked
+
   const gateKey = `${state.currentBlockIndex}-${state.currentRound}-${state.currentEntryIndex}`
   const showGate =
     state.phase === 'exercise' &&
     !!currentEntry?.gate &&
-    !gateAcknowledged.has(gateKey)
+    !gateAcknowledged.has(gateKey) &&
+    !showLock
 
   // SetLog now carries progressionId directly, so we can collect the set of
   // progressions this workout exercised without searching block structure.
@@ -331,6 +345,23 @@ export function WorkoutExecution() {
       </div>
 
       <div className="flex-1 flex flex-col">
+        {showLock && currentEntry && currentGate && (
+          <LockedPrompt
+            entry={currentEntry}
+            prerequisites={currentGate.prerequisites}
+            onUnblock={() => {
+              if (currentEntry.progressionId) setUnlocked.mutate(currentEntry.progressionId)
+            }}
+            onSkip={() =>
+              dispatch({
+                type: 'SKIP_EXERCISE',
+                now: Date.now(),
+                reason: 'Skipped — progression locked',
+              })
+            }
+          />
+        )}
+
         {showGate && currentEntry?.gate && (
           <GatePrompt
             entry={currentEntry}
@@ -358,7 +389,7 @@ export function WorkoutExecution() {
           />
         )}
 
-        {state.phase === 'exercise' && currentEntry && !showGate && (
+        {state.phase === 'exercise' && currentEntry && !showGate && !showLock && (
           <ExerciseDisplay
             entry={currentEntry}
             timeRemaining={state.exerciseTimeRemaining}

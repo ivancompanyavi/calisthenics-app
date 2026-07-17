@@ -4,6 +4,7 @@ import {
   useDeleteProgression,
   useProgressionVerdicts,
 } from '@/hooks/useProgressions'
+import { useProgressionGates } from '@/hooks/useProgressionGates'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -14,12 +15,13 @@ import { ProgressionDetail } from './ProgressionDetail'
 import { AdvanceSuggestionCard } from './AdvanceSuggestionCard'
 import { RegressingSuggestionCard } from './RegressingSuggestionCard'
 import { StuckActionCard } from './StuckActionCard'
-import { Plus, Pencil, Trash2, ChevronRight } from 'lucide-react'
+import { Plus, Pencil, Trash2, ChevronRight, Lock } from 'lucide-react'
 import type { Progression } from '@/models/types'
 
 export function ProgressionsList() {
   const { data: progressions, isLoading } = useProgressions()
   const { data: verdicts } = useProgressionVerdicts()
+  const { data: gates } = useProgressionGates()
   const deleteProgression = useDeleteProgression()
   const confirm = useConfirm()
   const [editingProgression, setEditingProgression] = useState<Progression | null>(null)
@@ -64,6 +66,8 @@ export function ProgressionsList() {
           verdict?.kind === 'regressing' && !verdict.snoozed
         const showStuckCard =
           verdict?.kind === 'stuck'
+        const gate = gates?.get(progression.id)
+        const locked = gate ? !gate.unlocked : false
         return (
           <div key={progression.id} className="space-y-2">
             <Card className="p-3">
@@ -72,9 +76,13 @@ export function ProgressionsList() {
                   className="flex-1 min-w-0 text-left touch-manipulation"
                   onClick={() => setViewingProgression(progression)}
                 >
-                  <p className="font-medium truncate">{progression.name}</p>
+                  <p className="font-medium truncate flex items-center gap-1.5">
+                    {locked && <Lock className="h-3.5 w-3.5 shrink-0 text-amber-500" />}
+                    <span className="truncate">{progression.name}</span>
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Level {progression.currentLevel + 1} / {progression.levelCount}
+                    {locked && <span className="text-amber-500"> · Locked</span>}
                   </p>
                 </button>
                 <div className="flex gap-1 items-center">

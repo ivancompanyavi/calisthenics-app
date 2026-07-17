@@ -1,9 +1,16 @@
-import { useProgression, useProgressionLevels, useUpdateCurrentLevel } from '@/hooks/useProgressions'
+import {
+  useProgression,
+  useProgressionLevels,
+  useUpdateCurrentLevel,
+  useSetManuallyUnlocked,
+  useClearManuallyUnlocked,
+} from '@/hooks/useProgressions'
+import { useProgressionGates } from '@/hooks/useProgressionGates'
 import { useAdvanceWithAudit } from '@/hooks/useAdvanceWithAudit'
 import { DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
-import { ChevronLeft, ChevronRight, Pencil } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Lock, LockOpen, Check } from 'lucide-react'
 import type { Progression } from '@/models/types'
 import { cn } from '@/lib/utils'
 
@@ -16,7 +23,11 @@ export function ProgressionDetail({ progression: initialProgression, onEdit }: P
   const { data: freshProgression } = useProgression(initialProgression.id)
   const progression = freshProgression ?? initialProgression
   const { data: levels } = useProgressionLevels(progression.id)
+  const { data: gates } = useProgressionGates()
+  const gate = gates?.get(progression.id)
   const updateLevel = useUpdateCurrentLevel()
+  const setUnlocked = useSetManuallyUnlocked()
+  const clearUnlocked = useClearManuallyUnlocked()
   const { advance } = useAdvanceWithAudit()
 
   const currentLevel = progression.currentLevel
@@ -43,6 +54,58 @@ export function ProgressionDetail({ progression: initialProgression, onEdit }: P
           <Pencil className="h-4 w-4" />
         </Button>
       </div>
+
+      {gate && !gate.unlocked && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2.5">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Lock className="h-4 w-4" /> Locked — unlock by:
+          </div>
+          <ul className="space-y-1.5">
+            {gate.prerequisites.map((pr, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                {pr.met ? (
+                  <Check className="h-3.5 w-3.5 shrink-0 text-green-600" />
+                ) : (
+                  <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-muted-foreground/40" />
+                )}
+                <span className={cn('flex-1', pr.met && 'text-muted-foreground line-through')}>
+                  {pr.label}
+                  {pr.detail ? <span className="text-muted-foreground"> — {pr.detail}</span> : null}
+                </span>
+                {!pr.met && pr.progress > 0 && (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {Math.round(pr.progress * 100)}%
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setUnlocked.mutate(progression.id)}
+            disabled={setUnlocked.isPending}
+          >
+            Unblock anyway
+          </Button>
+        </div>
+      )}
+
+      {gate?.manuallyUnlocked && (
+        <div className="flex items-center justify-between rounded-lg border border-input bg-secondary/40 p-2 text-xs">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <LockOpen className="h-3.5 w-3.5" /> Unlocked manually — prerequisites not yet met
+          </span>
+          <button
+            type="button"
+            className="underline text-muted-foreground"
+            onClick={() => clearUnlocked.mutate(progression.id)}
+          >
+            Re-lock
+          </button>
+        </div>
+      )}
 
       {currentMovement && (
         <div className="flex flex-col items-center gap-3">

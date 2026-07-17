@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { ExerciseDetailDialog } from '@/components/workouts/ExerciseDetailDialog'
-import { ArrowLeft, Pencil, Play, TrendingUp } from 'lucide-react'
+import { ArrowLeft, Pencil, Play, TrendingUp, Lock } from 'lucide-react'
+import { useProgressionGates } from '@/hooks/useProgressionGates'
 import { formatTime, formatTempo } from '@/lib/utils'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 
@@ -41,6 +42,7 @@ export function WorkoutDetail() {
   const { data: blocks } = useWorkoutBlocks(id)
   const blockIds = blocks?.map((b) => b.id) ?? []
   const { data: entries } = useAllBlockEntries(blockIds)
+  const { data: gates } = useProgressionGates()
 
   const [resolved, setResolved] = useState<ResolvedBlock[] | null>(null)
   const [detail, setDetail] = useState<{
@@ -172,6 +174,13 @@ export function WorkoutDetail() {
                               ⚠ gated
                             </span>
                           )}
+                          {entry.progressionId &&
+                            gates?.get(entry.progressionId) &&
+                            !gates.get(entry.progressionId)!.unlocked && (
+                              <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
+                                <Lock className="h-2.5 w-2.5" /> locked
+                              </span>
+                            )}
                           {entry.suggestedReps != null && entry.suggestedReps !== entry.targetReps && (
                             <span className="text-[10px] text-primary">
                               ↑ from {entry.targetReps}

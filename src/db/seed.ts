@@ -27,6 +27,7 @@ import type {
   SeedProgram,
   SeedProgression,
   SeedSkill,
+  SeedSkillPrerequisite,
 } from "./seed/types";
 import { lbToKg } from "@/lib/units";
 
@@ -618,20 +619,22 @@ function skillFingerprint(ss: SeedSkill): string {
   return stableStringify({
     name: ss.name,
     description: ss.description ?? "",
+    tier: ss.tier ?? "",
     prerequisites: ss.prerequisites,
   });
 }
 
-// Resolve a seed skill's name-based prerequisites to id-based ones.
-// Silently skips any prerequisite whose progression/movement name isn't found
-// in the maps — consistent with how buildBlocks handles unknown names.
-function resolveSeedSkillPrerequisites(
-  ss: SeedSkill,
+// Resolve name-based seed prerequisites to id-based ones. Silently skips any
+// prerequisite whose progression/movement name isn't found in the maps —
+// consistent with how buildBlocks handles unknown names. Shared by skill nodes
+// and progression entry gates.
+function resolveSeedPrerequisites(
+  seedPrereqs: SeedSkillPrerequisite[],
   progressionMap: Map<string, string>,
   movementMap: Map<string, string>,
 ): SkillPrerequisite[] {
   const prerequisites: SkillPrerequisite[] = [];
-  for (const prereq of ss.prerequisites) {
+  for (const prereq of seedPrereqs) {
     if (prereq.kind === "progression-level") {
       const progressionId = progressionMap.get(prereq.progression);
       if (!progressionId) continue;
@@ -654,6 +657,37 @@ function resolveSeedSkillPrerequisites(
     }
   }
   return prerequisites;
+}
+
+function resolveSeedSkillPrerequisites(
+  ss: SeedSkill,
+  progressionMap: Map<string, string>,
+  movementMap: Map<string, string>,
+): SkillPrerequisite[] {
+  return resolveSeedPrerequisites(ss.prerequisites, progressionMap, movementMap);
+}
+
+// Resolve and persist each progression's entry gate. Runs AFTER
+// ensureProgressionsExist so progression-level prerequisites can reference any
+// progression by id. Idempotent: only writes when the resolved gate changed
+// (treating absent and empty as equal), so removing a gate from seed clears it.
+async function ensureProgressionGatesExist(
+  progressionMap: Map<string, string>,
+  movementMap: Map<string, string>,
+): Promise<void> {
+  const existing = await db.progressions.toArray();
+  const byName = new Map(existing.map((p) => [p.name, p]));
+  const norm = (p?: SkillPrerequisite[]) => JSON.stringify(p ?? []);
+
+  for (const sp of SEED_PROGRESSIONS) {
+    const prog = byName.get(sp.name);
+    if (!prog) continue;
+    const resolved = sp.entryPrerequisites
+      ? resolveSeedPrerequisites(sp.entryPrerequisites, progressionMap, movementMap)
+      : [];
+    if (norm(prog.entryPrerequisites) === norm(resolved)) continue;
+    await db.progressions.update(prog.id, { entryPrerequisites: resolved });
+  }
 }
 
 async function ensureSkillsExist(
@@ -682,6 +716,7 @@ async function ensureSkillsExist(
       // user references (e.g. bookmarks, notes) stay linked.
       await db.skills.update(existingSkill.id, {
         description: ss.description,
+        tier: ss.tier,
         prerequisites,
         seedFingerprint: fingerprint,
       });
@@ -693,6 +728,7 @@ async function ensureSkillsExist(
       id: generateId(),
       name: ss.name,
       description: ss.description,
+      tier: ss.tier,
       prerequisites,
       seedFingerprint: fingerprint,
       createdAt: Date.now(),
@@ -742,6 +778,7 @@ async function ensureMealsExist(): Promise<void> {
 export async function seedDatabase() {
   const movementMap = await ensureMovementsExist();
   const progressionMap = await ensureProgressionsExist(movementMap);
+  await ensureProgressionGatesExist(progressionMap, movementMap);
   await ensureWorkoutsExist(progressionMap, movementMap);
   await ensureProgramsExist();
   await ensureSkillsExist(progressionMap, movementMap);

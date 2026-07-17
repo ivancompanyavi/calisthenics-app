@@ -83,18 +83,29 @@ function evalMovementPR(
   return { prerequisite: prereq, met, progress }
 }
 
+// Evaluate a list of prerequisites against the current data snapshots.
+// Shared by the skill atlas and the progression-entry gate so both derive
+// prerequisite progress the same way.
+export function evaluatePrerequisites(
+  prerequisites: SkillPrerequisite[],
+  progressionById: Map<string, Progression>,
+  prById: Map<string, MovementPR>,
+): PrerequisiteResult[] {
+  return prerequisites.map((prereq) => {
+    if (prereq.kind === 'progression-level') {
+      return evalProgressionLevel(prereq.progressionId, prereq.levelOrder, progressionById)
+    }
+    return evalMovementPR(prereq.movementId, prereq.minReps, prereq.minSeconds, prById)
+  })
+}
+
 // Evaluate all prerequisites for a single skill and derive its status.
 function evalSkill(
   skill: Skill,
   progressionById: Map<string, Progression>,
   prById: Map<string, MovementPR>,
 ): SkillResult {
-  const prerequisites: PrerequisiteResult[] = skill.prerequisites.map((prereq) => {
-    if (prereq.kind === 'progression-level') {
-      return evalProgressionLevel(prereq.progressionId, prereq.levelOrder, progressionById)
-    }
-    return evalMovementPR(prereq.movementId, prereq.minReps, prereq.minSeconds, prById)
-  })
+  const prerequisites = evaluatePrerequisites(skill.prerequisites, progressionById, prById)
 
   // No prerequisites → trivially achieved.
   if (prerequisites.length === 0) {

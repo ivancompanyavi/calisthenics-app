@@ -21,12 +21,69 @@ import type { SeedSkill } from './types'
 // {Full Back Lever + Half-Lay FL + Rings Adv Tuck Planche} → Iron Cross.
 
 export const SEED_SKILLS: SeedSkill[] = [
+  // ── FOUNDATION TIER ────────────────────────────────────────────────────────
+  // Near-term milestones so a beginner (or a detrained athlete) always has a
+  // reachable next node instead of a wall of blocked elite skills. Gated on the
+  // basics; each doubles as an unlock threshold used by progression entry gates.
+  {
+    name: 'First Pull-Up',
+    tier: 'foundation',
+    description: 'One strict, full-range dead-hang pull-up — chin over the bar.',
+    prerequisites: [{ kind: 'movement-pr', movement: 'Pull-Ups', minReps: 1 }],
+  },
+  {
+    name: 'Solid Pull-Ups',
+    tier: 'foundation',
+    description:
+      'Eight strict pull-ups — the bodyweight base before adding external load or one-arm work.',
+    prerequisites: [{ kind: 'movement-pr', movement: 'Pull-Ups', minReps: 8 }],
+  },
+  {
+    name: 'Ten Push-Ups',
+    tier: 'foundation',
+    description: 'Ten clean full-range push-ups — the horizontal-push foundation.',
+    prerequisites: [{ kind: 'movement-pr', movement: 'Push-Ups', minReps: 10 }],
+  },
+  {
+    name: 'Parallel-Bar Dips',
+    tier: 'foundation',
+    description: 'Five full-range parallel-bar dips — the vertical-push base.',
+    prerequisites: [{ kind: 'movement-pr', movement: 'Dips', minReps: 5 }],
+  },
+  {
+    name: 'Steady Dead Hang',
+    tier: 'foundation',
+    description:
+      'A 45-second dead hang — grip and shoulder base that unlocks skin-the-cat / back-lever work.',
+    prerequisites: [{ kind: 'movement-pr', movement: 'Dead Hang', minSeconds: 45 }],
+  },
+  {
+    name: 'Wall Handstand',
+    tier: 'foundation',
+    description:
+      'A 30-second straight-body wall handstand — the overhead position for pressing and balance.',
+    prerequisites: [{ kind: 'movement-pr', movement: 'Wall Handstand Hold', minSeconds: 30 }],
+  },
+  {
+    name: 'L-Sit',
+    tier: 'foundation',
+    description: 'A held L-sit — the compression and straight-arm-support staple.',
+    prerequisites: [{ kind: 'progression-level', progression: 'L-Sit Progression', levelOrder: 1 }],
+  },
+  {
+    name: 'Twenty Squats',
+    tier: 'foundation',
+    description: 'Twenty full-depth bodyweight squats — leg-strength and depth base for pistols.',
+    prerequisites: [{ kind: 'movement-pr', movement: 'Full Squat', minReps: 20 }],
+  },
+
   // ── #1  Muscle-Up (strict ring) ──────────────────────────────────────────
   // Spec §3 #1. Limiter = false grip + transition, not raw pulling strength.
   // Ring MU (strict) sits at P16 levelOrder 3 (Muscle-Up, the strict ring
   // variant in the merged bar/ring progression).
   {
     name: 'Muscle-Up',
+    tier: 'intermediate',
     description:
       'Pull through a false-grip ring hang above the rings and press out into a support. The classic ring milestone fusing a chest-to-bar pull with a deep ring dip.',
     prerequisites: [
@@ -43,6 +100,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #2. P5 levelOrder 6 = Full Planche (index 6, the terminal rung).
   {
     name: 'Full Planche',
+    tier: 'elite',
     description:
       'Full straight-body planche hold — arms locked, body horizontal, toes pointed. The premier straight-arm push static.',
     prerequisites: [
@@ -57,6 +115,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #3. P5 levelOrder 4 = Straddle Planche.
   {
     name: 'Straddle Planche',
+    tier: 'advanced',
     description:
       'Planche with legs spread wide to reduce the lever — the gateway step between advanced tuck and full planche.',
     prerequisites: [
@@ -71,6 +130,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #4. P14 levelOrder 4 = Front Lever (terminal hold rung).
   {
     name: 'Full Front Lever',
+    tier: 'advanced',
     description:
       'Full-body front lever held horizontal — face up, arms straight, toes pointed. Requires ~70–80 % BW pulling strength.',
     prerequisites: [
@@ -87,6 +147,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #5. P14 levelOrder 2 = Straddle Front Lever.
   {
     name: 'Straddle Front Lever',
+    tier: 'advanced',
     description:
       'Straddle front lever hold — legs spread to shorten lever. Posterior-shoulder limiter; Manna work accelerates this.',
     prerequisites: [
@@ -101,6 +162,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #6. P13 levelOrder 6 = Back Lever (terminal hold rung).
   {
     name: 'Full Back Lever',
+    tier: 'advanced',
     description:
       'Full-body back lever, supinated grip — body parallel to ground, face down. Safety gate: must own German hang and skin-the-cat first.',
     prerequisites: [
@@ -117,6 +179,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #7. P23 levelOrder 1 = Freestanding Handstand Hold.
   {
     name: 'Freestanding Handstand',
+    tier: 'intermediate',
     description:
       'Free-balance handstand ≥ 60 s away from any wall. Foundation for all freestanding pressing and one-arm hand-balancing.',
     prerequisites: [
@@ -131,6 +194,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #8. P7 levelOrder 6 = Freestanding Handstand Push-Ups.
   {
     name: 'Freestanding Handstand Push-Up',
+    tier: 'elite',
     description:
       'Full-range overhead press in a freestanding handstand, no wall. ≈ 85–95 % BW press. Combines pressing strength with balance mastery.',
     prerequisites: [
@@ -147,6 +211,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #9. P11 levelOrder 4 = One-Arm Chin-Up.
   {
     name: 'One-Arm Chin-Up',
+    tier: 'elite',
     description:
       'Strict dead-hang single-arm chin-up, full extension to chin over bar. ≈ 80–90 % BW pulling strength. One of the hardest bar feats.',
     prerequisites: [
@@ -165,6 +230,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #10. P23 levelOrder 2 = One-Arm Handstand.
   {
     name: 'One-Arm Handstand',
+    tier: 'elite',
     description:
       'Single-arm freestanding handstand. Years of dedicated balance practice after the two-arm handstand is owned. Strict prerequisites.',
     prerequisites: [
@@ -181,6 +247,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #11. P-HF levelOrder 2 = Full Human Flag. OG2 levels uncalibrated.
   {
     name: 'Human Flag',
+    tier: 'advanced',
     description:
       'Full horizontal side-hold on a vertical pole — one arm pushes, one arm pulls. A push/pull strength couple over the whole trunk.',
     prerequisites: [
@@ -195,6 +262,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #12. P22 levelOrder 4 = 45° V-Sit (entry into the V-sit tier).
   {
     name: 'V-Sit',
+    tier: 'advanced',
     description:
       'From an L-sit, raise the legs toward vertical into a V — deep hip-flexor compression well beyond the L-sit.',
     prerequisites: [
@@ -209,6 +277,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #13. P22 levelOrder 7 = Manna (terminal rung).
   {
     name: 'Manna',
+    tier: 'elite',
     description:
       'Hips-above-shoulders straight-arm hold — the most demanding compression static. Flexibility-gated. Also improves straddle front-lever posterior shoulder.',
     prerequisites: [
@@ -223,6 +292,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #14. P21 levelOrder 4 = Dragon Flag (terminal rung). OG2 external.
   {
     name: 'Dragon Flag',
+    tier: 'intermediate',
     description:
       'Straight-body reverse crunch — shoulders anchored, rigid body lowered and raised as one unit. Total-body anti-extension core feat.',
     prerequisites: [
@@ -237,6 +307,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #15. P18 levelOrder 3 = Pistol Squats.
   {
     name: 'Pistol Squat',
+    tier: 'intermediate',
     description:
       'Full single-leg squat to depth, free leg extended forward. The single-leg strength, ankle mobility, and balance milestone.',
     prerequisites: [
@@ -254,6 +325,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // are mandatory per OG2. [book]
   {
     name: 'Iron Cross',
+    tier: 'elite',
     description:
       'Straight-arm rings cross hold. CoP B; distal-biceps loading is the injury risk. Hard prerequisites: full back lever, one-leg/half-lay front lever, RTO ~75° past-parallel dip, and 8 strict pull-ups. Rings planche and rings-strap HSPU are recommended tissue-conditioning work but are not encoded as hard edges.',
     prerequisites: [
@@ -274,6 +346,7 @@ export const SEED_SKILLS: SeedSkill[] = [
   // Spec §3 #17. P4 levelOrder 12 = Full Maltese (OG2 L17 — beyond the 16-grid).
   {
     name: 'Maltese',
+    tier: 'elite',
     description:
       'Straight-arm push cross — rings held wide of the body, beyond the dip position. Full Planche required; Iron Cross recommended (not a hard prerequisite edge).',
     prerequisites: [

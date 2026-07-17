@@ -1,4 +1,4 @@
-import type { ExitCriteria, MovementFamily, PrepTag, SetMode, TempoSpec, GateSpec } from "@/models/types";
+import type { ExitCriteria, MovementFamily, PrepTag, SetMode, TempoSpec, GateSpec, SkillTier } from "@/models/types";
 
 export interface SeedMovement {
   name: string;
@@ -30,6 +30,12 @@ export interface SeedLevelDef {
 export interface SeedProgression {
   name: string;
   levels: SeedLevelDef[];
+  // Entry gate: prerequisites (by name) that must be met before this
+  // progression is unlocked/trainable. Resolved to ids at seed time by
+  // ensureProgressionGatesExist(). Omit = foundational (no gate). Every
+  // referenced progression/movement name must EXACTLY match a seed entry —
+  // the resolver silently drops unknowns (see resolveSeedPrerequisites).
+  entryPrerequisites?: SeedSkillPrerequisite[];
 }
 
 export interface SeedEntryDef {
@@ -88,5 +94,6 @@ export type SeedSkillPrerequisite =
 export interface SeedSkill {
   name: string;
   description?: string;
+  tier?: SkillTier;
   prerequisites: SeedSkillPrerequisite[];
 }
