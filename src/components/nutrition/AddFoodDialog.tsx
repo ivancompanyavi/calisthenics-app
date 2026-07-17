@@ -9,8 +9,9 @@ import { SearchUsdaFoodForm } from '@/components/nutrition/SearchUsdaFoodForm'
 import { BarcodeScanForm } from '@/components/nutrition/BarcodeScanForm'
 import { RecentFoodsQuickPick } from '@/components/nutrition/RecentFoodsQuickPick'
 import { Card } from '@/components/ui/card'
-import { useCustomFoods } from '@/hooks/useCustomFoods'
+import { useCustomFoods, useCreateCustomFood } from '@/hooks/useCustomFoods'
 import { useAddFoodLog } from '@/hooks/useFoodLog'
+import { Check } from 'lucide-react'
 import { useMeals, useLogMeal } from '@/hooks/useMeals'
 import type { CustomFood, MealLabel } from '@/models/types'
 
@@ -139,6 +140,8 @@ function QuickAddForm({
   onDone: () => void
 }) {
   const addFoodLog = useAddFoodLog()
+  const createCustomFood = useCreateCustomFood()
+  const { data: customFoods } = useCustomFoods()
   const [name, setName] = useState('')
   const [kcal, setKcal] = useState('')
   const [proteinG, setProteinG] = useState('')
@@ -147,11 +150,33 @@ function QuickAddForm({
   const [fiberG, setFiberG] = useState('')
   const [sodiumMg, setSodiumMg] = useState('')
   const [notes, setNotes] = useState('')
+  const [saveToLibrary, setSaveToLibrary] = useState(false)
 
   const valid = name.trim().length > 0 && Number.isFinite(Number(kcal)) && kcal !== ''
 
+  // A quick add has no captured quantity — its macros are the portion eaten —
+  // so a library copy is stored as a one-serving custom food. Name match
+  // (case-insensitive) stops the same food being saved twice.
+  const inLibrary = useMemo(() => {
+    const n = name.trim().toLowerCase()
+    if (!n) return false
+    return (customFoods ?? []).some((f) => f.name.trim().toLowerCase() === n)
+  }, [customFoods, name])
+
   const submit = async () => {
     if (!valid) return
+    if (saveToLibrary && !inLibrary) {
+      await createCustomFood.mutateAsync({
+        name: name.trim(),
+        per: 'perServing',
+        kcal: Number(kcal) || 0,
+        proteinG: Number(proteinG) || 0,
+        carbG: Number(carbG) || 0,
+        fatG: Number(fatG) || 0,
+        fiberG: Number(fiberG) || 0,
+        sodiumMg: sodiumMg !== '' ? Number(sodiumMg) : undefined,
+      })
+    }
     await addFoodLog.mutateAsync({
       date,
       mealLabel,
@@ -181,6 +206,20 @@ function QuickAddForm({
       </div>
       <MealLabelPicker value={mealLabel} onChange={setMealLabel} />
       <Textarea placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+      {inLibrary ? (
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Check className="h-3.5 w-3.5" /> Already in your food library
+        </p>
+      ) : (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={saveToLibrary}
+            onChange={(e) => setSaveToLibrary(e.target.checked)}
+          />
+          Save to my food library (log it in one tap next time)
+        </label>
+      )}
       <Button className="w-full" onClick={submit} disabled={!valid || addFoodLog.isPending}>
         Add food
       </Button>

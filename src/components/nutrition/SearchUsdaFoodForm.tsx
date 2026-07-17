@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MealLabelPicker } from '@/components/nutrition/MealLabelPicker'
 import { useAddFoodLog } from '@/hooks/useFoodLog'
+import { useCreateCustomFood, useCustomFoods } from '@/hooks/useCustomFoods'
 import { searchFoods, type UsdaFood } from '@/lib/food-db'
+import { Check } from 'lucide-react'
 import type { MealLabel } from '@/models/types'
 
 const DEBOUNCE_MS = 250
@@ -24,6 +26,8 @@ export function SearchUsdaFoodForm({
   onDone: () => void
 }) {
   const addFoodLog = useAddFoodLog()
+  const createCustomFood = useCreateCustomFood()
+  const { data: customFoods } = useCustomFoods()
   const [query, setQuery] = useState('')
   // Track which query the current `results` were computed for, so
   // "searching" can be derived (trimmedQuery !== resultsQuery) instead of
@@ -34,6 +38,7 @@ export function SearchUsdaFoodForm({
   })
   const [selected, setSelected] = useState<UsdaFood | null>(null)
   const [grams, setGrams] = useState('100')
+  const [savedThisSelection, setSavedThisSelection] = useState(false)
 
   const trimmedQuery = query.trim()
 
@@ -71,6 +76,36 @@ export function SearchUsdaFoodForm({
     : null
 
   const valid = !!selected && scale > 0
+
+  // USDA foods have no brand, so "already in the library" is matched on name
+  // alone (case-insensitive) against unbranded custom foods — mirrors the
+  // barcode form's name+brand guard so re-saving the same food is a no-op.
+  const inLibrary = useMemo(() => {
+    if (!selected) return false
+    const name = selected.name.trim().toLowerCase()
+    return (customFoods ?? []).some(
+      (f) => f.name.trim().toLowerCase() === name && !(f.brand ?? '').trim()
+    )
+  }, [customFoods, selected])
+  const alreadySaved = inLibrary || savedThisSelection
+
+  // Save the picked food to the reusable custom-food library without logging
+  // it — the search DB is per-100g, so the entry is stored per100g verbatim,
+  // same as a scanned product.
+  const saveToLibrary = async () => {
+    if (!selected || alreadySaved) return
+    await createCustomFood.mutateAsync({
+      name: selected.name,
+      per: 'per100g',
+      kcal: selected.kcal,
+      proteinG: selected.proteinG,
+      carbG: selected.carbG,
+      fatG: selected.fatG,
+      fiberG: selected.fiberG,
+      sodiumMg: selected.sodiumMg ?? undefined,
+    })
+    setSavedThisSelection(true)
+  }
 
   const submit = async () => {
     if (!valid || !selected || !preview) return
@@ -116,6 +151,7 @@ export function SearchUsdaFoodForm({
                   onClick={() => {
                     setSelected(food)
                     setGrams('100')
+                    setSavedThisSelection(false)
                   }}
                   className="w-full text-left p-2.5 rounded-lg border border-input hover:bg-accent transition-colors"
                 >
@@ -160,6 +196,20 @@ export function SearchUsdaFoodForm({
           <Button className="w-full" onClick={submit} disabled={!valid || addFoodLog.isPending}>
             Add food
           </Button>
+          {alreadySaved ? (
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Check className="h-3.5 w-3.5" /> In your custom foods
+            </p>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={saveToLibrary}
+              disabled={createCustomFood.isPending}
+            >
+              Save to my foods without logging
+            </Button>
+          )}
         </>
       )}
     </div>
