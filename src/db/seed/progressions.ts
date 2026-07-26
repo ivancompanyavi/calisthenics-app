@@ -760,9 +760,10 @@ export const SEED_PROGRESSIONS: SeedProgression[] = [
   {
     name: "Front Lever Row Progression",
     // Own the tuck front-lever hold before rowing in it; transitively inherits
-    // the back-lever ordering. [CONVENTION]
+    // the back-lever ordering. levelOrder 1 (past the tuck-hold rung) — NOT 0,
+    // which `currentLevel >= 0` satisfies trivially (no-op gate). [CONVENTION]
     entryPrerequisites: [
-      { kind: "progression-level", progression: "Front Lever Progression", levelOrder: 0 },
+      { kind: "progression-level", progression: "Front Lever Progression", levelOrder: 1 },
     ],
     levels: [
       {

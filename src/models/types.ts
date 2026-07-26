@@ -77,7 +77,7 @@ export interface ProgressionLevel {
 
 export type BlockType = 'set' | 'superset'
 export type SetMode = 'reps' | 'time' | 'max'
-export type BlockEntryKind = 'progression' | 'movement'
+export type BlockEntryKind = 'progression' | 'movement' | 'pattern'
 
 // Tempo notation per rep: eccentric (descent) - bottom pause - concentric
 // (ascent) - top pause, all in seconds. Convention matches Vadnal/Sommer:
@@ -150,12 +150,24 @@ export type BlockEntry =
       progressionId: string
       movementId?: never
       mode?: never
+      pattern?: never
     })
   | (BlockEntryShared & {
       kind: 'movement'
       movementId: string
       mode: SetMode
       progressionId?: never
+      pattern?: never
+    })
+  // Adaptive pattern slot — resolves at runtime (resolveBlocks) to the hardest
+  // unlocked progression in the pattern's candidate chain. Authored in seed
+  // only; the editor round-trips it read-only (no UI to create one yet).
+  | (BlockEntryShared & {
+      kind: 'pattern'
+      pattern: string
+      progressionId?: never
+      movementId?: never
+      mode?: never
     })
 
 export interface WorkoutLog {
@@ -510,12 +522,23 @@ export type DraftEntry =
       progressionId: string
       movementId?: never
       mode?: never
+      pattern?: never
     })
   | (DraftEntryShared & {
       kind: 'movement'
       movementId: string
       mode: SetMode
       progressionId?: never
+      pattern?: never
+    })
+  // Read-only in the editor — preserved on save so editing an adaptive workout
+  // never drops its pattern slots.
+  | (DraftEntryShared & {
+      kind: 'pattern'
+      pattern: string
+      progressionId?: never
+      movementId?: never
+      mode?: never
     })
 
 export interface DraftBlock {

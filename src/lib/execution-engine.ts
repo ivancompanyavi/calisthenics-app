@@ -3,7 +3,21 @@ import { generateId } from '@/lib/utils'
 
 export type ExecutionPhase = 'ready' | 'exercise' | 'adjust' | 'resting' | 'complete'
 
+// Set when this slot's authored exercise was locked and the adaptation pre-pass
+// swapped in something trainable (src/lib/gate-substitution.ts). Display-only —
+// it tells the athlete WHY they're being handed this exercise:
+//   'unlock'      → this is the work that opens the locked progression's gate
+//   'alternative' → the unlock work is already on today's card, so this is the
+//                   hardest unlocked exercise in the same movement pattern
+export interface SubstitutedFor {
+  progressionId: string
+  progressionName: string
+  reason: 'unlock' | 'alternative'
+}
+
 export interface ResolvedEntry {
+  // Present only on a substituted slot — see SubstitutedFor.
+  substitutedFor?: SubstitutedFor
   progressionId?: string
   // Populated alongside progressionId so display layers can show "via X
   // Progression · Lvl N/M" without needing to re-fetch the progression row.

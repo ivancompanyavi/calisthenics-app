@@ -5,6 +5,7 @@ import { formatTime, formatTempo } from '@/lib/utils'
 import { Check, Clock, X, Video } from 'lucide-react'
 import { useWeightUnit } from '@/hooks/useSettings'
 import { formatWeight } from '@/lib/units'
+import { SubstitutionNote } from '@/components/workouts/SubstitutionNote'
 
 interface ExerciseDisplayProps {
   entry: ResolvedEntry
@@ -32,6 +33,12 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
       />
 
       <div className="text-center max-w-md">
+        {/* Why this exercise, when the authored one is still locked. */}
+        {entry.substitutedFor && (
+          <div className="flex justify-center mb-2">
+            <SubstitutionNote substitutedFor={entry.substitutedFor} variant="banner" />
+          </div>
+        )}
         <h2 className="text-2xl font-bold">{entry.movementName}</h2>
         {totalRounds > 1 && (
           <p className="text-sm text-muted-foreground mt-1">

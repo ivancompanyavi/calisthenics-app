@@ -4,6 +4,9 @@ import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 import { workoutLogsRepository, type RepsSuggestion } from './workout-logs.repository'
 import { generateId } from '@/lib/utils'
 import type { WorkoutEntryGroup } from '@/lib/advance-audit'
+import { SEED_PATTERNS } from '@/db/seed/patterns'
+import { adaptSessionEntries } from '@/lib/session-adaptation'
+import type { SubstitutedFor } from '@/lib/execution-engine'
 
 interface SaveEntryShared {
   targetReps?: number
@@ -17,6 +20,7 @@ interface SaveEntryShared {
 export type SaveEntry =
   | (SaveEntryShared & { kind: 'progression'; progressionId: string })
   | (SaveEntryShared & { kind: 'movement'; movementId: string; mode: 'reps' | 'time' | 'max' })
+  | (SaveEntryShared & { kind: 'pattern'; pattern: string })
 
 export interface SaveWorkoutData {
   name: string
@@ -96,9 +100,12 @@ export const workoutsRepository = {
             targetWeightKg: entryData.targetWeightKg,
             targetBandLevel: entryData.targetBandLevel,
           }
-          const entry: BlockEntry = entryData.kind === 'progression'
-            ? { ...shared, kind: 'progression', progressionId: entryData.progressionId }
-            : { ...shared, kind: 'movement', movementId: entryData.movementId, mode: entryData.mode }
+          const entry: BlockEntry =
+            entryData.kind === 'progression'
+              ? { ...shared, kind: 'progression', progressionId: entryData.progressionId }
+              : entryData.kind === 'pattern'
+                ? { ...shared, kind: 'pattern', pattern: entryData.pattern }
+                : { ...shared, kind: 'movement', movementId: entryData.movementId, mode: entryData.mode }
           await db.blockEntries.add(entry)
         }
       }
@@ -146,6 +153,39 @@ export const workoutsRepository = {
   },
 
   resolveBlocks: async (blocks: WorkoutBlock[], entries: BlockEntry[]): Promise<ResolvedBlock[]> => {
+    // ── Adaptation pre-pass ───────────────────────────────────────────────────
+    // Rewrites the session into what the athlete can train TODAY (pattern slots
+    // resolved, locked slots substituted or dropped), so everything below only
+    // ever sees concrete progression/movement entries. Policy lives in
+    // src/lib/session-adaptation.ts; this just supplies the data snapshots.
+    // Fast-path: a workout of only movement-bound entries can't be gated.
+    let substitutedFor = new Map<string, SubstitutedFor>()
+    if (entries.some((e) => e.kind !== 'movement')) {
+      const [allProgressions, allProgressionLevels, prs] = await Promise.all([
+        db.progressions.toArray(),
+        db.progressionLevels.orderBy('order').toArray(),
+        workoutLogsRepository.getAllPRs(),
+      ])
+      const levelsByProgression = new Map<string, ProgressionLevel[]>()
+      for (const lvl of allProgressionLevels) {
+        const arr = levelsByProgression.get(lvl.progressionId) ?? []
+        arr.push(lvl)
+        levelsByProgression.set(lvl.progressionId, arr)
+      }
+      const adapted = adaptSessionEntries(
+        blocks.map((b) => b.id),
+        entries,
+        {
+          progressions: allProgressions,
+          levelsByProgression,
+          movementPRs: prs,
+          patterns: SEED_PATTERNS,
+        },
+      )
+      entries = adapted.entries
+      substitutedFor = adapted.substitutedFor
+    }
+
     // Two pre-fetch passes avoid an N+1: pull all progressions + their levels
     // first (the levels tell us which extra movements we need), then bulk-fetch
     // every movement referenced by either a direct entry or a progression level.
@@ -193,6 +233,7 @@ export const workoutsRepository = {
         // time/max mode auto-progression doesn't have a defined rule yet.
         const suggestion = entry.mode === 'reps' ? suggestions.get(movementId) : undefined
         return {
+          substitutedFor: substitutedFor.get(entry.id),
           progressionId: undefined,
           movementId,
           movementName: movement?.name ?? 'Unknown',
@@ -217,6 +258,12 @@ export const workoutsRepository = {
         }
       }
 
+      if (entry.kind !== 'progression') {
+        // Unreachable: pattern entries were resolved to progression entries in
+        // the pre-pass above. This guard keeps the type narrowing sound.
+        throw new Error(`Unresolved entry kind reached resolveEntry: ${entry.kind}`)
+      }
+
       const progression = progressionMap.get(entry.progressionId)
       const levels = levelsByProgression.get(entry.progressionId) ?? []
       const currentLevel = progression?.currentLevel ?? 0
@@ -227,6 +274,7 @@ export const workoutsRepository = {
       const suggestion = mode === 'reps' ? suggestions.get(movementId) : undefined
 
       return {
+        substitutedFor: substitutedFor.get(entry.id),
         progressionId: entry.progressionId,
         progressionName: progression?.name,
         progressionCurrentLevel: currentLevel + 1, // 1-indexed for display
@@ -254,16 +302,21 @@ export const workoutsRepository = {
       }
     }
 
-    return blocks.map((block) => {
-      const blockEntries = entries
-        .filter((e) => e.blockId === block.id)
-        .sort((a, b) => a.order - b.order)
-      return {
-        type: block.type,
-        rounds: block.rounds,
-        restSeconds: block.restSeconds,
-        entries: blockEntries.map(resolveEntry),
-      }
-    })
+    return blocks
+      .map((block) => {
+        const blockEntries = entries
+          .filter((e) => e.blockId === block.id)
+          .sort((a, b) => a.order - b.order)
+        return {
+          type: block.type,
+          rounds: block.rounds,
+          restSeconds: block.restSeconds,
+          entries: blockEntries.map(resolveEntry),
+        }
+      })
+      // Drop blocks left empty after pattern resolution (an optional slot with
+      // nothing unlocked). Normal blocks always have entries, so this is a
+      // no-op for non-adaptive workouts.
+      .filter((block) => block.entries.length > 0)
   },
 }

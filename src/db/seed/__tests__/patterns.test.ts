@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { SEED_PATTERNS } from '../patterns'
 import { SEED_PROGRESSIONS } from '../progressions'
+import { SEED_WORKOUTS } from '../workouts'
 
 // Guards the pattern-slot invariants the resolver relies on. Without these, a
 // typo'd candidate or a gated fallback would silently produce an empty slot at
@@ -35,5 +36,20 @@ describe('seed patterns — referential integrity', () => {
         })
       }
     })
+  }
+})
+
+describe('adaptive workouts — pattern references resolve', () => {
+  const patternKeys = new Set(SEED_PATTERNS.map((p) => p.key))
+  for (const workout of SEED_WORKOUTS) {
+    for (const block of workout.blocks) {
+      for (const entry of block.entries) {
+        if (entry.pattern) {
+          it(`${workout.name}: "${entry.pattern}" is a known pattern`, () => {
+            expect(patternKeys.has(entry.pattern!)).toBe(true)
+          })
+        }
+      }
+    }
   }
 })
