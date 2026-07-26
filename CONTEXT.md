@@ -74,6 +74,27 @@ Pages (route components)
 
 `perSide: true` on a ProgressionLevel (or BlockEntry for standalone movements) means the rep count is per side (unilateral exercises). Displayed as "10 reps /side" during execution.
 
+## Session Adaptation (what you actually get handed)
+
+A workout is authored once, but what it prescribes changes as the athlete gets stronger. Two things make that work, and both run every time a session is resolved:
+
+**Pattern slots** let a workout say "vertical pull" instead of naming an exercise. At session time the slot picks the hardest version of that pattern the athlete has unlocked. The week's structure never changes; the difficulty underneath it does.
+
+**Locked-slot substitution** answers the question the entry gate can't: "this is locked, so what do I do today?" A locked slot is replaced by the work that unlocks it — Back Lever gated behind a 45-second dead hang becomes a 45-second dead hang — so the gate clears itself simply by training. If that unlock work is already elsewhere in the same session, the slot falls back to the hardest unlocked exercise in the same pattern; if there's nothing distinct left to offer, the slot is dropped. A movement is never prescribed twice in one session.
+
+This matters because gates read *logged* PRs. Without substitution, a beginner (or anyone who hasn't logged a prerequisite) gets a session of dead ends instead of a workout — which is exactly what happened before this existed.
+
+| Module | Job |
+| --- | --- |
+| `src/lib/progression-gate.ts` | "May I train this?" — pure gate evaluation |
+| `src/lib/pattern-resolver.ts` | "Which difficulty of this pattern?" |
+| `src/lib/gate-substitution.ts` | "It's locked — what instead?" (single slot) |
+| `src/lib/session-adaptation.ts` | Applies both across a whole session, enforcing no-duplicates |
+
+All four are pure. `workoutsRepository.resolveBlocks` fetches the data snapshots and calls `adaptSessionEntries`, so every surface (execution, session preview, workout detail) sees the same adapted session. A substituted slot carries `substitutedFor` for display — `SubstitutionNote` renders the "Working toward Back Lever" / "Instead of Back Lever — locked" label. Substitution is display/session-time only: it never rewrites the stored workout.
+
+Coverage lives in `src/lib/__tests__/session-adaptation.test.ts`, which runs against the **real seed program** rather than fixtures — the failure being guarded is a property of the actual prerequisite graph.
+
 ## Workout Execution Engine
 
 `src/lib/execution-engine.ts` is a pure reducer state machine (wrapped by `useWorkoutExecution.ts`):
@@ -115,8 +136,13 @@ Programs define repeating training schedules:
 2. `ensureProgressionsExist()` — inserts missing progressions with per-level mode config
 3. `ensureWorkoutsExist()` — inserts missing workouts by name (entries can reference progressions by name or movements directly)
 4. `ensureProgramsExist()` — inserts missing programs with day schedules
+5. `pruneRetiredSeedContent()` — deletes retired content (runs last)
 
-**To add a new workout**: add it to `SEED_WORKOUTS` in `src/db/seed.ts`. Reference progressions by name (from `SEED_PROGRESSIONS`) or movements by name with a `mode` specified.
+**To add a new workout**: add it to `SEED_WORKOUTS` in `src/db/seed/workouts.ts`. Reference progressions by name (from `SEED_PROGRESSIONS`), movements by name with a `mode` specified, or a pattern key from `SEED_PATTERNS` for an adaptive slot.
+
+**To remove one**: deleting it from the seed is not enough. Steps 1–4 only insert and update, so a removed entry survives as an orphan on every device that already synced — still visible in the app, but no longer managed. Add its name (and any old `previousNames`) to `src/db/seed/retired.ts`; step 5 deletes it, cascading to blocks/entries for a workout and to days/active runs for a program.
+
+The pruner is deliberately narrow. It only deletes rows that (a) are named on a retired list, (b) carry a `seedFingerprint`, meaning seed created them — anything hand-built survives even if it shares the name, and (c) are not claimed by a live seed entry, so a list that contradicts the seed skips and warns rather than deleting real content. Logged history is never touched: `WorkoutLog` and `SetLog` store the names they display. A user program day pointing at a retired workout is blanked, not deleted along with their program. Covered by `src/db/__tests__/seed-prune.test.ts`.
 
 ## Data Persistence
 

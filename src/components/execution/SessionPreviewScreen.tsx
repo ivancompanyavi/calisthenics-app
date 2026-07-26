@@ -5,6 +5,7 @@ import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { formatTime, formatTempo } from '@/lib/utils'
 import { useProgressionGates } from '@/hooks/useProgressionGates'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
+import { SubstitutionNote } from '@/components/workouts/SubstitutionNote'
 
 interface SessionPreviewScreenProps {
   workoutName: string
@@ -176,6 +177,9 @@ export function SessionPreviewScreen({
                               <span className="text-[10px] text-amber-500/90">
                                 ⚠ gated
                               </span>
+                            )}
+                            {entry.substitutedFor && (
+                              <SubstitutionNote substitutedFor={entry.substitutedFor} />
                             )}
                             {entry.progressionId &&
                               gates?.get(entry.progressionId) &&

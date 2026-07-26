@@ -9,6 +9,7 @@ import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { ExerciseDetailDialog } from '@/components/workouts/ExerciseDetailDialog'
 import { ArrowLeft, Pencil, Play, TrendingUp, Lock } from 'lucide-react'
 import { useProgressionGates } from '@/hooks/useProgressionGates'
+import { SubstitutionNote } from '@/components/workouts/SubstitutionNote'
 import { formatTime, formatTempo } from '@/lib/utils'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
 
@@ -173,6 +174,9 @@ export function WorkoutDetail() {
                             <span className="text-[10px] text-amber-500/90">
                               ⚠ gated
                             </span>
+                          )}
+                          {entry.substitutedFor && (
+                            <SubstitutionNote substitutedFor={entry.substitutedFor} />
                           )}
                           {entry.progressionId &&
                             gates?.get(entry.progressionId) &&

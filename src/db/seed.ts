@@ -18,6 +18,7 @@ import { SEED_MOVEMENTS } from "./seed/movements";
 import { SEED_PROGRESSIONS } from "./seed/progressions";
 import { SEED_WORKOUTS } from "./seed/workouts";
 import { SEED_PROGRAMS } from "./seed/programs";
+import { RETIRED_WORKOUT_NAMES, RETIRED_PROGRAM_NAMES } from "./seed/retired";
 import { SEED_SKILLS } from "./seed/skills";
 import { SEED_FOODS } from "./seed/foods";
 import { SEED_MEALS } from "./seed/meals";
@@ -429,6 +430,12 @@ function buildBlocks(
           kind: "progression",
           progressionId,
         });
+      } else if (entryDef.pattern) {
+        entries.push({
+          ...shared,
+          kind: "pattern",
+          pattern: entryDef.pattern,
+        });
       }
     }
   }
@@ -775,6 +782,101 @@ async function ensureMealsExist(): Promise<void> {
   if (toAdd.length > 0) await db.meals.bulkAdd(toAdd);
 }
 
+// Deletes seed content that has been retired (src/db/seed/retired.ts). This is
+// the only part of the seed that removes rows, so it is deliberately narrow:
+//
+//   • only rows whose name is on a retired list
+//   • only rows carrying a `seedFingerprint` (seed-owned) — anything the user
+//     built by hand survives even if it happens to share a name
+//   • never a name that a CURRENT seed entry claims, as `name` or in
+//     `previousNames` — that would mean the lists disagree, so we skip and warn
+//     rather than delete live content
+//
+// Cascades the way the delete paths in the repositories do: a program takes its
+// ProgramDays and any ActiveProgram runs with it; a workout takes its blocks and
+// block entries. Logged history is intentionally NOT touched — WorkoutLog and
+// SetLog denormalize the names they display, so past sessions survive.
+//
+// Idempotent: a second run finds nothing left to delete.
+async function pruneRetiredSeedContent(): Promise<void> {
+  // Names the live seed still claims. A retired name colliding with one of
+  // these is an authoring bug; deleting would destroy current content.
+  const liveWorkoutNames = new Set(
+    SEED_WORKOUTS.flatMap((w) => [w.name, ...(w.previousNames ?? [])]),
+  );
+  const liveProgramNames = new Set(
+    SEED_PROGRAMS.flatMap((p) => [p.name, ...(p.previousNames ?? [])]),
+  );
+
+  const partitionRetired = (retired: string[], live: Set<string>) => {
+    const safe = new Set<string>();
+    const conflicts: string[] = [];
+    for (const name of retired) {
+      if (live.has(name)) conflicts.push(name);
+      else safe.add(name);
+    }
+    if (conflicts.length > 0) {
+      console.warn(
+        `[seed] Retired names are still claimed by the live seed and were NOT deleted: ${conflicts.join(", ")}`,
+      );
+    }
+    return safe;
+  };
+
+  const retiredWorkouts = partitionRetired(RETIRED_WORKOUT_NAMES, liveWorkoutNames);
+  const retiredPrograms = partitionRetired(RETIRED_PROGRAM_NAMES, liveProgramNames);
+
+  // Programs first: a ProgramDay points at a workout, so dropping the program
+  // avoids leaving days that reference a workout we are about to delete.
+  const programsToDelete = (await db.programs.toArray()).filter(
+    (p) => retiredPrograms.has(p.name) && p.seedFingerprint,
+  );
+  if (programsToDelete.length > 0) {
+    const ids = programsToDelete.map((p) => p.id);
+    await db.transaction(
+      "rw",
+      [db.programs, db.programDays, db.activePrograms],
+      async () => {
+        await db.programDays.where("programId").anyOf(ids).delete();
+        await db.activePrograms.where("programId").anyOf(ids).delete();
+        await db.programs.bulkDelete(ids);
+      },
+    );
+  }
+
+  const workoutsToDelete = (await db.workouts.toArray()).filter(
+    (w) => retiredWorkouts.has(w.name) && w.seedFingerprint,
+  );
+  if (workoutsToDelete.length > 0) {
+    const ids = workoutsToDelete.map((w) => w.id);
+    await db.transaction(
+      "rw",
+      [db.workouts, db.workoutBlocks, db.blockEntries, db.programDays],
+      async () => {
+        const blockIds = (
+          await db.workoutBlocks.where("workoutId").anyOf(ids).toArray()
+        ).map((b) => b.id);
+        if (blockIds.length > 0) {
+          await db.blockEntries.where("blockId").anyOf(blockIds).delete();
+          await db.workoutBlocks.bulkDelete(blockIds);
+        }
+        // Clear stragglers: a user-created program may still schedule a
+        // retired workout. Blank the day rather than delete their program.
+        // `workoutId` is not an index on programDays (see db/index.ts), so this
+        // filters in memory rather than with .where().
+        const idSet = new Set(ids);
+        const allDays = await db.programDays.toArray();
+        for (const day of allDays) {
+          if (day.workoutId && idSet.has(day.workoutId)) {
+            await db.programDays.update(day.id, { workoutId: undefined });
+          }
+        }
+        await db.workouts.bulkDelete(ids);
+      },
+    );
+  }
+}
+
 export async function seedDatabase() {
   const movementMap = await ensureMovementsExist();
   const progressionMap = await ensureProgressionsExist(movementMap);
@@ -784,4 +886,8 @@ export async function seedDatabase() {
   await ensureSkillsExist(progressionMap, movementMap);
   await ensureFoodsExist();
   await ensureMealsExist();
+  // Last: the ensure* passes run their rename migrations first, so a row that
+  // was merely renamed is already carrying its current name and won't be
+  // mistaken for retired content.
+  await pruneRetiredSeedContent();
 }

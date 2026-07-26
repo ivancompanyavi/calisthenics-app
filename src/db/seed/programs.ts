@@ -1,147 +1,38 @@
 import type { SeedProgram } from "./types";
 
-// 6-week macrocycle (42 days):
-//   Weeks 1-5: 5 main workouts Mon-Fri + Sat/Sun rest (mobility is a daily
-//              ritual, weigh-in on Sat — both handled outside the program).
-//   Week 6:    Deload variants Mon/Wed/Fri + light skill Tue + Test Day Thu.
+// ONE program, by design.
 //
-// After 42 days the cycle restarts. PRs from Week 6 Thu naturally bubble up
-// via the existing PR algorithm — no test-day flag needed yet (deferred N6).
+// This used to hold six: a hand-tuned 6-week macrocycle, Isa's first-pull-up
+// program, and the four OG2 phase ladders (Phase 1 → 4). All are retired
+// (src/db/seed/retired.ts) because the adaptive program makes them redundant:
+// its slots name a movement PATTERN rather than an exercise, so difficulty
+// tracks the athlete instead of the calendar. There is no "graduate to the next
+// phase" step to schedule — the slots do it.
+//
+// If a second program is ever added, check it against the retired list first:
+// reusing a retired name would have the pruner delete it on the next sync.
 
-// Build one normal training week. Same pattern repeats weeks 1-5.
-const normalWeek: SeedProgram["days"] = [
-  { workout: "Push + Planche Skill" },
-  { workout: "Pull A (Heavy)" },
-  { workout: "Legs + Core" },
-  { workout: "Chest (Planche)" },
-  { workout: "Pull B (Volume)" },
-  null,
-  null,
-];
-
-const deloadWeek: SeedProgram["days"] = [
-  { workout: "Push + Planche Skill (Deload)" },
-  { workout: "Pull A (Skill Only)" },
-  { workout: "Legs + Core (Deload)" },
-  { workout: "Test Day (Week 6)" },
-  { workout: "Pull B (Deload)" },
-  null,
-  null,
-];
-
-// Isa's first-pull-up program. Simple weekly cycle, repeats forever.
-// Mon/Wed/Fri active, weekend rest. Tuned for early novice (~10–20s dead
-// hang baseline). See workouts.ts for tuning notes.
-const isaWeek: SeedProgram["days"] = [
-  { workout: "Isa Pull A (Strength)" },
-  null,
-  { workout: "Isa Balance Day" },
-  null,
-  { workout: "Isa Pull B (Volume)" },
-  null,
-  null,
-];
-
-// ── Phase routine week templates ──────────────────────────────────────────
-// Phase 1: 3 days/week full body (M/W/F). 48 h min spacing, 72 h after 3rd.
-const phase1Week: SeedProgram["days"] = [
-  { workout: "Phase 1 — Full Body" }, // Mon
-  null,                                 // Tue rest
-  { workout: "Phase 1 — Full Body" }, // Wed
-  null,                                 // Thu rest
-  { workout: "Phase 1 — Full Body" }, // Fri
-  null,                                 // Sat rest
-  null,                                 // Sun rest
-];
-
-// Phase 2: 4 days/week Push / Pull / Lower+Core / Full-Body-Skill.
-// Mon push, Tue pull, Thu lower+core, Sat full-body.
-const phase2Week: SeedProgram["days"] = [
-  { workout: "Phase 2 — Push" },             // Mon
-  { workout: "Phase 2 — Pull" },             // Tue
-  null,                                       // Wed rest
-  { workout: "Phase 2 — Lower & Core" },    // Thu
-  null,                                       // Fri rest
-  { workout: "Phase 2 — Full Body Skill" }, // Sat
-  null,                                       // Sun rest
-];
-
-// Phase 3: 4 days/week straight-arm/lever + bent-arm/press split.
-// Mon straight-arm push, Tue straight-arm pull, Thu bent-arm push+core,
-// Sat bent-arm pull+lower.
-const phase3Week: SeedProgram["days"] = [
-  { workout: "Phase 3 — Straight Arm Push" },     // Mon
-  { workout: "Phase 3 — Straight Arm Pull" },     // Tue
-  null,                                             // Wed rest
-  { workout: "Phase 3 — Bent Arm Push" },         // Thu
-  null,                                             // Fri rest
-  { workout: "Phase 3 — Bent Arm Pull & Lower" }, // Sat
-  null,                                             // Sun rest
-];
-
-// Phase 4: 4 days/week DUP heavy/light push-pull.
-// Mon heavy push, Tue heavy pull, Thu light push+skill, Sat light pull+lower.
-const phase4Week: SeedProgram["days"] = [
-  { workout: "Phase 4 — Heavy Push" },      // Mon
-  { workout: "Phase 4 — Heavy Pull" },      // Tue
-  null,                                      // Wed rest
-  { workout: "Phase 4 — Light Push & Skill" }, // Thu
-  null,                                      // Fri rest
-  { workout: "Phase 4 — Light Pull & Lower" }, // Sat
-  null,                                      // Sun rest
+// Adaptive 5-day week (Mon–Fri, weekend rest). Every day is built from PATTERN
+// slots that resolve to the athlete's hardest unlocked progression, so the
+// week's shape stays fixed while the movements upgrade underneath it. A slot
+// whose whole chain is locked degrades to the work that unlocks it rather than
+// disappearing — see CONTEXT.md "Session Adaptation".
+const adaptiveWeek: SeedProgram["days"] = [
+  { workout: "Adaptive — Push" }, // Mon
+  { workout: "Adaptive — Pull" }, // Tue
+  { workout: "Adaptive — Legs & Core" }, // Wed
+  { workout: "Adaptive — Skill & Push" }, // Thu
+  { workout: "Adaptive — Pull & Core" }, // Fri
+  null, // Sat rest
+  null, // Sun rest
 ];
 
 export const SEED_PROGRAMS: SeedProgram[] = [
   {
-    name: "Ivan workout",
-    previousNames: ["Personal Calisthenics"],
-    totalCycles: 0,
-    days: [
-      ...normalWeek, // Week 1
-      ...normalWeek, // Week 2
-      ...normalWeek, // Week 3
-      ...normalWeek, // Week 4
-      ...normalWeek, // Week 5
-      ...deloadWeek, // Week 6 (deload + test)
-    ],
-  },
-  {
-    name: "Isa pull-up workout",
-    totalCycles: 0,
-    days: isaWeek,
-  },
-
-  // ── ATLAS Phase Routines ───────────────────────────────────────────────────
-  // 4 OG2-tier programs. Repeating single-week cycles. Athlete transitions
-  // between phases on progression-method exhaustion, not calendar. All
-  // progression slots auto-evolve with currentLevel.
-
-  {
-    name: "Phase 1 — Untrained Beginner",
+    name: "Adaptive — 5 Day",
     description:
-      "Start here if you're new to training, unsure where to begin, or can't yet do ~10 clean push-ups, a few strict pull-ups, and clean bodyweight squats. 3 days/week full-body. Move to Phase 2 once the basics feel solid — full push-ups, ~5 strict pull-ups, parallel-bar dips, and a steady wall handstand. Deload every 4–8 weeks: one easier week at reduced volume.",
+      "One program that grows with you. Each slot auto-selects the hardest movement you've unlocked, so you never outgrow it and never get handed something you haven't earned — set your ladder levels, then just train. 5 days/week (Mon–Fri). Skill/lever slots appear as you unlock them.",
     totalCycles: 0,
-    days: phase1Week,
-  },
-  {
-    name: "Phase 2 — Trained Beginner",
-    description:
-      "Start here if your basics are solid — comfortable full push-ups, ~5 strict pull-ups, parallel-bar dips, a steady wall handstand — and you're ready to introduce light skill work. 4 days/week push/pull/lower/skill split. Move to Phase 3 once you can seriously train statics (tuck planche and tuck front lever) and are pressing toward a freestanding handstand. Deload every 4–8 weeks: one easier week at reduced volume.",
-    totalCycles: 0,
-    days: phase2Week,
-  },
-  {
-    name: "Phase 3 — Intermediate",
-    description:
-      "Start here with a strong base — roughly 8–12 pull-ups, weighted dips, a solid freestanding handstand — ready to seriously train statics like advanced-tuck/straddle planche and front lever. 4 days/week straight-arm/bent-arm split. Move to Phase 4 once you're holding full statics and beginning one-arm and rings-elite work. Deload every 4–8 weeks: one easier week at reduced volume.",
-    totalCycles: 0,
-    days: phase3Week,
-  },
-  {
-    name: "Phase 4 — Advanced",
-    description:
-      "For advanced athletes working full planche and levers, one-arm pulling, and rings-elite skills (iron cross, maltese). 4–5 days/week DUP heavy/light push-pull. Progression here is individualized and auto-regulated. Deload every 4–8 weeks: one easier week at reduced volume. Tip: tiers are per-movement — if unsure, pick the phase matching your weakest major pattern and start one lower.",
-    totalCycles: 0,
-    days: phase4Week,
+    days: adaptiveWeek,
   },
 ];

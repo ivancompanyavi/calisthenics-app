@@ -42,7 +42,9 @@ export function WorkoutBuilder() {
     }
     return e.kind === 'progression'
       ? { ...shared, kind: 'progression', progressionId: e.progressionId }
-      : { ...shared, kind: 'movement', movementId: e.movementId, mode: e.mode }
+      : e.kind === 'pattern'
+        ? { ...shared, kind: 'pattern', pattern: e.pattern }
+        : { ...shared, kind: 'movement', movementId: e.movementId, mode: e.mode }
   }
 
   const initial: InitialFormData = isEditing && existingWorkout && existingBlocks && existingEntries
@@ -121,7 +123,9 @@ function WorkoutBuilderInner({ id, initial }: { id: string | undefined; initial:
       }
       return e.kind === 'progression'
         ? { ...shared, kind: 'progression', progressionId: e.progressionId }
-        : { ...shared, kind: 'movement', movementId: e.movementId, mode: e.mode }
+        : e.kind === 'pattern'
+          ? { ...shared, kind: 'pattern', pattern: e.pattern }
+          : { ...shared, kind: 'movement', movementId: e.movementId, mode: e.mode }
     }
 
     const data: SaveWorkoutData & { id?: string } = {

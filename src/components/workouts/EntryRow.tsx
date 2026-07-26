@@ -6,7 +6,8 @@ import { useWeightUnit } from '@/hooks/useSettings'
 import { fromKg, toKg } from '@/lib/units'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { X, Timer, ChevronUp, ChevronDown, Dumbbell } from 'lucide-react'
+import { X, Timer, ChevronUp, ChevronDown, Dumbbell, Puzzle } from 'lucide-react'
+import { SEED_PATTERNS } from '@/db/seed/patterns'
 
 // The row can mutate any of the per-entry knobs but not the discriminator
 // itself — switching kind would require picking a different exercise, which
@@ -53,6 +54,43 @@ export function EntryRow({ entry, index, totalEntries, onUpdate, onRemove, onMov
     : currentLevel?.mode ?? 'reps'
 
   const modeBadgeLabel = mode === 'reps' ? 'Reps' : mode === 'time' ? 'Time' : 'Max'
+
+  // Adaptive pattern slots are authored in seed and resolve at runtime — show
+  // them read-only (reorder/remove still allowed) rather than as an editable
+  // exercise row. No UI to create or retarget one yet.
+  if (entry.kind === 'pattern') {
+    const label = SEED_PATTERNS.find((p) => p.key === entry.pattern)?.label ?? entry.pattern
+    return (
+      <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50">
+        <Puzzle className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{label}</p>
+          <p className="text-[10px] text-muted-foreground">
+            Adaptive slot — resolves to your unlocked level
+          </p>
+        </div>
+        {totalEntries > 1 && (
+          <div className="flex flex-col">
+            <Button variant="ghost" size="icon" className="h-4 w-5" disabled={index === 0} onClick={() => onMove('up')}>
+              <ChevronUp className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-4 w-5"
+              disabled={index === totalEntries - 1}
+              onClick={() => onMove('down')}
+            >
+              <ChevronDown className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+        <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={onRemove}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-1">
