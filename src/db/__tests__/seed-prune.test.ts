@@ -165,6 +165,57 @@ describe('seedDatabase — pruning retired content', () => {
     expect(log!.workoutName).toBe(RETIRED_WORKOUT_NAMES[0])
   })
 
+  // The prune's blast radius is programs and workouts. Nutrition, bodyweight
+  // and measurements are a separate concern the owner cares about MORE than the
+  // workout library, so pin them down explicitly rather than relying on the
+  // pruner's queries staying narrow by accident.
+  it('does not touch nutrition, bodyweight or measurement data', async () => {
+    await db.customFoods.add({
+      id: 'food1',
+      name: 'My Chicken',
+      per: 'per100g',
+      kcal: 165,
+      proteinG: 31,
+      carbG: 0,
+      fatG: 3.6,
+      fiberG: 0,
+      createdAt: 0,
+    })
+    await db.foodLogs.add({
+      id: 'flog1',
+      date: 1000,
+      loggedAt: 1000,
+      source: 'custom',
+      refId: 'food1',
+      name: 'My Chicken',
+      quantityG: 200,
+      kcal: 330,
+      proteinG: 62,
+      carbG: 0,
+      fatG: 7.2,
+      fiberG: 0,
+    })
+    await db.meals.add({ id: 'meal1', name: 'My Breakfast', items: [], createdAt: 0 })
+    await db.nutritionTargets.add({
+      id: 'nt1',
+      effectiveDate: 1000,
+      kcal: 2200,
+      proteinG: 180,
+      setBy: 'coach',
+    })
+    await db.bodyweightLogs.add({ id: 'bw1', date: 1000, kg: 74.5 })
+    await db.measurements.add({ id: 'ms1', date: 1000, waistCm: 82 })
+
+    await seedDatabase()
+
+    expect(await db.customFoods.get('food1')).toBeDefined()
+    expect((await db.foodLogs.get('flog1'))?.kcal).toBe(330)
+    expect(await db.meals.get('meal1')).toBeDefined()
+    expect((await db.nutritionTargets.get('nt1'))?.kcal).toBe(2200)
+    expect((await db.bodyweightLogs.get('bw1'))?.kg).toBe(74.5)
+    expect((await db.measurements.get('ms1'))?.waistCm).toBe(82)
+  })
+
   it('is idempotent — a second run changes nothing', async () => {
     await seedDatabase()
     const before = {
