@@ -6,6 +6,24 @@ Quick reference for AI agents. Read **CONTEXT.md** for the full architecture and
 
 Personal PWA. The seed data in `src/db/seed/*.ts` is the owner's _actual_ training program — edits to those files change what they see in the app on next reload. Treat workout/program/progression edits as production changes, not examples.
 
+## GitHub account (this repo is the odd one out)
+
+This is a **personal** project on the `ivancompanyavi` GitHub account. The rest of this laptop uses a work account (`ivan-company`), which is the `gh` default — so anything that resolves through the wrong account fails confusingly.
+
+```bash
+gh auth switch -u ivancompanyavi     # before gh api calls against the private data repo
+gh auth switch -u ivan-company       # switch back when done
+```
+
+What actually needs which:
+
+| Operation | Account |
+| --- | --- |
+| `git push`, `gh pr create` on `calisthenics-app` | either — the work account has access |
+| `gh api` against the **private** `ivancompanyavi/calisthenics-data` | **`ivancompanyavi` only** — the work account gets a bare 404, which reads like "repo doesn't exist" rather than "wrong identity" |
+
+The private repo is the training-data mirror the `training-coach` skill reads. If it 404s, check the active account *before* concluding the mirror isn't set up.
+
 ## Commands
 
 Package manager is **pnpm** (the README says `npm`, but `package.json` pins `pnpm@9.15.4`).
