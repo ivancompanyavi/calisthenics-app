@@ -34,7 +34,7 @@ Tests live in `src/**/__tests__/*.test.ts`. The state machine in `src/lib/execut
 
 When advancing a progression's `currentLevel`, audit workouts that _also_ name-reference the next-rung movement directly — they may now duplicate the same exercise.
 
-**Workout-edit hygiene.** When adding/removing block entries, check for cross-day duplication. Recurring drift pattern: leg/calf accessory work creeping onto pull/push days — keep accessory leg work on `Adaptive — Legs & Core`.
+**Workout-edit hygiene.** When adding/removing block entries, check for cross-day duplication. Recurring drift pattern: leg/calf *accessory* work creeping onto pull/push days. The `squat` slot on `Adaptive — Push` is the one sanctioned exception — a deliberate second weekly leg exposure, since the pattern library only has two leg patterns and one leg day caps the week at ~9 sets. Anything beyond that belongs on `Adaptive — Legs & Core`.
 
 **Slot order must survive the degraded case.** A pattern slot whose whole chain is locked degrades to the exercise that unlocks it, which can be a completely different demand — a lever slot becomes a long dead hang. So don't lead a day with a slot whose unlock work would pre-fatigue that day's main lift (this is why `Adaptive — Pull` opens with the pull-up slot, not the lever slot).
 
