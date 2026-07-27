@@ -11,6 +11,11 @@ export type ExerciseSelection =
 
 interface ExercisePickerProps {
   onSelect: (selection: ExerciseSelection) => void
+  // Hides the progressions tab. Used by the mid-session swap, where picking a
+  // progression would be meaningless — the athlete is choosing the concrete
+  // exercise to do right now, not re-pointing the slot.
+  movementsOnly?: boolean
+  title?: string
 }
 
 function ProgressionRow({ progressionId, name, currentLevel, onSelect }: {
@@ -46,11 +51,13 @@ function ProgressionRow({ progressionId, name, currentLevel, onSelect }: {
   )
 }
 
-export function ExercisePicker({ onSelect }: ExercisePickerProps) {
+export function ExercisePicker({ onSelect, movementsOnly, title }: ExercisePickerProps) {
   const { data: progressions } = useProgressions()
   const { data: movements } = useMovements()
   const [search, setSearch] = useState('')
-  const [tab, setTab] = useState<'progressions' | 'movements'>('progressions')
+  const [tab, setTab] = useState<'progressions' | 'movements'>(
+    movementsOnly ? 'movements' : 'progressions',
+  )
 
   const filteredProgressions = progressions?.filter((p) =>
     p.levelCount > 1 && p.name.toLowerCase().includes(search.toLowerCase())
@@ -62,7 +69,7 @@ export function ExercisePicker({ onSelect }: ExercisePickerProps) {
 
   return (
     <div className="space-y-3">
-      <DialogTitle>Select Exercise</DialogTitle>
+      <DialogTitle>{title ?? 'Select Exercise'}</DialogTitle>
       <Input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -70,7 +77,7 @@ export function ExercisePicker({ onSelect }: ExercisePickerProps) {
         autoFocus
       />
 
-      <div className="flex gap-1 border-b">
+      <div className={`flex gap-1 border-b${movementsOnly ? ' hidden' : ''}`}>
         <button
           type="button"
           onClick={() => setTab('progressions')}

@@ -248,17 +248,36 @@ describe('session adaptation — substitution policy', () => {
     expect(muscleUpSlot!.movementId).toBe(mvId('Ring Dips'))
   })
 
-  it('carries the requirement threshold through as the slot target', () => {
+  // The gate threshold is the GOAL, not today's dose. Prescribing 45s to someone
+  // who holds 20s prescribes failure every session.
+  it('prescribes a max-effort set when there is no PR to dose from', () => {
     const ctx = makeContext(NO_HISTORY)
     const { blockIds, entries } = entriesFor('Adaptive — Pull')
     const { entries: adapted } = adaptSessionEntries(blockIds, entries, ctx)
     const hang = adapted.find((e) => e.kind === 'movement' && e.movementId === mvId('Dead Hang'))
     expect(hang).toBeDefined()
-    expect(hang!.kind === 'movement' && hang!.mode).toBe('time')
-    // Back Lever's gate is minSeconds: 45 — the target IS the requirement.
-    expect(hang!.targetSeconds).toBe(45)
+    // Unknown level → find out, and create the PR everything downstream needs.
+    expect(hang!.kind === 'movement' && hang!.mode).toBe('max')
+    expect(hang!.targetSeconds).toBeUndefined()
     // The authored target belonged to the swapped-out exercise; it must not leak.
     expect(hang!.targetReps).toBeUndefined()
+  })
+
+  it('steps up from the current best, and never past the requirement', () => {
+    const withHang = (secs: number) =>
+      new Map<string, MovementPR>([
+        [mvId('Dead Hang'), { movementId: mvId('Dead Hang'), movementName: 'Dead Hang', bestSeconds: secs }],
+      ])
+    const hangTarget = (secs: number) => {
+      const ctx = makeContext(withHang(secs))
+      const { blockIds, entries } = entriesFor('Adaptive — Pull')
+      const { entries: adapted } = adaptSessionEntries(blockIds, entries, ctx)
+      return adapted.find((e) => e.kind === 'movement' && e.movementId === mvId('Dead Hang'))
+    }
+    // 20s best → a reachable 25s, not the 45s gate.
+    expect(hangTarget(20)?.targetSeconds).toBe(25)
+    // Near the gate, the step is clamped to the requirement itself.
+    expect(hangTarget(43)?.targetSeconds).toBe(45)
   })
 
   it('is a no-op for a workout of plain movement entries', () => {

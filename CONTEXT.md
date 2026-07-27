@@ -95,6 +95,16 @@ All four are pure. `workoutsRepository.resolveBlocks` fetches the data snapshots
 
 Coverage lives in `src/lib/__tests__/session-adaptation.test.ts`, which runs against the **real seed program** rather than fixtures — the failure being guarded is a property of the actual prerequisite graph.
 
+### Swapping an exercise mid-session
+
+Sometimes the prescribed exercise isn't the one you can do — an injury flare-up, missing kit, a bad day. The **Swap** button on the exercise screen replaces the current exercise for the rest of the session while keeping the prescription (sets, reps/time, rest, tempo) — it substitutes the exercise, not the dose.
+
+The set log then records **both**: `movementId` is what was actually performed, and `prescribedMovementId` is what the program asked for. That split matters because PRs drive the entry gates — logging band-assisted pull-ups against plain `Pull-Ups` would falsely satisfy the `Pull-Ups ≥ 8` gate on four different progressions. Recording the real movement keeps the gates honest, and keeping the prescription makes the deviation visible in history rather than silently rewriting the plan.
+
+Deliberately *not* built: an injury "veto list" the app routes around automatically. Hand-maintained state like that goes stale (and a stale veto is worse than none). Swap records accumulate the evidence that would justify automating it later — "you've swapped this five sessions running, make it the default?" — which is a suggestion earned from data rather than a list to curate.
+
+Mode is preserved across a swap, so a reps exercise swapped for a hold still logs reps. Fine for the like-for-like swaps this is for; revisit if cross-mode swapping becomes common.
+
 ## Workout Execution Engine
 
 `src/lib/execution-engine.ts` is a pure reducer state machine (wrapped by `useWorkoutExecution.ts`):

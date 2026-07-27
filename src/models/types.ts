@@ -210,6 +210,14 @@ export interface SetLog {
   actualWeightKg?: number
   targetBandLevel?: number
   actualBandLevel?: number
+  // Set when the athlete swapped this exercise mid-session — injury, missing
+  // equipment, or just a bad day. `movementId`/`movementName` above always
+  // record what was ACTUALLY performed (so PRs land on the right movement and
+  // can't be inflated by an easier substitute); these record what the program
+  // asked for, so the deviation is visible in history instead of silently
+  // rewriting the session. Absent = performed as prescribed.
+  prescribedMovementId?: string
+  prescribedMovementName?: string
   // When true, this set is part of the auto-generated warm-up pre-block and
   // must be excluded from PR derivation, progression readiness metrics, and
   // volume accounting. Never set by hand on user-created logs.

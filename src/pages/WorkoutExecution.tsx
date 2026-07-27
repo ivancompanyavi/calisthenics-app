@@ -24,6 +24,9 @@ import { CompleteScreen } from '@/components/execution/CompleteScreen'
 import { GatePrompt } from '@/components/execution/GatePrompt'
 import { LockedPrompt } from '@/components/execution/LockedPrompt'
 import { SessionPreviewScreen } from '@/components/execution/SessionPreviewScreen'
+import { ExercisePicker } from '@/components/workouts/ExercisePicker'
+import { Dialog } from '@/components/ui/dialog'
+import { useMovements } from '@/hooks/useMovements'
 import { Button } from '@/components/ui/button'
 import { useConfirm } from '@/components/ui/confirm-context'
 import { X, Flag } from 'lucide-react'
@@ -92,6 +95,11 @@ export function WorkoutExecution() {
   // "store info from previous renders" pattern (setState during render is
   // explicitly OK when conditional and updating a sibling state).
   const [gateAcknowledged, setGateAcknowledged] = useState<Set<string>>(new Set())
+
+  // Mid-session exercise swap: "I can't do this today, give me something else."
+  // Records what was prescribed on the set log rather than rewriting the plan.
+  const [showSwap, setShowSwap] = useState(false)
+  const { data: allMovements } = useMovements()
   const [previousWorkoutId, setPreviousWorkoutId] = useState(state.workoutId)
   if (previousWorkoutId !== state.workoutId) {
     setPreviousWorkoutId(state.workoutId)
@@ -399,8 +407,36 @@ export function WorkoutExecution() {
             onDone={() => dispatch({ type: 'DONE_EXERCISE', now: Date.now() })}
             onDelay={() => dispatch({ type: 'DELAY_EXERCISE', now: Date.now() })}
             onSkip={() => dispatch({ type: 'SKIP_EXERCISE', now: Date.now() })}
+            onSwap={() => setShowSwap(true)}
           />
         )}
+
+        <Dialog open={showSwap} onClose={() => setShowSwap(false)}>
+          <ExercisePicker
+            movementsOnly
+            title="Swap exercise"
+            onSelect={(selection) => {
+              setShowSwap(false)
+              if (selection.type !== 'movement') return
+              const movement = allMovements?.find((m) => m.id === selection.movementId)
+              if (!movement) return
+              dispatch({
+                type: 'SWAP_EXERCISE',
+                movement: {
+                  id: movement.id,
+                  name: movement.name,
+                  photo: movement.photo,
+                  seedImagePath: movement.seedImagePath,
+                  description: movement.description,
+                  coachingCues: movement.coachingCues,
+                  referenceUrl: movement.referenceUrl,
+                  family: movement.family,
+                  prepTags: movement.prepTags,
+                },
+              })
+            }}
+          />
+        </Dialog>
 
         {state.phase === 'adjust' && currentEntry && (
           <AdjustScreen

@@ -335,6 +335,104 @@ describe('executionReducer', () => {
     })
   })
 
+  describe('SWAP_EXERCISE', () => {
+    const BANDED = {
+      id: 'mov-banded',
+      name: 'Band-Assisted Pull-Ups',
+      description: 'Pull-ups with a band for assistance.',
+    }
+
+    it('replaces the exercise and remembers what was prescribed', () => {
+      const state = makeInitializedState({
+        blocks: [makeBlock({ entries: [makeEntry({ movementId: 'mov-1', movementName: 'Pull-Ups' })] })],
+      })
+      const result = executionReducer(state, { type: 'SWAP_EXERCISE', movement: BANDED })
+      const entry = getCurrentEntry(result)!
+      expect(entry.movementId).toBe('mov-banded')
+      expect(entry.movementName).toBe('Band-Assisted Pull-Ups')
+      expect(entry.swappedFrom).toEqual({ movementId: 'mov-1', movementName: 'Pull-Ups' })
+    })
+
+    it('keeps the prescription — this swaps the exercise, not the dose', () => {
+      const state = makeInitializedState({
+        blocks: [makeBlock({ entries: [makeEntry({ targetReps: 8, restSeconds: 90 })] })],
+      })
+      const entry = getCurrentEntry(
+        executionReducer(state, { type: 'SWAP_EXERCISE', movement: BANDED }),
+      )!
+      expect(entry.targetReps).toBe(8)
+      expect(entry.restSeconds).toBe(90)
+    })
+
+    it('drops the auto-progression suggestion — it was for the other movement', () => {
+      const state = makeInitializedState({
+        blocks: [makeBlock({ entries: [makeEntry({ suggestedReps: 12, suggestedRepsReason: 'clean hit' })] })],
+      })
+      const entry = getCurrentEntry(
+        executionReducer(state, { type: 'SWAP_EXERCISE', movement: BANDED }),
+      )!
+      expect(entry.suggestedReps).toBeUndefined()
+      expect(entry.suggestedRepsReason).toBeUndefined()
+    })
+
+    it('swapping back to the prescribed movement is not a deviation', () => {
+      const state = makeInitializedState({
+        blocks: [makeBlock({ entries: [makeEntry({ movementId: 'mov-1', movementName: 'Pull-Ups' })] })],
+      })
+      const swapped = executionReducer(state, { type: 'SWAP_EXERCISE', movement: BANDED })
+      const back = executionReducer(swapped, {
+        type: 'SWAP_EXERCISE',
+        movement: { id: 'mov-1', name: 'Pull-Ups' },
+      })
+      expect(getCurrentEntry(back)!.swappedFrom).toBeUndefined()
+    })
+
+    it('only affects the current entry', () => {
+      const entries = [makeEntry({ movementId: 'mov-1' }), makeEntry({ movementId: 'mov-2' })]
+      const state = makeInitializedState({
+        blocks: [makeBlock({ type: 'superset', entries })],
+        currentEntryIndex: 0,
+      })
+      const result = executionReducer(state, { type: 'SWAP_EXERCISE', movement: BANDED })
+      expect(result.blocks[0].entries[1].movementId).toBe('mov-2')
+    })
+
+    it('is a no-op outside the exercise phase', () => {
+      const state = makeInitializedState({ phase: 'resting' })
+      const result = executionReducer(state, { type: 'SWAP_EXERCISE', movement: BANDED })
+      expect(result).toBe(state)
+    })
+
+    it('records the swap on the set log so history shows the deviation', () => {
+      const state = makeInitializedState({
+        blocks: [makeBlock({ rounds: 1, entries: [makeEntry({ movementId: 'mov-1', movementName: 'Pull-Ups' })] })],
+      })
+      const swapped = executionReducer(state, { type: 'SWAP_EXERCISE', movement: BANDED })
+      const confirmed = executionReducer(
+        { ...swapped, phase: 'adjust', adjustReps: 6 },
+        { type: 'CONFIRM_ADJUST', now: T0 },
+      )
+      const set = confirmed.completedSets[0]
+      // What was actually done — so the PR lands on the banded variant, and a
+      // Pull-Ups PR can't be inflated by an assisted set.
+      expect(set.movementId).toBe('mov-banded')
+      expect(set.actualReps).toBe(6)
+      // What the program asked for.
+      expect(set.prescribedMovementId).toBe('mov-1')
+      expect(set.prescribedMovementName).toBe('Pull-Ups')
+    })
+
+    it('leaves the prescribed fields unset when performed as written', () => {
+      const state = makeInitializedState({
+        blocks: [makeBlock({ rounds: 1 })],
+        phase: 'adjust',
+        adjustReps: 10,
+      })
+      const confirmed = executionReducer(state, { type: 'CONFIRM_ADJUST', now: T0 })
+      expect(confirmed.completedSets[0].prescribedMovementId).toBeUndefined()
+    })
+  })
+
   describe('DELAY_EXERCISE', () => {
     it('adds entry to skipped list and advances', () => {
       const entries = [
