@@ -24,9 +24,11 @@ function shortName(name: string): string {
 
 function substitutionText(substitutedFor: SubstitutedFor): string {
   const target = shortName(substitutedFor.progressionName)
-  return substitutedFor.reason === 'unlock'
-    ? `Working toward ${target}`
-    : `Instead of ${target} — locked`
+  if (substitutedFor.reason === 'unlock') return `Working toward ${target}`
+  // 'prep': the line is unlocked but the athlete hasn't opted in — this slot
+  // maintains its gate evidence until they do.
+  if (substitutedFor.reason === 'prep') return `${target} unlocked — prep until you opt in`
+  return `Instead of ${target} — locked`
 }
 
 export function SubstitutionNote({
@@ -34,7 +36,7 @@ export function SubstitutionNote({
   variant = 'badge',
   className,
 }: SubstitutionNoteProps) {
-  const Icon = substitutedFor.reason === 'unlock' ? KeyRound : Shuffle
+  const Icon = substitutedFor.reason === 'alternative' ? Shuffle : KeyRound
   const text = substitutionText(substitutedFor)
 
   if (variant === 'banner') {

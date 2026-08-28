@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useWorkout, useWorkoutBlocks, useAllBlockEntries } from '@/hooks/useWorkouts'
-import { workoutsRepository } from '@/repositories'
+import { progressionsRepository, workoutsRepository } from '@/repositories'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -10,8 +11,11 @@ import { ExerciseDetailDialog } from '@/components/workouts/ExerciseDetailDialog
 import { ArrowLeft, Pencil, Play, TrendingUp, Lock } from 'lucide-react'
 import { useProgressionGates } from '@/hooks/useProgressionGates'
 import { SubstitutionNote } from '@/components/workouts/SubstitutionNote'
+import { UpgradeSuggestionCard } from '@/components/workouts/UpgradeSuggestionCard'
 import { formatTime, formatTempo } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import type { ResolvedBlock, ResolvedEntry } from '@/lib/execution-engine'
+import type { UpgradeSuggestion } from '@/lib/session-adaptation'
 
 function formatTarget(entry: ResolvedEntry): string {
   const sideLabel = entry.perSide ? ' /side' : ''
@@ -45,17 +49,35 @@ export function WorkoutDetail() {
   const { data: entries } = useAllBlockEntries(blockIds)
   const { data: gates } = useProgressionGates()
 
+  const queryClient = useQueryClient()
   const [resolved, setResolved] = useState<ResolvedBlock[] | null>(null)
+  const [upgrades, setUpgrades] = useState<UpgradeSuggestion[]>([])
   const [detail, setDetail] = useState<{
     entry: ResolvedEntry
     block: ResolvedBlock
     blockIndex: number
   } | null>(null)
 
-  useEffect(() => {
+  const resolve = useCallback(() => {
     if (!blocks || !entries) return
-    workoutsRepository.resolveBlocks(blocks, entries).then(setResolved)
+    workoutsRepository.resolveBlocksDetailed(blocks, entries).then((detailed) => {
+      setResolved(detailed.blocks)
+      setUpgrades(detailed.upgradeSuggestions)
+    })
   }, [blocks, entries])
+
+  useEffect(resolve, [resolve])
+
+  // Adopt/dismiss both persist on the progression row, then re-resolve so the
+  // preview reflects the choice immediately.
+  const onUpgradeAction = async (
+    action: (id: string) => Promise<void>,
+    progressionId: string,
+  ) => {
+    await action(progressionId)
+    await queryClient.invalidateQueries({ queryKey: queryKeys.progressions.all })
+    resolve()
+  }
 
   if (!workout) {
     return (
@@ -122,6 +144,15 @@ export function WorkoutDetail() {
           block={detail?.block ?? null}
           blockIndex={detail?.blockIndex ?? null}
         />
+
+        {upgrades.map((suggestion) => (
+          <UpgradeSuggestionCard
+            key={suggestion.progressionId}
+            suggestion={suggestion}
+            onAdopt={(id) => onUpgradeAction(progressionsRepository.adopt, id)}
+            onDismiss={(id) => onUpgradeAction(progressionsRepository.dismissUpgrade, id)}
+          />
+        ))}
 
         {resolved?.map((block, blockIdx) => (
           <section key={blockIdx} className="space-y-2">

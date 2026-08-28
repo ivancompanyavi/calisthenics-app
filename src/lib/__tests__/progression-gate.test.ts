@@ -14,7 +14,21 @@ function makeProgression(overrides: Partial<Progression> & { id: string }): Prog
   }
 }
 
+// Entry gates judge CURRENT form: only the windowed recentBest* fields count.
+// This helper models a PR that is also recent; makeStalePR models one whose
+// evidence has aged out of the gate window.
 function makePR(movementId: string, bestReps?: number, bestSeconds?: number): MovementPR {
+  return {
+    movementId,
+    movementName: 'Test Movement',
+    bestReps,
+    bestSeconds,
+    recentBestReps: bestReps,
+    recentBestSeconds: bestSeconds,
+  }
+}
+
+function makeStalePR(movementId: string, bestReps?: number, bestSeconds?: number): MovementPR {
   return { movementId, movementName: 'Test Movement', bestReps, bestSeconds }
 }
 
@@ -148,5 +162,20 @@ describe('evaluateProgressionGate — manual override', () => {
     // manuallyUnlocked reflects the input flag; callers can prefer prerequisitesMet
     // to decide whether to show an "opened manually" badge.
     expect(gate.manuallyUnlocked).toBe(true)
+  })
+})
+
+// ── Recency: gates judge current form, not all-time bests ─────────────────────
+
+describe('evaluateProgressionGate — stale evidence', () => {
+  const prereqs: SkillPrerequisite[] = [{ kind: 'movement-pr', movementId: 'pullups', minReps: 8 }]
+
+  it('an all-time PR outside the evidence window no longer unlocks', () => {
+    // Pre-layoff 10-rep best, nothing recent: the line re-locks so the athlete
+    // is not programmed against peak form they can no longer produce.
+    const prs = new Map([['pullups', makeStalePR('pullups', 10)]])
+    const gate = evaluateProgressionGate(prereqs, [], prs)
+    expect(gate.unlocked).toBe(false)
+    expect(gate.prerequisites[0].progress).toBe(0)
   })
 })

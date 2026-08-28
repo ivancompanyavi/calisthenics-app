@@ -2,8 +2,11 @@ import type { SeedPattern } from './types'
 
 // ADAPTIVE PATTERN SLOTS — the primitive for a structure/difficulty-decoupled
 // program. A workout slot names a movement PATTERN ("vertical-pull") instead of
-// a fixed progression; it resolves at runtime to the hardest UNLOCKED
-// progression in its candidate chain (see src/lib/pattern-resolver.ts).
+// a fixed progression; it resolves at runtime to the unlocked progression in
+// its candidate chain the athlete is ENGAGED with — most recently trained,
+// adopted, or manually unlocked — falling back to the easiest unlocked one.
+// Harder unlocked lines are offered as opt-in step-up cards, never applied
+// automatically (see src/lib/pattern-resolver.ts).
 //
 // Candidate order is HARDEST → EASIEST, grounded in the OG2 progression charts
 // (2e book pp.30-33): each chart column is a progression line and its FIG level
@@ -13,8 +16,9 @@ import type { SeedPattern } from './types'
 // INVARIANT (enforced by src/db/seed/__tests__/patterns.test.ts): a
 // non-`optional` pattern's LAST candidate must be an ungated foundational
 // progression, so the slot always resolves to something a beginner can train.
-// `optional` patterns (skill/static work) resolve to nothing until earned — the
-// slot is simply omitted, which is the intended behavior, not a gap.
+// `optional` patterns (skill/static work) resolve to nothing until engaged —
+// unlocked-but-unstarted chains degrade to gate-maintenance work, fully locked
+// ones to unlock work, so the session never loses content.
 
 export const SEED_PATTERNS: SeedPattern[] = [
   // ── PULL ────────────────────────────────────────────────────────────────

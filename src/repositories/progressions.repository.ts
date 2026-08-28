@@ -167,6 +167,23 @@ export const progressionsRepository = {
   },
 
   /**
+   * Opt into a line for its pattern slot: the athlete accepted the "step up?"
+   * card, so pattern resolution now treats this progression as engaged (see
+   * src/lib/pattern-resolver.ts). Clears any earlier dismissal.
+   */
+  adopt: async (id: string): Promise<void> => {
+    await db.progressions.update(id, { adoptedAt: Date.now(), upgradeDismissedAt: undefined })
+  },
+
+  /**
+   * Snooze the "step up?" card for a line. It stays hidden until gate evidence
+   * newer than this timestamp re-earns the offer.
+   */
+  dismissUpgrade: async (id: string): Promise<void> => {
+    await db.progressions.update(id, { upgradeDismissedAt: Date.now() })
+  },
+
+  /**
    * Decrement currentLevel by 1, flooring at 0 (never goes below the first rung).
    */
   decrementCurrentLevel: async (id: string, currentLevel: number): Promise<void> => {

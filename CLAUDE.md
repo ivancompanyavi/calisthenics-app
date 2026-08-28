@@ -48,7 +48,7 @@ Tests live in `src/**/__tests__/*.test.ts`. The state machine in `src/lib/execut
 
 - `{ progression: "X" }` resolves at runtime to whatever movement sits at the progression's `currentLevel`.
 - `{ movement: "Y", mode, targetReps }` is locked to that movement.
-- `{ pattern: "vertical-pull" }` is an adaptive slot — resolves to the hardest *unlocked* progression in the pattern's chain. This is what the only shipped program uses.
+- `{ pattern: "vertical-pull" }` is an adaptive slot — resolves to the unlocked progression in the pattern's chain the athlete is *engaged* with (most recently trained, adopted, or manually unlocked), falling back to the easiest unlocked one. Harder unlocked lines surface as opt-in "step up?" cards, never as automatic swaps, and entry gates only count PRs from the recent evidence window (`GATE_EVIDENCE_WINDOW_DAYS`) so lines re-lock after a layoff. This is what the only shipped program uses.
 
 When advancing a progression's `currentLevel`, audit workouts that _also_ name-reference the next-rung movement directly — they may now duplicate the same exercise.
 

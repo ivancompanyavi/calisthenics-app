@@ -44,6 +44,22 @@ export function useAllBlockEntries(blockIds: string[]) {
   })
 }
 
+// Opt-in step-up offers for a workout's pattern slots (harder unlocked lines
+// the adaptive resolver is deliberately NOT auto-applying). Invalidated with
+// the progressions key: adopting/dismissing writes to the progression row.
+export function useUpgradeSuggestions(workoutId: string | undefined) {
+  return useQuery({
+    queryKey: [...queryKeys.progressions.all, 'upgradeSuggestions', workoutId],
+    queryFn: async () => {
+      const blocks = await workoutsRepository.getBlocks(workoutId!)
+      const entries = await workoutsRepository.getEntriesBulk(blocks.map((b) => b.id))
+      const { upgradeSuggestions } = await workoutsRepository.resolveBlocksDetailed(blocks, entries)
+      return upgradeSuggestions
+    },
+    enabled: !!workoutId,
+  })
+}
+
 export function useSaveWorkout() {
   const qc = useQueryClient()
   return useMutation({

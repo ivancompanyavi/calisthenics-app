@@ -7,6 +7,13 @@ import { deriveRepsSuggestion } from '@/lib/progression-metrics'
 // PRs that were achieved during a dedicated max-testing session.
 const TEST_DAY_WORKOUT_NAME = 'Test Day (Week 6)'
 
+// How long a PR counts as evidence of CURRENT form. Entry gates (progression
+// unlocks) evaluate against bests inside this window, so a line earned on a
+// good day months ago re-locks after a layoff instead of the app programming
+// for peak-you forever. All-time bests still exist for display and the Atlas.
+export const GATE_EVIDENCE_WINDOW_DAYS = 56 // 8 weeks
+export const GATE_EVIDENCE_WINDOW_MS = GATE_EVIDENCE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+
 export interface MovementPR {
   movementId: string
   movementName: string
@@ -18,6 +25,13 @@ export interface MovementPR {
   bestSecondsAt?: number
   // True when the best-seconds set was achieved during a Test Day session.
   bestSecondsTestDay?: boolean
+  // Bests within GATE_EVIDENCE_WINDOW of now — "current form" as opposed to
+  // the all-time fields above. Sets whose parent log has no completedAt can't
+  // prove recency and are excluded. Consumed by the progression entry gate.
+  recentBestReps?: number
+  recentBestRepsAt?: number
+  recentBestSeconds?: number
+  recentBestSecondsAt?: number
 }
 
 // Auto-progression suggestion for one (workoutId, movementId) tuple. Carries
@@ -124,6 +138,8 @@ export const workoutLogsRepository = {
       testDayWorkoutIds.has(log.workoutId) ||
       log.workoutName === TEST_DAY_WORKOUT_NAME
 
+    const recentCutoff = Date.now() - GATE_EVIDENCE_WINDOW_MS
+
     const prs = new Map<string, MovementPR>()
     for (const set of sets) {
       if (set.skipped) continue
@@ -148,11 +164,43 @@ export const workoutLogsRepository = {
         existing.bestSecondsAt = at
         existing.bestSecondsTestDay = testDay
       }
+      // Windowed bests: only sets that can PROVE recency (timestamped parent
+      // log inside the window) count as current form.
+      if (at != null && at >= recentCutoff) {
+        if (reps > 0 && (existing.recentBestReps == null || reps > existing.recentBestReps)) {
+          existing.recentBestReps = reps
+          existing.recentBestRepsAt = at
+        }
+        if (secs > 0 && (existing.recentBestSeconds == null || secs > existing.recentBestSeconds)) {
+          existing.recentBestSeconds = secs
+          existing.recentBestSecondsAt = at
+        }
+      }
       // Keep the most recent movementName in case the movement was renamed.
       existing.movementName = set.movementName
       prs.set(set.movementId, existing)
     }
     return prs
+  },
+
+  // When each progression was last actually trained: progressionId → the most
+  // recent completedAt of a session containing a non-skipped working set logged
+  // under it. Feeds pattern resolution — "the line you've been training" —
+  // so adaptive slots follow demonstrated engagement, not just unlock state.
+  getLastTrainedByProgression: async (): Promise<Map<string, number>> => {
+    const [sets, logs] = await Promise.all([db.setLogs.toArray(), db.workoutLogs.toArray()])
+    const completedAtByLog = new Map(
+      logs.filter((l) => l.completedAt != null).map((l) => [l.id, l.completedAt as number]),
+    )
+    const lastTrained = new Map<string, number>()
+    for (const set of sets) {
+      if (set.skipped || set.warmup || !set.progressionId) continue
+      const at = completedAtByLog.get(set.workoutLogId)
+      if (at == null) continue
+      const prev = lastTrained.get(set.progressionId)
+      if (prev == null || at > prev) lastTrained.set(set.progressionId, at)
+    }
+    return lastTrained
   },
 
   save: async (data: {

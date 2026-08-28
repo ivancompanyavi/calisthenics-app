@@ -16,11 +16,12 @@
 // Pure: takes data snapshots, returns new arrays. All I/O lives in
 // workoutsRepository.resolveBlocks, which fetches the snapshots and calls this.
 
-import { resolvePattern } from '@/lib/pattern-resolver'
+import { resolvePattern, type PatternSuggestion } from '@/lib/pattern-resolver'
 import { evaluateProgressionGate } from '@/lib/progression-gate'
 import {
   currentRungMovementId,
   substituteLockedProgression,
+  substituteUnengagedProgression,
   type SubstitutionContext,
   type SubstitutionResult,
 } from '@/lib/gate-substitution'
@@ -29,7 +30,14 @@ import type { BlockEntry } from '@/models/types'
 
 export interface SessionAdaptationContext extends SubstitutionContext {
   /** Pattern chains, keyed so a slot's `pattern` field can be looked up. */
-  patterns: { key: string; candidates: string[] }[]
+  patterns: { key: string; candidates: string[]; optional?: boolean }[]
+  /** progressionId → last completedAt of a session that trained it. */
+  lastTrainedByProgression: Map<string, number>
+}
+
+/** An opt-in step-up surfaced by a pattern slot — never applied automatically. */
+export interface UpgradeSuggestion extends PatternSuggestion {
+  patternKey: string
 }
 
 export interface AdaptedSession {
@@ -37,6 +45,8 @@ export interface AdaptedSession {
   entries: BlockEntry[]
   /** Entry id → why its exercise was swapped. Display-only. */
   substitutedFor: Map<string, SubstitutedFor>
+  /** Harder unlocked lines the athlete can opt into, deduped by progression. */
+  upgradeSuggestions: UpgradeSuggestion[]
 }
 
 // The kind-independent half of a BlockEntry. When a slot is retargeted, its own
@@ -63,11 +73,13 @@ export function adaptSessionEntries(
   ctx: SessionAdaptationContext,
 ): AdaptedSession {
   const substitutedFor = new Map<string, SubstitutedFor>()
+  const upgradeSuggestions: UpgradeSuggestion[] = []
+  const suggestedProgressionIds = new Set<string>()
 
   // Fast-path: movement-bound entries are never gated, so there is nothing to
   // adapt and no reason to walk the session.
   if (!entries.some((e) => e.kind !== 'movement')) {
-    return { entries, substitutedFor }
+    return { entries, substitutedFor, upgradeSuggestions }
   }
 
   const progressionById = new Map(ctx.progressions.map((p) => [p.id, p]))
@@ -128,13 +140,19 @@ export function adaptSessionEntries(
     }
   }
 
+  const addSuggestion = (suggestion: PatternSuggestion | null, patternKey: string) => {
+    if (!suggestion || suggestedProgressionIds.has(suggestion.progressionId)) return
+    suggestedProgressionIds.add(suggestion.progressionId)
+    upgradeSuggestions.push({ ...suggestion, patternKey })
+  }
+
   // Two phases, because a substitution must not collide with a slot LATER in
   // the session. Phase 1 settles every slot that needs no substitution and
   // claims its movement; only then does phase 2 choose substitutes, against a
   // `claimed` set that already knows the whole session.
   type Settled =
     | { needsSubstitute: false; entry: BlockEntry }
-    | { needsSubstitute: true; entry: BlockEntry; lockedProgressionId: string }
+    | { needsSubstitute: true; kind: 'locked' | 'unengaged'; entry: BlockEntry; progressionId: string }
 
   const settled: Settled[] = []
   for (const entry of ordered) {
@@ -147,10 +165,31 @@ export function adaptSessionEntries(
     if (entry.kind === 'pattern') {
       const pattern = ctx.patterns.find((p) => p.key === entry.pattern)
       if (!pattern) continue // Unknown key (stale data) — drop the slot.
-      const { progressionId } = resolvePattern(pattern.candidates, ctx.progressions, ctx.movementPRs)
-      if (progressionId) {
-        claimRung(progressionId)
-        settled.push({ needsSubstitute: false, entry: asProgressionEntry(entry, progressionId) })
+      const resolution = resolvePattern(
+        pattern.candidates,
+        ctx.progressions,
+        ctx.movementPRs,
+        ctx.lastTrainedByProgression,
+        { optional: pattern.optional },
+      )
+      addSuggestion(resolution.suggestion, pattern.key)
+      if (resolution.progressionId) {
+        claimRung(resolution.progressionId)
+        settled.push({
+          needsSubstitute: false,
+          entry: asProgressionEntry(entry, resolution.progressionId),
+        })
+        continue
+      }
+      if (resolution.held) {
+        // Optional line unlocked but never started: hold the slot as
+        // gate-maintenance work; the suggestion above carries the opt-in.
+        settled.push({
+          needsSubstitute: true,
+          kind: 'unengaged',
+          entry,
+          progressionId: resolution.held.progressionId,
+        })
         continue
       }
       // Nothing in the chain is unlocked. Substitute against the EASIEST
@@ -158,7 +197,9 @@ export function adaptSessionEntries(
       // unlock work instead of vanishing from the session.
       const easiest = pattern.candidates[pattern.candidates.length - 1]
       const target = ctx.progressions.find((p) => p.name === easiest)
-      if (target) settled.push({ needsSubstitute: true, entry, lockedProgressionId: target.id })
+      if (target) {
+        settled.push({ needsSubstitute: true, kind: 'locked', entry, progressionId: target.id })
+      }
       continue
     }
 
@@ -167,7 +208,7 @@ export function adaptSessionEntries(
       settled.push({ needsSubstitute: false, entry })
       continue
     }
-    settled.push({ needsSubstitute: true, entry, lockedProgressionId: entry.progressionId })
+    settled.push({ needsSubstitute: true, kind: 'locked', entry, progressionId: entry.progressionId })
   }
 
   const adapted: BlockEntry[] = []
@@ -176,9 +217,12 @@ export function adaptSessionEntries(
       adapted.push(slot.entry)
       continue
     }
-    const result = substituteLockedProgression(slot.lockedProgressionId, ctx, claimed)
+    const result =
+      slot.kind === 'unengaged'
+        ? substituteUnengagedProgression(slot.progressionId, ctx, claimed)
+        : substituteLockedProgression(slot.progressionId, ctx, claimed)
     if (result) adapted.push(applySubstitution(slot.entry, result))
   }
 
-  return { entries: adapted, substitutedFor }
+  return { entries: adapted, substitutedFor, upgradeSuggestions }
 }
