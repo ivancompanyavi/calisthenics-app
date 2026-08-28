@@ -36,9 +36,18 @@ export function evaluateProgressionGate(
   movementPRs: Map<string, MovementPR>,
   manuallyUnlocked = false,
 ): ProgressionGateResult {
+  // 'recent' evidence: unlocked means trainable NOW, so the gate judges
+  // current form (bests inside GATE_EVIDENCE_WINDOW), not all-time bests.
+  // A line earned before a layoff re-locks when its evidence goes stale.
+  // The Skill Atlas keeps all-time evidence — achievements don't expire.
   const results =
     prerequisites && prerequisites.length > 0
-      ? evaluatePrerequisites(prerequisites, new Map(progressions.map((p) => [p.id, p])), movementPRs)
+      ? evaluatePrerequisites(
+          prerequisites,
+          new Map(progressions.map((p) => [p.id, p])),
+          movementPRs,
+          'recent',
+        )
       : []
   // every() on an empty list is true — a prerequisite-free progression is met.
   const prerequisitesMet = results.every((r) => r.met)

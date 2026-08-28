@@ -12,7 +12,7 @@ export type ExecutionPhase = 'ready' | 'exercise' | 'adjust' | 'resting' | 'comp
 export interface SubstitutedFor {
   progressionId: string
   progressionName: string
-  reason: 'unlock' | 'alternative'
+  reason: 'unlock' | 'alternative' | 'prep'
 }
 
 // The movement fields a swap replaces. Mirrors the Movement row's display

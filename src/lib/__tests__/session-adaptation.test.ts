@@ -51,10 +51,44 @@ function buildSeedGraph(currentLevels: Record<string, number> = {}) {
 function makeContext(
   prs: Map<string, MovementPR> = new Map(),
   currentLevels: Record<string, number> = {},
+  lastTrained: Map<string, number> = new Map(),
 ): SessionAdaptationContext {
   const { progressions, levelsByProgression } = buildSeedGraph(currentLevels)
-  return { progressions, levelsByProgression, movementPRs: prs, patterns: SEED_PATTERNS }
+  return {
+    progressions,
+    levelsByProgression,
+    movementPRs: prs,
+    patterns: SEED_PATTERNS,
+    lastTrainedByProgression: lastTrained,
+  }
 }
+
+// A PR that is also RECENT — entry gates and prescription dosing read the
+// windowed fields, so tests must set them to model current form.
+function recentPR(
+  movement: string,
+  { reps, secs }: { reps?: number; secs?: number },
+  at = 1000,
+): [string, MovementPR] {
+  return [
+    mvId(movement),
+    {
+      movementId: mvId(movement),
+      movementName: movement,
+      bestReps: reps,
+      bestRepsAt: reps != null ? at : undefined,
+      recentBestReps: reps,
+      recentBestRepsAt: reps != null ? at : undefined,
+      bestSeconds: secs,
+      bestSecondsAt: secs != null ? at : undefined,
+      recentBestSeconds: secs,
+      recentBestSecondsAt: secs != null ? at : undefined,
+    },
+  ]
+}
+
+const trainedProgressions = (...pairs: [string, number][]) =>
+  new Map(pairs.map(([name, at]) => [progId(name), at] as const))
 
 // Turn a seed workout into the BlockEntry rows resolveBlocks would receive.
 function entriesFor(workoutName: string) {
@@ -218,15 +252,31 @@ describe('session adaptation — the reported failure', () => {
     expect(session.some((s) => s.reason === 'unlock')).toBe(true)
   })
 
-  it('a 45s dead hang PR unlocks the real exercise, replacing the substitute', () => {
-    const withHang = new Map<string, MovementPR>([
-      [mvId('Dead Hang'), { movementId: mvId('Dead Hang'), movementName: 'Dead Hang', bestSeconds: 45 }],
-    ])
-    const before = describeSession('Adaptive — Pull', makeContext(NO_HISTORY))
-    const after = describeSession('Adaptive — Pull', makeContext(withHang))
-    expect(before.map((s) => s.label)).toContain('Dead Hang')
-    // The hang did its job: the lever slot now prescribes the lever chain.
-    expect(after.some((s) => s.label === 'Back Lever Progression')).toBe(true)
+  it('a 45s dead hang unlocks the lever line as an OFFER, not an auto-start', () => {
+    // Unlocking is not adopting: the German Hang is a loaded shoulder position
+    // nobody should be handed silently. The slot keeps maintaining the gate
+    // evidence and the step-up arrives as a suggestion instead.
+    const withHang = new Map<string, MovementPR>([recentPR('Dead Hang', { secs: 45 })])
+    const ctx = makeContext(withHang)
+    const { blockIds, entries } = entriesFor('Adaptive — Pull')
+    const result = adaptSessionEntries(blockIds, entries, ctx)
+    const session = describeSession('Adaptive — Pull', ctx)
+    expect(session.some((s) => s.label === 'Back Lever Progression')).toBe(false)
+    expect(session.filter((s) => s.reason === 'prep')).toHaveLength(1)
+    expect(result.upgradeSuggestions.map((s) => s.progressionName)).toContain(
+      'Back Lever Progression',
+    )
+  })
+
+  it('the lever slot prescribes the lever chain once the athlete engages it', () => {
+    const withHang = new Map<string, MovementPR>([recentPR('Dead Hang', { secs: 45 })])
+    const engaged = makeContext(
+      withHang,
+      {},
+      trainedProgressions(['Back Lever Progression', 500]),
+    )
+    const session = describeSession('Adaptive — Pull', engaged)
+    expect(session.some((s) => s.label === 'Back Lever Progression')).toBe(true)
   })
 })
 
@@ -234,9 +284,7 @@ describe('session adaptation — substitution policy', () => {
   it('picks the requirement furthest from met when several block a slot', () => {
     // Muscle-Up needs 8 pull-ups AND 5 ring dips. With 6 pull-ups logged (75%)
     // and no ring dips (0%), ring dips is the real limiter.
-    const prs = new Map<string, MovementPR>([
-      [mvId('Pull-Ups'), { movementId: mvId('Pull-Ups'), movementName: 'Pull-Ups', bestReps: 6 }],
-    ])
+    const prs = new Map<string, MovementPR>([recentPR('Pull-Ups', { reps: 6 })])
     const ctx = makeContext(prs)
     const { blockIds, entries } = entriesFor('Adaptive — Pull & Core')
     const { entries: adapted, substitutedFor } = adaptSessionEntries(blockIds, entries, ctx)
@@ -264,10 +312,7 @@ describe('session adaptation — substitution policy', () => {
   })
 
   it('steps up from the current best, and never past the requirement', () => {
-    const withHang = (secs: number) =>
-      new Map<string, MovementPR>([
-        [mvId('Dead Hang'), { movementId: mvId('Dead Hang'), movementName: 'Dead Hang', bestSeconds: secs }],
-      ])
+    const withHang = (secs: number) => new Map<string, MovementPR>([recentPR('Dead Hang', { secs })])
     const hangTarget = (secs: number) => {
       const ctx = makeContext(withHang(secs))
       const { blockIds, entries } = entriesFor('Adaptive — Pull')
@@ -288,6 +333,45 @@ describe('session adaptation — substitution policy', () => {
     const result = adaptSessionEntries(['b1'], entries, ctx)
     expect(result.entries).toBe(entries)
     expect(result.substitutedFor.size).toBe(0)
+  })
+
+  it('a qualifying pull-up PR never auto-programs weighted pull-ups', () => {
+    // The failure that drove an athlete off the app: a logged session whose
+    // targets went in unedited (4×8 pull-ups, one 45s hang) tripped the
+    // weighted-pull-up and back-lever gates, and the next "Adaptive — Pull"
+    // prescribed +25%-BW weighted pull-ups and a German Hang to someone
+    // working sets of 4. Unlocks must be offers; the slot stays on the line
+    // the athlete has actually been training.
+    const prs = new Map<string, MovementPR>([
+      recentPR('Pull-Ups', { reps: 8 }),
+      recentPR('Dead Hang', { secs: 45 }),
+      recentPR('Ring Row', { reps: 10 }),
+      recentPR('Tucked L-Sit', { secs: 30 }),
+    ])
+    const lastTrained = trainedProgressions(
+      ['Pull-Up Progression', 900],
+      ['Rowing Progression', 900],
+      ['L-Sit Progression', 900],
+    )
+    const ctx = makeContext(prs, {}, lastTrained)
+    const { blockIds, entries } = entriesFor('Adaptive — Pull')
+    const result = adaptSessionEntries(blockIds, entries, ctx)
+    const session = describeSession('Adaptive — Pull', ctx)
+    const labels = session.map((s) => s.label)
+
+    // The athlete keeps the exercises they have been training…
+    expect(labels).toContain('Pull-Up Progression')
+    expect(labels).toContain('Rowing Progression')
+    expect(labels).toContain('L-Sit Progression')
+    // …and is not silently moved onto the newly-unlocked lines.
+    expect(labels).not.toContain('Weighted Pull-Up Progression')
+    expect(labels).not.toContain('Back Lever Progression')
+    // The lever slot holds as gate maintenance instead of vanishing.
+    expect(session.some((s) => s.reason === 'prep')).toBe(true)
+    // Both unlocks arrive as opt-in suggestions.
+    const suggested = result.upgradeSuggestions.map((s) => s.progressionName)
+    expect(suggested).toContain('Weighted Pull-Up Progression')
+    expect(suggested).toContain('Back Lever Progression')
   })
 
   it('drops a slot with nothing distinct left to offer rather than repeating', () => {

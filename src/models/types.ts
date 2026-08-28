@@ -38,6 +38,16 @@ export interface Progression {
   // advance or when a new qualifying session re-surfaces the card.
   dismissedAt?: number
   dismissedAtSessionCount?: number
+  // Adaptive-slot opt-in: timestamp of when the athlete chose this line as
+  // their working difficulty for its movement pattern. Pattern slots never
+  // auto-jump to a harder unlocked line — they stay on the engaged one (see
+  // src/lib/pattern-resolver.ts); accepting an upgrade card sets this.
+  // Non-indexed — no Dexie version bump required.
+  adoptedAt?: number
+  // Set when the athlete dismisses the "line unlocked — step up?" card. The
+  // card stays hidden until gate evidence NEWER than this timestamp appears
+  // (a fresh qualifying PR re-earns the suggestion).
+  upgradeDismissedAt?: number
 }
 
 // Advancement gate for a single progression rung. All numeric thresholds are
@@ -159,7 +169,7 @@ export type BlockEntry =
       progressionId?: never
       pattern?: never
     })
-  // Adaptive pattern slot — resolves at runtime (resolveBlocks) to the hardest
+  // Adaptive pattern slot — resolves at runtime (resolveBlocks) to the engaged
   // unlocked progression in the pattern's candidate chain. Authored in seed
   // only; the editor round-trips it read-only (no UI to create one yet).
   | (BlockEntryShared & {

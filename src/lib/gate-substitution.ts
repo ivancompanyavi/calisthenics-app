@@ -51,8 +51,15 @@ export type Substitution =
     }
   | { kind: 'progression'; progressionId: string }
 
-/** Why a slot was swapped — drives the "→ unlocks X" / "instead of X" label. */
-export type SubstitutionReason = 'unlock' | 'alternative'
+/**
+ * Why a slot was swapped — drives the "→ unlocks X" / "instead of X" label.
+ *   'unlock'      — the progression is locked; this is the work that opens it.
+ *   'alternative' — locked, and its unlock work is already on today's card.
+ *   'prep'        — UNLOCKED but never engaged (see pattern-resolver): the
+ *                   athlete hasn't opted in, so the slot maintains the gate
+ *                   evidence instead of auto-starting the line.
+ */
+export type SubstitutionReason = 'unlock' | 'alternative' | 'prep'
 
 export interface SubstitutionResult {
   substitution: Substitution
@@ -95,11 +102,12 @@ function isUnlocked(progression: Progression, ctx: SubstitutionContext): boolean
 // A movement-PR prerequisite maps onto a movement-bound slot. The threshold is
 // the GOAL, not today's prescription — handing someone who holds a 20s dead hang
 // a 45s target every session prescribes failure, not progress. So dose it off
-// where they actually are:
+// where they actually are — the RECENT best (current form), not the all-time
+// one, so a returning athlete re-tests instead of chasing pre-layoff numbers:
 //
-//   no PR yet  → a max-effort set. The app doesn't know their level, so find
-//                out; the set also creates the PR everything downstream needs.
-//   PR exists  → one progressive step up from it, capped at the threshold.
+//   no recent PR → a max-effort set. The app doesn't know their current level,
+//                  so find out; the set also refreshes the gate evidence.
+//   recent PR    → one progressive step up from it, capped at the threshold.
 //
 // A thresholdless prereq ("any PR") is always a max set — logging anything at
 // all satisfies it.
@@ -111,7 +119,7 @@ function movementPrerequisiteSlot(
   const pr = movementPRs.get(movementId)
 
   if (prerequisite.minSeconds != null) {
-    const best = pr?.bestSeconds ?? 0
+    const best = pr?.recentBestSeconds ?? 0
     if (best <= 0) return { kind: 'movement', movementId, mode: 'max' }
     // +10%, but always at least +5s so short holds still move.
     const next = Math.max(best + 5, Math.ceil(best * 1.1))
@@ -124,7 +132,7 @@ function movementPrerequisiteSlot(
   }
 
   if (prerequisite.minReps != null) {
-    const best = pr?.bestReps ?? 0
+    const best = pr?.recentBestReps ?? 0
     if (best <= 0) return { kind: 'movement', movementId, mode: 'max' }
     return {
       kind: 'movement',
@@ -254,5 +262,38 @@ export function substituteLockedProgression(
   }
 
   // 3. Nothing distinct to offer.
+  return null
+}
+
+/**
+ * What an UNLOCKED-but-never-engaged optional slot trains: maintenance of the
+ * line's gate evidence, dosed off current form (see movementPrerequisiteSlot).
+ * "Back Lever is unlocked but the athlete hasn't opted in" → keep dead-hanging
+ * rather than silently prescribing the German Hang. Keeps the slot as real
+ * training volume — a session must never lose content to a gating rule.
+ *
+ * Returns null when the line has no movement-PR prerequisites to maintain or
+ * every one is already claimed elsewhere in the session (nothing distinct to
+ * offer — same drop rule as substituteLockedProgression).
+ */
+export function substituteUnengagedProgression(
+  progressionId: string,
+  ctx: SubstitutionContext,
+  claimed: ReadonlySet<string>,
+): SubstitutionResult | null {
+  const progression = ctx.progressions.find((p) => p.id === progressionId)
+  if (!progression) return null
+
+  for (const prerequisite of progression.entryPrerequisites ?? []) {
+    if (prerequisite.kind !== 'movement-pr') continue
+    if (claimed.has(prerequisite.movementId)) continue
+    return {
+      substitution: movementPrerequisiteSlot(prerequisite, ctx.movementPRs),
+      movementId: prerequisite.movementId,
+      reason: 'prep',
+      forProgressionId: progression.id,
+      forProgressionName: progression.name,
+    }
+  }
   return null
 }

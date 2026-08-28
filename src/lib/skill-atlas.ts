@@ -52,34 +52,42 @@ function evalProgressionLevel(
   return { prerequisite: prereq, met, progress }
 }
 
+// Which PR fields prove a movement-pr prerequisite:
+//   'all-time' — the historical best. Achievements (the Atlas) never expire.
+//   'recent'   — the best inside GATE_EVIDENCE_WINDOW. Trainability (entry
+//                gates) must reflect current form, so stale bests don't keep
+//                a line unlocked through a detraining layoff.
+export type PrerequisiteEvidence = 'all-time' | 'recent'
+
 // Evaluate a single movement-pr prerequisite.
 function evalMovementPR(
   movementId: string,
   minReps: number | undefined,
   minSeconds: number | undefined,
   prById: Map<string, MovementPR>,
+  evidence: PrerequisiteEvidence,
 ): PrerequisiteResult {
   const prereq: SkillPrerequisite = { kind: 'movement-pr', movementId, minReps, minSeconds }
   const pr = prById.get(movementId)
+  const bestReps = (evidence === 'recent' ? pr?.recentBestReps : pr?.bestReps) ?? 0
+  const bestSeconds = (evidence === 'recent' ? pr?.recentBestSeconds : pr?.bestSeconds) ?? 0
 
   // If no threshold is specified the prerequisite is satisfied by having any PR.
   if (minReps === undefined && minSeconds === undefined) {
-    const met = pr !== undefined
+    const met = evidence === 'recent' ? bestReps > 0 || bestSeconds > 0 : pr !== undefined
     return { prerequisite: prereq, met, progress: met ? 1 : 0 }
   }
 
   if (minReps !== undefined) {
-    const best = pr?.bestReps ?? 0
-    const met = best >= minReps
-    const progress = Math.min(best / minReps, 1)
+    const met = bestReps >= minReps
+    const progress = Math.min(bestReps / minReps, 1)
     return { prerequisite: prereq, met, progress }
   }
 
   // minSeconds
   const target = minSeconds!
-  const best = pr?.bestSeconds ?? 0
-  const met = best >= target
-  const progress = Math.min(best / target, 1)
+  const met = bestSeconds >= target
+  const progress = Math.min(bestSeconds / target, 1)
   return { prerequisite: prereq, met, progress }
 }
 
@@ -90,12 +98,13 @@ export function evaluatePrerequisites(
   prerequisites: SkillPrerequisite[],
   progressionById: Map<string, Progression>,
   prById: Map<string, MovementPR>,
+  evidence: PrerequisiteEvidence = 'all-time',
 ): PrerequisiteResult[] {
   return prerequisites.map((prereq) => {
     if (prereq.kind === 'progression-level') {
       return evalProgressionLevel(prereq.progressionId, prereq.levelOrder, progressionById)
     }
-    return evalMovementPR(prereq.movementId, prereq.minReps, prereq.minSeconds, prById)
+    return evalMovementPR(prereq.movementId, prereq.minReps, prereq.minSeconds, prById, evidence)
   })
 }
 

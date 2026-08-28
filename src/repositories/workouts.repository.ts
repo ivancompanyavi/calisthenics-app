@@ -5,7 +5,7 @@ import { workoutLogsRepository, type RepsSuggestion } from './workout-logs.repos
 import { generateId } from '@/lib/utils'
 import type { WorkoutEntryGroup } from '@/lib/advance-audit'
 import { SEED_PATTERNS } from '@/db/seed/patterns'
-import { adaptSessionEntries } from '@/lib/session-adaptation'
+import { adaptSessionEntries, type UpgradeSuggestion } from '@/lib/session-adaptation'
 import type { SubstitutedFor } from '@/lib/execution-engine'
 
 interface SaveEntryShared {
@@ -153,6 +153,18 @@ export const workoutsRepository = {
   },
 
   resolveBlocks: async (blocks: WorkoutBlock[], entries: BlockEntry[]): Promise<ResolvedBlock[]> => {
+    const { blocks: resolved } = await workoutsRepository.resolveBlocksDetailed(blocks, entries)
+    return resolved
+  },
+
+  // resolveBlocks plus the session's opt-in upgrade suggestions (harder
+  // unlocked lines a pattern slot is NOT auto-applying). Split out so the
+  // execution path keeps its plain ResolvedBlock[] shape (crash-recovery
+  // resume records store that directly) while the preview can offer upgrades.
+  resolveBlocksDetailed: async (
+    blocks: WorkoutBlock[],
+    entries: BlockEntry[],
+  ): Promise<{ blocks: ResolvedBlock[]; upgradeSuggestions: UpgradeSuggestion[] }> => {
     // ── Adaptation pre-pass ───────────────────────────────────────────────────
     // Rewrites the session into what the athlete can train TODAY (pattern slots
     // resolved, locked slots substituted or dropped), so everything below only
@@ -160,12 +172,15 @@ export const workoutsRepository = {
     // src/lib/session-adaptation.ts; this just supplies the data snapshots.
     // Fast-path: a workout of only movement-bound entries can't be gated.
     let substitutedFor = new Map<string, SubstitutedFor>()
+    let upgradeSuggestions: UpgradeSuggestion[] = []
     if (entries.some((e) => e.kind !== 'movement')) {
-      const [allProgressions, allProgressionLevels, prs] = await Promise.all([
-        db.progressions.toArray(),
-        db.progressionLevels.orderBy('order').toArray(),
-        workoutLogsRepository.getAllPRs(),
-      ])
+      const [allProgressions, allProgressionLevels, prs, lastTrainedByProgression] =
+        await Promise.all([
+          db.progressions.toArray(),
+          db.progressionLevels.orderBy('order').toArray(),
+          workoutLogsRepository.getAllPRs(),
+          workoutLogsRepository.getLastTrainedByProgression(),
+        ])
       const levelsByProgression = new Map<string, ProgressionLevel[]>()
       for (const lvl of allProgressionLevels) {
         const arr = levelsByProgression.get(lvl.progressionId) ?? []
@@ -180,10 +195,12 @@ export const workoutsRepository = {
           levelsByProgression,
           movementPRs: prs,
           patterns: SEED_PATTERNS,
+          lastTrainedByProgression,
         },
       )
       entries = adapted.entries
       substitutedFor = adapted.substitutedFor
+      upgradeSuggestions = adapted.upgradeSuggestions
     }
 
     // Two pre-fetch passes avoid an N+1: pull all progressions + their levels
@@ -302,7 +319,7 @@ export const workoutsRepository = {
       }
     }
 
-    return blocks
+    const resolvedBlocks = blocks
       .map((block) => {
         const blockEntries = entries
           .filter((e) => e.blockId === block.id)
@@ -318,5 +335,7 @@ export const workoutsRepository = {
       // nothing unlocked). Normal blocks always have entries, so this is a
       // no-op for non-adaptive workouts.
       .filter((block) => block.entries.length > 0)
+
+    return { blocks: resolvedBlocks, upgradeSuggestions }
   },
 }

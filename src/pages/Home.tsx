@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Settings as SettingsIcon } from 'lucide-react'
-import { useWorkouts } from '@/hooks/useWorkouts'
+import { useWorkouts, useUpgradeSuggestions } from '@/hooks/useWorkouts'
+import { progressionsRepository } from '@/repositories'
+import { queryKeys } from '@/lib/query-keys'
+import { UpgradeSuggestionCard } from '@/components/workouts/UpgradeSuggestionCard'
 import { useWorkoutLogs } from '@/hooks/useHistory'
 import { useInProgressWorkout, useDiscardInProgress } from '@/hooks/useInProgressWorkout'
 import { useCurrentSlot, useMarkSlotDone } from '@/hooks/usePrograms'
@@ -44,6 +48,24 @@ export function Home() {
         return (vb.daysAtRung - va.daysAtRung) || (vb.sessionsAtRung - va.sessionsAtRung)
       })
   }, [progressions, verdicts])
+
+  // Step-up offers for today's scheduled workout. Home is where sessions
+  // usually start (it navigates straight into execution, skipping the workout
+  // preview), so the opt-in cards must be visible here too.
+  const queryClient = useQueryClient()
+  const todayWorkoutId =
+    currentSlot?.pointerIndex != null
+      ? currentSlot.cycleSlots[currentSlot.pointerIndex]?.workoutId
+      : undefined
+  const { data: upgradeSuggestions } = useUpgradeSuggestions(todayWorkoutId)
+  const onUpgradeAction = async (
+    action: (id: string) => Promise<void>,
+    progressionId: string,
+  ) => {
+    await action(progressionId)
+    // Also refreshes the suggestion query — its key nests under progressions.
+    await queryClient.invalidateQueries({ queryKey: queryKeys.progressions.all })
+  }
 
   const startWorkoutForSlot = (workoutId: string, slotIndex: number) => {
     setPickerOpen(false)
@@ -100,6 +122,19 @@ export function Home() {
                 />
               )
             })}
+          </div>
+        )}
+
+        {upgradeSuggestions && upgradeSuggestions.length > 0 && (
+          <div className="space-y-2">
+            {upgradeSuggestions.map((suggestion) => (
+              <UpgradeSuggestionCard
+                key={suggestion.progressionId}
+                suggestion={suggestion}
+                onAdopt={(id) => onUpgradeAction(progressionsRepository.adopt, id)}
+                onDismiss={(id) => onUpgradeAction(progressionsRepository.dismissUpgrade, id)}
+              />
+            ))}
           </div>
         )}
 
