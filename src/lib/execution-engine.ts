@@ -15,9 +15,27 @@ export interface SubstitutedFor {
   reason: 'unlock' | 'alternative'
 }
 
+// The movement fields a swap replaces. Mirrors the Movement row's display
+// fields — everything ResolvedEntry carries about *which exercise* this is.
+export interface SwapMovement {
+  id: string
+  name: string
+  photo?: Blob
+  seedImagePath?: string
+  description?: string
+  coachingCues?: string
+  referenceUrl?: string
+  family?: MovementFamily
+  prepTags?: PrepTag[]
+}
+
 export interface ResolvedEntry {
   // Present only on a substituted slot — see SubstitutedFor.
   substitutedFor?: SubstitutedFor
+  // Set when the athlete swapped this exercise mid-session. Holds the
+  // originally prescribed movement so the set log can record the deviation.
+  // Cleared if they swap back to the original.
+  swappedFrom?: { movementId: string; movementName: string }
   progressionId?: string
   // Populated alongside progressionId so display layers can show "via X
   // Progression · Lvl N/M" without needing to re-fetch the progression row.
@@ -139,6 +157,7 @@ export type Action =
   | { type: 'SET_ADJUST_WEIGHT_KG'; value: number | undefined }
   | { type: 'SET_ADJUST_BAND_LEVEL'; value: number | undefined }
   | { type: 'CONFIRM_ADJUST'; now: number }
+  | { type: 'SWAP_EXERCISE'; movement: SwapMovement }
   | { type: 'DELAY_EXERCISE'; now: number }
   | { type: 'SKIP_EXERCISE'; now: number; reason?: string }
   | { type: 'FINISH_WORKOUT' }
@@ -389,6 +408,60 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
       return { ...state, ...startExerciseFields(entry, action.now) }
     }
 
+    case 'SWAP_EXERCISE': {
+      // "I can't do this today — give me something else." Injury, missing
+      // equipment, a bad day. Applies to the current entry for the rest of the
+      // session (all remaining rounds), so the athlete swaps once, not per set.
+      //
+      // The prescription (sets, reps/time, rest, tempo) is deliberately kept:
+      // this substitutes the EXERCISE, not the dose. That also means mode is
+      // preserved — swapping a reps exercise for a hold will still log reps.
+      // Fine for like-for-like swaps (pull-ups → band-assisted pull-ups),
+      // which is what this is for.
+      if (state.phase !== 'exercise') return state
+      const entry = getCurrentEntry(state)
+      if (!entry) return state
+      const m = action.movement
+      if (m.id === entry.movementId) return state
+
+      const original = entry.swappedFrom ?? {
+        movementId: entry.movementId,
+        movementName: entry.movementName,
+      }
+      // Swapping back to what was prescribed is not a deviation.
+      const isRevert = m.id === original.movementId
+
+      const swapped: ResolvedEntry = {
+        ...entry,
+        movementId: m.id,
+        movementName: m.name,
+        movementPhoto: m.photo,
+        movementSeedImagePath: m.seedImagePath,
+        movementDescription: m.description,
+        movementCoachingCues: m.coachingCues,
+        movementReferenceUrl: m.referenceUrl,
+        movementFamily: m.family,
+        movementPrepTags: m.prepTags,
+        // The auto-progression suggestion was derived from the prescribed
+        // movement's history — it says nothing about the one being swapped in.
+        suggestedReps: undefined,
+        suggestedRepsReason: undefined,
+        swappedFrom: isRevert ? undefined : original,
+      }
+
+      const newBlocks = state.blocks.map((b, bi) =>
+        bi !== state.currentBlockIndex
+          ? b
+          : {
+              ...b,
+              entries: b.entries.map((e, ei) =>
+                ei === state.currentEntryIndex ? swapped : e,
+              ),
+            },
+      )
+      return { ...state, blocks: newBlocks }
+    }
+
     case 'DELAY_EXERCISE': {
       const block = state.blocks[state.currentBlockIndex]
       if (!block) return state
@@ -578,6 +651,10 @@ export function executionReducer(state: ExecutionState, action: Action): Executi
         actualWeightKg: state.adjustWeightKg,
         targetBandLevel: entry.targetBandLevel,
         actualBandLevel: state.adjustBandLevel,
+        // movementId above is what was actually performed; these record what
+        // the program asked for when the two differ. Absent = as prescribed.
+        prescribedMovementId: entry.swappedFrom?.movementId,
+        prescribedMovementName: entry.swappedFrom?.movementName,
         warmup: confirmBlockIsWarmup || undefined,
       }
 

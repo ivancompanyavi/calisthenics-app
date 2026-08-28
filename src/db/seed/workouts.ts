@@ -198,8 +198,16 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
       { type: "set", rounds: 4, restSeconds: 120, entries: [{ pattern: "horizontal-push" }] },
       { type: "set", rounds: 3, restSeconds: 120, entries: [{ pattern: "dip" }] },
       { type: "set", rounds: 3, restSeconds: 120, entries: [{ pattern: "overhead-press" }] },
+      // Second weekly leg exposure (the other is Wed). Deliberate, not accessory
+      // drift: legs only get two patterns in the library, so a single leg day
+      // caps the week at ~9 sets. Splitting across Mon/Wed buys frequency
+      // without a third pattern. [SCIENCE — MSP Training p.28: spread sets
+      // across days rather than concentrating them.] SQUAT specifically, not
+      // hinge — the hinge line runs into Nordics, and eccentric hamstring DOMS
+      // two days before the real leg day would eat it.
+      { type: "set", rounds: 3, restSeconds: 90, entries: [{ pattern: "squat" }] },
       // Anti-extension core closes the day — it's the trunk demand the planche
-      // and HSPU lines both cash in on. Core only, never leg accessory work.
+      // and HSPU lines both cash in on.
       { type: "set", rounds: 3, restSeconds: 60, entries: [{ pattern: "core-anti-extension" }] },
     ],
   },
@@ -222,8 +230,11 @@ export const SEED_WORKOUTS: SeedWorkout[] = [
     name: "Adaptive — Legs & Core",
     restBetweenBlocksSeconds: 90,
     blocks: [
-      { type: "set", rounds: 3, restSeconds: 120, entries: [{ pattern: "squat" }] },
-      { type: "set", rounds: 3, restSeconds: 90, entries: [{ pattern: "hinge" }] },
+      // The real leg day. 5+4 here plus 3 on Mon = 12 sets/wk, up from 6 — the
+      // low end of the 10-20 practical range, which suits a strength-to-weight
+      // athlete who doesn't want the leg mass. [SCIENCE — MSP Training p.39-40.]
+      { type: "set", rounds: 5, restSeconds: 120, entries: [{ pattern: "squat" }] },
+      { type: "set", rounds: 4, restSeconds: 90, entries: [{ pattern: "hinge" }] },
       { type: "set", rounds: 3, restSeconds: 60, entries: [{ pattern: "core-anti-extension" }] },
       { type: "set", rounds: 3, restSeconds: 60, entries: [{ pattern: "core-flexion" }] },
     ],

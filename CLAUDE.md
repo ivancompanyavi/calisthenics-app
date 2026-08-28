@@ -6,6 +6,24 @@ Quick reference for AI agents. Read **CONTEXT.md** for the full architecture and
 
 Personal PWA. The seed data in `src/db/seed/*.ts` is the owner's _actual_ training program — edits to those files change what they see in the app on next reload. Treat workout/program/progression edits as production changes, not examples.
 
+## GitHub account (this repo is the odd one out)
+
+This is a **personal** project on the `ivancompanyavi` GitHub account. The rest of this laptop uses a work account (`ivan-company`), which is the `gh` default — so anything that resolves through the wrong account fails confusingly.
+
+```bash
+gh auth switch -u ivancompanyavi     # before gh api calls against the private data repo
+gh auth switch -u ivan-company       # switch back when done
+```
+
+What actually needs which:
+
+| Operation | Account |
+| --- | --- |
+| `git push`, `gh pr create` on `calisthenics-app` | either — the work account has access |
+| `gh api` against the **private** `ivancompanyavi/calisthenics-data` | **`ivancompanyavi` only** — the work account gets a bare 404, which reads like "repo doesn't exist" rather than "wrong identity" |
+
+The private repo is the training-data mirror the `training-coach` skill reads. If it 404s, check the active account *before* concluding the mirror isn't set up.
+
 ## Commands
 
 Package manager is **pnpm** (the README says `npm`, but `package.json` pins `pnpm@9.15.4`).
@@ -34,7 +52,7 @@ Tests live in `src/**/__tests__/*.test.ts`. The state machine in `src/lib/execut
 
 When advancing a progression's `currentLevel`, audit workouts that _also_ name-reference the next-rung movement directly — they may now duplicate the same exercise.
 
-**Workout-edit hygiene.** When adding/removing block entries, check for cross-day duplication. Recurring drift pattern: leg/calf accessory work creeping onto pull/push days — keep accessory leg work on `Adaptive — Legs & Core`.
+**Workout-edit hygiene.** When adding/removing block entries, check for cross-day duplication. Recurring drift pattern: leg/calf *accessory* work creeping onto pull/push days. The `squat` slot on `Adaptive — Push` is the one sanctioned exception — a deliberate second weekly leg exposure, since the pattern library only has two leg patterns and one leg day caps the week at ~9 sets. Anything beyond that belongs on `Adaptive — Legs & Core`.
 
 **Slot order must survive the degraded case.** A pattern slot whose whole chain is locked degrades to the exercise that unlocks it, which can be a completely different demand — a lever slot becomes a long dead hang. So don't lead a day with a slot whose unlock work would pre-fatigue that day's main lift (this is why `Adaptive — Pull` opens with the pull-up slot, not the lever slot).
 

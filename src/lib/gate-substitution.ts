@@ -12,9 +12,10 @@
 //
 //   1. UNLOCK WORK — train the requirement that is blocking it, hardest-blocked
 //      first (lowest progress). "Back Lever is locked on a 45s Dead Hang" →
-//      prescribe Dead Hang for 45s. Doing the work is what opens the gate, so
-//      the substitution is self-clearing: log the hang, the slot upgrades
-//      itself next session.
+//      prescribe Dead Hang. Doing the work is what opens the gate, so the
+//      substitution is self-clearing: log the hang, the slot upgrades itself.
+//      The DOSE comes from the athlete's current best, not the threshold —
+//      see movementPrerequisiteSlot.
 //
 //      A blocker that is ITSELF locked recurses (Front Lever needs Back Lever
 //      needs a 45s Dead Hang → Dead Hang), bounded by MAX_DEPTH and a visited
@@ -91,29 +92,49 @@ function isUnlocked(progression: Progression, ctx: SubstitutionContext): boolean
   ).unlocked
 }
 
-// A movement-PR prerequisite maps straight onto a movement-bound slot: the
-// threshold IS the target. A thresholdless prereq ("any PR") becomes a max-effort
-// set, since logging anything satisfies it.
+// A movement-PR prerequisite maps onto a movement-bound slot. The threshold is
+// the GOAL, not today's prescription — handing someone who holds a 20s dead hang
+// a 45s target every session prescribes failure, not progress. So dose it off
+// where they actually are:
+//
+//   no PR yet  → a max-effort set. The app doesn't know their level, so find
+//                out; the set also creates the PR everything downstream needs.
+//   PR exists  → one progressive step up from it, capped at the threshold.
+//
+// A thresholdless prereq ("any PR") is always a max set — logging anything at
+// all satisfies it.
 function movementPrerequisiteSlot(
   prerequisite: Extract<SkillPrerequisite, { kind: 'movement-pr' }>,
+  movementPRs: Map<string, MovementPR>,
 ): Substitution {
+  const movementId = prerequisite.movementId
+  const pr = movementPRs.get(movementId)
+
   if (prerequisite.minSeconds != null) {
+    const best = pr?.bestSeconds ?? 0
+    if (best <= 0) return { kind: 'movement', movementId, mode: 'max' }
+    // +10%, but always at least +5s so short holds still move.
+    const next = Math.max(best + 5, Math.ceil(best * 1.1))
     return {
       kind: 'movement',
-      movementId: prerequisite.movementId,
+      movementId,
       mode: 'time',
-      targetSeconds: prerequisite.minSeconds,
+      targetSeconds: Math.min(prerequisite.minSeconds, next),
     }
   }
+
   if (prerequisite.minReps != null) {
+    const best = pr?.bestReps ?? 0
+    if (best <= 0) return { kind: 'movement', movementId, mode: 'max' }
     return {
       kind: 'movement',
-      movementId: prerequisite.movementId,
+      movementId,
       mode: 'reps',
-      targetReps: prerequisite.minReps,
+      targetReps: Math.min(prerequisite.minReps, best + 1),
     }
   }
-  return { kind: 'movement', movementId: prerequisite.movementId, mode: 'max' }
+
+  return { kind: 'movement', movementId, mode: 'max' }
 }
 
 /**
@@ -148,7 +169,7 @@ function unlockCandidates(
   const out: Substitution[] = []
   for (const { prerequisite } of unmet) {
     if (prerequisite.kind === 'movement-pr') {
-      out.push(movementPrerequisiteSlot(prerequisite))
+      out.push(movementPrerequisiteSlot(prerequisite, ctx.movementPRs))
       continue
     }
     const target = ctx.progressions.find((p) => p.id === prerequisite.progressionId)

@@ -2,7 +2,7 @@ import type { ResolvedEntry } from '@/hooks/useWorkoutExecution'
 import { MovementPhoto } from '@/components/movements/MovementPhoto'
 import { Button } from '@/components/ui/button'
 import { formatTime, formatTempo } from '@/lib/utils'
-import { Check, Clock, X, Video } from 'lucide-react'
+import { Check, Clock, X, Video, Repeat } from 'lucide-react'
 import { useWeightUnit } from '@/hooks/useSettings'
 import { formatWeight } from '@/lib/units'
 import { SubstitutionNote } from '@/components/workouts/SubstitutionNote'
@@ -16,9 +16,10 @@ interface ExerciseDisplayProps {
   onDone: () => void
   onDelay: () => void
   onSkip: () => void
+  onSwap: () => void
 }
 
-export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone, onDelay, onSkip }: ExerciseDisplayProps) {
+export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, totalRounds, onDone, onDelay, onSkip, onSwap }: ExerciseDisplayProps) {
   const sideLabel = entry.perSide ? ' /side' : ''
   const unit = useWeightUnit()
 
@@ -37,6 +38,15 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
         {entry.substitutedFor && (
           <div className="flex justify-center mb-2">
             <SubstitutionNote substitutedFor={entry.substitutedFor} variant="banner" />
+          </div>
+        )}
+        {/* The athlete's own swap, distinct from an automatic substitution. */}
+        {entry.swappedFrom && (
+          <div className="flex justify-center mb-2">
+            <div className="flex items-center gap-2 rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+              <Repeat className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Swapped from {entry.swappedFrom.movementName}</span>
+            </div>
           </div>
         )}
         <h2 className="text-2xl font-bold">{entry.movementName}</h2>
@@ -128,6 +138,10 @@ export function ExerciseDisplay({ entry, timeRemaining, timeElapsed, round, tota
         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onDelay}>
           <Clock className="h-4 w-4 mr-1" />
           Delay
+        </Button>
+        <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onSwap}>
+          <Repeat className="h-4 w-4 mr-1" />
+          Swap
         </Button>
         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onSkip}>
           <X className="h-4 w-4 mr-1" />
